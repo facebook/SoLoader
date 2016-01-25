@@ -1,0 +1,20 @@
+NAME = 'SoLoader'
+
+GROUP = 'com.facebook.soloader'
+ARTIFACT = 'soloader'
+VERSION='0.1.0'
+
+DESCRIPTION = "Reliable native code loader for Android"
+
+LICENSES = [
+  {
+    'name' : 'BSD License',
+    'url' : 'https://github.com/facebook/soloader/blob/master/LICENSE'
+  }
+]
+
+SCM = {
+  'url' : 'https://github.com/facebook/soloader.git',
+  'connection' : 'scm:git:https://github.com/facebook/soloader.git',
+  'developerConnection' : 'scm:git:git@github.com:facebook/soloader.git',
+}
