@@ -16,7 +16,7 @@ to your build.gradle file.
 
 ## Building from source
 To build SoLoader from source you'll need [Buck](https://buckbuild.com/).
-Onve you have Buck installed execute following commands from the project root
+Once you have Buck installed execute following commands from the project root
 directory:
 ```shell
   python scripts/fetch_deps.py

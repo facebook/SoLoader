@@ -6,7 +6,7 @@ def _deps_decorator(original_rule):
     """
     def augmented_rule(**kwargs):
         all_deps = kwargs.get('deps', [])
-        oss_deps = [dep for dep in all_deps if dep.startswith('//deps/')]
+        oss_deps = [dep for dep in all_deps if dep.startswith('//deps:')]
         kwargs['deps'] = [dep for dep in all_deps if dep not in oss_deps]
         kwargs.setdefault('provided_deps', []).extend(oss_deps)
         original_rule(**kwargs)
