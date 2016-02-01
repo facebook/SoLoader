@@ -5,6 +5,7 @@ ARTIFACT = 'soloader'
 VERSION='0.1.0'
 
 DESCRIPTION = "Reliable native code loader for Android"
+URL = 'https://github.com/facebook/soloader'
 
 LICENSES = [
   {
