@@ -12,7 +12,6 @@ or fetch SoLoader from Maven repository by adding the following to your
 ```groovy
 compile 'com.facebook.soloader:soloader:0.1.0+'
 ```
-to your build.gradle file.
 
 ## Building from source
 To build SoLoader from source you'll need [Buck](https://buckbuild.com/).
