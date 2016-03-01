@@ -121,10 +121,12 @@ public final class SysUtil {
    * downlevel.
    */
   private static final class LollipopSysdeps {
+    @DoNotOptimize
     public static String[] getSupportedAbis() {
       return Build.SUPPORTED_32_BIT_ABIS; // We ain't doing no newfangled 64-bit
     }
 
+    @DoNotOptimize
     public static void fallocateIfSupported(FileDescriptor fd, long length) throws IOException {
       try {
         Os.posix_fallocate(fd, 0, length);
