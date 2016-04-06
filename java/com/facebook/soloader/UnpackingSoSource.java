@@ -173,13 +173,16 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   private void extractDso(InputDso iDso, byte[] ioBuffer) throws IOException {
     Log.i(TAG, "extracting DSO " + iDso.dso.name);
+    if (!soDirectory.setWritable(true /* can write */, true /* owner only */)) {
+      throw new IOException("cannot make directory writable for us: " + soDirectory);
+    }
     File dsoFileName = new File(soDirectory, iDso.dso.name);
     RandomAccessFile dsoFile = null;
     try {
       dsoFile = new RandomAccessFile(dsoFileName, "rw");
     } catch (IOException ex) {
       Log.w(TAG, "error overwriting " + dsoFileName + " trying to delete and start over", ex);
-      dsoFileName.delete();
+      SysUtil.dumbDeleteRecursive(dsoFileName); // Throws on error; not existing is okay
       dsoFile = new RandomAccessFile(dsoFileName, "rw");
     }
 
