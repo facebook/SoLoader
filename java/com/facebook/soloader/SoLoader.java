@@ -319,6 +319,10 @@ public class SoLoader {
     }
   }
 
+  public static Set<String> getLoadedLibrariesNames() {
+    return sLoadedLibraries;
+  }
+
   /* package */ static File unpackLibraryBySoName(String soName) throws IOException {
     for (int i = 0; i < sSoSources.length; ++i) {
       File unpacked = sSoSources[i].unpackLibrary(soName);
