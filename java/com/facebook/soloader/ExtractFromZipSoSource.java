@@ -5,6 +5,9 @@ package com.facebook.soloader;
 import java.io.File;
 import java.io.IOException;
 import android.content.Context;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipEntry;
 import java.util.regex.Pattern;
@@ -45,20 +48,23 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
   @Override
   protected Unpacker makeUnpacker() throws IOException {
-    return new ZipUnpacker();
+    return new ZipUnpacker(this);
   }
 
   protected class ZipUnpacker extends Unpacker {
 
     private ZipDso[] mDsos;
     private final ZipFile mZipFile;
+    private final UnpackingSoSource mSoSource;
 
-    ZipUnpacker() throws IOException {
+    ZipUnpacker(final UnpackingSoSource soSource) throws IOException {
       mZipFile = new ZipFile(mZipFileName);
+      mSoSource = soSource;
     }
 
     final ZipDso[] ensureDsos() {
       if (mDsos == null) {
+        Set<String> librariesAbiSet = new LinkedHashSet<>();
         HashMap<String, ZipDso> providedLibraries = new HashMap<>();
         Pattern zipSearchPattern = Pattern.compile(mZipSearchPattern);
         String[] supportedAbis = SysUtil.getSupportedAbis();
@@ -71,6 +77,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
             String soName = m.group(2);
             int abiScore = SysUtil.findAbiScore(supportedAbis, libraryAbi);
             if (abiScore >= 0) {
+              librariesAbiSet.add(libraryAbi);
               ZipDso so = providedLibraries.get(soName);
               if (so == null || abiScore < so.abiScore) {
                 providedLibraries.put(soName, new ZipDso(soName, entry, abiScore));
@@ -78,6 +85,8 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
             }
           }
         }
+
+        mSoSource.setSoSourceAbis(librariesAbiSet.toArray(new String[librariesAbiSet.size()]));
 
         ZipDso[] dsos = providedLibraries.values().toArray(new ZipDso[providedLibraries.size()]);
         Arrays.sort(dsos);

@@ -35,6 +35,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   private static final byte MANIFEST_VERSION = 1;
 
   protected final Context mContext;
+  private String[] mAbis;
 
   protected UnpackingSoSource(Context context, String name) {
     super(getSoStorePath(context, name), RESOLVE_DEPENDENCIES);
@@ -46,6 +47,19 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   }
 
   protected abstract Unpacker makeUnpacker() throws IOException;
+
+  @Override
+  public String[] getSoSourceAbis() {
+    if (mAbis == null) {
+      return super.getSoSourceAbis();
+    }
+
+    return mAbis;
+  }
+
+  public void setSoSourceAbis(final String []abis) {
+    mAbis = abis;
+  }
 
   public static class Dso {
     public final String name;

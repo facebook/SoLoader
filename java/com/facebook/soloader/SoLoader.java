@@ -368,4 +368,32 @@ public class SoLoader {
     }
     return TextUtils.join(":", pathElements);
   }
+
+  /**
+   * This function ensure that every SoSources Abi is supported for at least one
+   * abi in SysUtil.getSupportedAbis
+   * @return true if all SoSources have their Abis supported
+   */
+  public static boolean areSoSourcesAbisSupported() {
+    SoSource[] soSources = sSoSources;
+    if (soSources == null) {
+      return false;
+    }
+
+    String supportedAbis[] = SysUtil.getSupportedAbis();
+    for (int i = 0; i < soSources.length; ++i) {
+      String[] soSourceAbis = soSources[i].getSoSourceAbis();
+      for (int j = 0; j < soSourceAbis.length; ++j) {
+        boolean soSourceSupported = false;
+        for (int k = 0; k < supportedAbis.length && !soSourceSupported; ++k) {
+          soSourceSupported = soSourceAbis[j].equals(supportedAbis[k]);
+        }
+        if (!soSourceSupported) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
 }

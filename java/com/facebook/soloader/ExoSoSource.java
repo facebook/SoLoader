@@ -13,6 +13,8 @@ import java.io.File;
 import java.io.IOException;
 import android.content.Context;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.jar.JarEntry;
 
@@ -49,14 +51,14 @@ public final class ExoSoSource extends UnpackingSoSource {
 
   @Override
   protected Unpacker makeUnpacker() throws IOException {
-    return new ExoUnpacker();
+    return new ExoUnpacker(this);
   }
 
   private final class ExoUnpacker extends Unpacker {
 
     private final FileDso[] mDsos;
 
-    ExoUnpacker() throws IOException {
+    ExoUnpacker(final UnpackingSoSource soSource) throws IOException {
       Context context = mContext;
       File exoDir = new File(
           "/data/local/tmp/exopackage/"
@@ -65,11 +67,15 @@ public final class ExoSoSource extends UnpackingSoSource {
 
       ArrayList<FileDso> providedLibraries = new ArrayList<>();
 
+      Set<String> librariesAbiSet = new LinkedHashSet<>();
+
       for (String abi : SysUtil.getSupportedAbis()) {
         File abiDir = new File(exoDir, abi);
         if (!abiDir.isDirectory()) {
           continue;
         }
+
+        librariesAbiSet.add(abi);
 
         File metadataFileName = new File(abiDir, "metadata.txt");
         if (!metadataFileName.isFile()) {
@@ -113,6 +119,7 @@ public final class ExoSoSource extends UnpackingSoSource {
         }
       }
 
+      soSource.setSoSourceAbis(librariesAbiSet.toArray(new String[librariesAbiSet.size()]));
       mDsos = providedLibraries.toArray(new FileDso[providedLibraries.size()]);
     }
 

@@ -76,4 +76,14 @@ abstract public class SoSource {
   public void addToLdLibraryPath(Collection<String> paths) {
     /* By default, do nothing */
   }
+
+  /**
+   * Return an array of ABIs handled by this SoSource.
+   *
+   * @return ABIs supported by this SoSource
+   */
+  public String[] getSoSourceAbis() {
+    /* By default, the same as the device */
+    return SysUtil.getSupportedAbis();
+  }
 }

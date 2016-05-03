@@ -39,7 +39,7 @@ public class ApkSoSource extends ExtractFromZipSoSource {
 
   @Override
   protected Unpacker makeUnpacker() throws IOException {
-    return new ApkUnpacker();
+    return new ApkUnpacker(this);
   }
 
   protected class ApkUnpacker extends ZipUnpacker {
@@ -47,8 +47,8 @@ public class ApkSoSource extends ExtractFromZipSoSource {
     private File mLibDir;
     private final int mFlags;
 
-    ApkUnpacker() throws IOException {
-      super();
+    ApkUnpacker(ExtractFromZipSoSource soSource) throws IOException {
+      super(soSource);
       mLibDir = new File(mContext.getApplicationInfo().nativeLibraryDir);
       mFlags = ApkSoSource.this.mFlags;
     }
