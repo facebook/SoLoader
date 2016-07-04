@@ -22,7 +22,10 @@ public class ApkSoSource extends ExtractFromZipSoSource {
    */
   public static final int PREFER_ANDROID_LIBS_DIRECTORY = (1<<0);
 
-  private static final byte APK_SIGNATURE_VERSION = 1;
+  private static final byte APK_SO_SOURCE_SIGNATURE_VERSION = 1;
+  private static final byte LIBS_DIR_DONT_CARE = 0;
+  private static final byte LIBS_DIR_DOESNT_EXIST = 1;
+  private static final byte LIBS_DIR_SNAPSHOT = 2;
 
   private final int mFlags;
 
@@ -94,6 +97,36 @@ public class ApkSoSource extends ExtractFromZipSoSource {
 
   @Override
   protected byte[] getDepsBlock() throws IOException {
-    return SysUtil.makeApkDepBlock(mZipFileName);
+    File apkFile = mZipFileName.getCanonicalFile();
+    Parcel parcel = Parcel.obtain();
+    try {
+      parcel.writeByte(APK_SO_SOURCE_SIGNATURE_VERSION);
+      parcel.writeString(apkFile.getPath());
+      parcel.writeLong(apkFile.lastModified());
+
+      if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
+        parcel.writeByte(LIBS_DIR_DONT_CARE);
+        return parcel.marshall();
+      }
+
+      String nativeLibraryDir = mContext.getApplicationInfo().nativeLibraryDir;
+      if (nativeLibraryDir == null) {
+        parcel.writeByte(LIBS_DIR_DOESNT_EXIST);
+        return parcel.marshall();
+      }
+
+      File canonicalFile = new File(nativeLibraryDir).getCanonicalFile();
+      if (!canonicalFile.exists()) {
+          parcel.writeByte(LIBS_DIR_DOESNT_EXIST);
+          return parcel.marshall();
+      }
+
+      parcel.writeByte(LIBS_DIR_SNAPSHOT);
+      parcel.writeString(canonicalFile.getPath());
+      parcel.writeLong(canonicalFile.lastModified());
+      return parcel.marshall();
+    } finally {
+      parcel.recycle();
+    }
   }
 }

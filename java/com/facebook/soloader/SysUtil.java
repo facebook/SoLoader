@@ -196,14 +196,17 @@ public final class SysUtil {
     }
   }
 
-  public static byte[] makeApkDepBlock(File apkFile) {
+  public static byte[] makeApkDepBlock(File apkFile) throws IOException {
+    apkFile = apkFile.getCanonicalFile();
     Parcel parcel = Parcel.obtain();
-    parcel.writeByte(APK_SIGNATURE_VERSION);
-    parcel.writeString(apkFile.getPath());
-    parcel.writeLong(apkFile.lastModified());
-    byte[] depsBlock = parcel.marshall();
-    parcel.recycle();
-    return depsBlock;
+    try {
+      parcel.writeByte(APK_SIGNATURE_VERSION);
+      parcel.writeString(apkFile.getPath());
+      parcel.writeLong(apkFile.lastModified());
+      return parcel.marshall();
+    } finally {
+      parcel.recycle();
+    }
   }
 
 }
