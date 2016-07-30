@@ -68,7 +68,8 @@ public class DirectorySoSource extends SoSource {
       }
     }
 
-    System.load(soFile.getAbsolutePath());
+    SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
+
     return LOAD_RESULT_LOADED;
   }
 

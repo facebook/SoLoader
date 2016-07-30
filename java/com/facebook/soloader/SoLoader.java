@@ -56,6 +56,7 @@ public class SoLoader {
   /* package */ static final String TAG = "SoLoader";
   /* package */ static final boolean DEBUG = false;
   /* package */ static final boolean SYSTRACE_LIBRARY_LOADING = false;
+  /* package */ static SoFileLoader sSoFileLoader;
 
   /**
    * Ordered list of sources to consult when trying to load a shared library or one of its
@@ -91,6 +92,10 @@ public class SoLoader {
 
   private static int sFlags;
 
+  public static void init(Context context, int flags) throws IOException {
+    init(context, flags, null);
+  }
+
   /**
    * Initializes native code loading for this app; this class's other static facilities cannot be
    * used until this {@link #init} is called. This method is idempotent: calls after the first are
@@ -98,11 +103,13 @@ public class SoLoader {
    *
    * @param context application context.
    * @param flags Zero or more of the SOLOADER_* flags
+   * @param soFileLoader
    */
-  public static void init(Context context, int flags) throws IOException {
+  public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
+      throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
-      initImpl(context, flags);
+      initImpl(context, flags, soFileLoader);
     } finally {
       StrictMode.setThreadPolicy(oldPolicy);
     }
@@ -119,9 +126,24 @@ public class SoLoader {
     }
   }
 
-  private static synchronized void initImpl(Context context, int flags) throws IOException {
+  private static synchronized void initImpl(
+      Context context,
+      int flags,
+      @Nullable SoFileLoader soFileLoader)
+      throws IOException {
     if (sSoSources == null) {
       sFlags = flags;
+
+      if (soFileLoader != null) {
+        sSoFileLoader = soFileLoader;
+      } else {
+        sSoFileLoader = new SoFileLoader() {
+          @Override
+          public void load(String pathToSoFile, int loadFlags) {
+            System.load(pathToSoFile);
+          }
+        };
+      }
 
       ArrayList<SoSource> soSources = new ArrayList<>();
 
@@ -221,12 +243,18 @@ public class SoLoader {
     }
   }
 
+  public static void loadLibrary(String shortName) {
+    loadLibrary(shortName, 0);
+  }
+
   /**
    * Load a shared library, initializing any JNI binding it contains.
    *
    * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
+   * @param loadFlags Control flags for the loading behavior. See available flags under
+   *                  {@link SoSource} (LOAD_FLAG_XXX).
    */
-  public static synchronized void loadLibrary(String shortName)
+  public static synchronized void loadLibrary(String shortName, int loadFlags)
       throws UnsatisfiedLinkError
   {
     if (sSoSources == null) {
@@ -244,7 +272,7 @@ public class SoLoader {
     }
 
     try {
-      loadLibraryBySoName(System.mapLibraryName(shortName), 0);
+      loadLibraryBySoName(System.mapLibraryName(shortName), loadFlags);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     } catch (UnsatisfiedLinkError ex) {
