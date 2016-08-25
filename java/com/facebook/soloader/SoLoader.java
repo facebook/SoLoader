@@ -236,6 +236,13 @@ public class SoLoader {
     sSoSources = new SoSource[]{new NoopSoSource()};
   }
 
+  /**
+   * Make shared-library loading delegate to the system.  Useful for tests.
+   */
+  public static void deinitForTest() {
+    sSoSources = null;
+  }
+
   public static final class WrongAbiError extends UnsatisfiedLinkError {
     WrongAbiError(Throwable cause) {
       super("APK was built for a different platform");
