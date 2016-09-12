@@ -9,24 +9,20 @@
 
 package com.facebook.soloader;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.ArrayList;
-import java.io.FileNotFoundException;
-
-import java.util.Set;
-
 import javax.annotation.Nullable;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
+
 import android.content.Context;
-import android.os.Build;
-
 import android.content.pm.ApplicationInfo;
-
+import android.os.Build;
 import android.os.StrictMode;
 import android.os.Trace;
-
 import android.text.TextUtils;
 
 /**
