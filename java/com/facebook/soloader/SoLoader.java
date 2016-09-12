@@ -71,6 +71,11 @@ public class SoLoader {
   @Nullable private static StrictMode.ThreadPolicy sOldPolicy = null;
 
   /**
+   * Wrapper for System.loadLlibrary.
+   */
+  @Nullable private static SystemLoadLibraryWrapper sSystemLoadLibraryWrapper = null;
+
+  /**
    * Name of the directory we use for extracted DSOs from built-in SO sources (APK, exopackage)
    */
   private static String SO_STORE_NAME_MAIN = "lib-main";
@@ -239,6 +244,14 @@ public class SoLoader {
     sSoSources = null;
   }
 
+  /**
+   * Provide a wrapper object for calling {@link System#loadLibrary}.
+   * This is useful for controlling which ClassLoader libraries are loaded into.
+   */
+  public static void setSystemLoadLibraryWrapper(SystemLoadLibraryWrapper wrapper) {
+    sSystemLoadLibraryWrapper = wrapper;
+  }
+
   public static final class WrongAbiError extends UnsatisfiedLinkError {
     WrongAbiError(Throwable cause) {
       super("APK was built for a different platform");
@@ -269,7 +282,11 @@ public class SoLoader {
         assertInitialized();
       } else {
         // Not on an Android system.  Ask the JVM to load for us.
-        System.loadLibrary(shortName);
+        if (sSystemLoadLibraryWrapper != null) {
+          sSystemLoadLibraryWrapper.loadLibrary(shortName);
+        } else {
+          System.loadLibrary(shortName);
+        }
         return;
       }
     }
