@@ -291,8 +291,11 @@ public class SoLoader {
       }
     }
 
+    String mergedLibName = MergedSoMapping.mapLibName(shortName);
+    String nameToLoad = mergedLibName != null ? mergedLibName : shortName;
+
     try {
-      loadLibraryBySoName(System.mapLibraryName(shortName), loadFlags);
+      loadLibraryBySoName(System.mapLibraryName(nameToLoad), loadFlags);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     } catch (UnsatisfiedLinkError ex) {
@@ -301,6 +304,10 @@ public class SoLoader {
         throw new WrongAbiError(ex);
       }
       throw ex;
+    }
+
+    if (mergedLibName != null) {
+      MergedSoMapping.invokeJniOnload(shortName);
     }
   }
 

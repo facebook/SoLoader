@@ -2,7 +2,7 @@ include_defs("//oss_defs/SOLOADER_DEFS")
 
 android_library(
   name = 'soloader',
-  srcs = glob(['*.java']),
+  srcs = glob(['*.java'], excludes = ['MergedSoMapping.java']),
   tests = [
     '//javatests/com/facebook/soloader:soloader',
   ],
@@ -12,10 +12,16 @@ android_library(
     # has to run very early in the app startup process.
     # Definitely do *not* depend on guava.
     '//deps:jsr-305',
+    ':mapping-stub',
   ],
   visibility = [
     'PUBLIC',
   ],
+)
+
+java_library(
+  name = 'mapping-stub',
+  srcs = ['MergedSoMapping.java'],
 )
 
 project_config(
