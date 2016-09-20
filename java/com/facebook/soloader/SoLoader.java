@@ -51,7 +51,7 @@ public class SoLoader {
 
   /* package */ static final String TAG = "SoLoader";
   /* package */ static final boolean DEBUG = false;
-  /* package */ static final boolean SYSTRACE_LIBRARY_LOADING = false;
+  /* package */ static final boolean SYSTRACE_LIBRARY_LOADING;
   /* package */ static SoFileLoader sSoFileLoader;
 
   /**
@@ -92,6 +92,17 @@ public class SoLoader {
   public static final int SOLOADER_ALLOW_ASYNC_INIT = (1<<1);
 
   private static int sFlags;
+
+  static {
+    boolean shouldSystrace = false;
+    try {
+      shouldSystrace = Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2;
+    } catch (NoClassDefFoundError | UnsatisfiedLinkError e) {
+      // In some test contexts, the Build class and/or some of its dependencies do not exist.
+    }
+
+    SYSTRACE_LIBRARY_LOADING = shouldSystrace;
+  }
 
   public static void init(Context context, int flags) throws IOException {
     init(context, flags, null);
