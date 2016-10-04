@@ -13,8 +13,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 
-import android.os.Trace;
-
 /**
  * {@link SoSource} that finds shared libraries in a given directory.
  */
@@ -75,13 +73,13 @@ public class DirectorySoSource extends SoSource {
 
   private static String[] getDependencies(File soFile) throws IOException {
     if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
-      Trace.beginSection("SoLoader.getElfDependencies[" + soFile.getName() + "]");
+      Api18TraceUtils.beginTraceSection("SoLoader.getElfDependencies[" + soFile.getName() + "]");
     }
     try {
       return MinElf.extract_DT_NEEDED(soFile);
     } finally {
       if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
-        Trace.endSection();
+        Api18TraceUtils.endSection();
       }
     }
   }

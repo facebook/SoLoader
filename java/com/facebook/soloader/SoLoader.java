@@ -22,7 +22,6 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.StrictMode;
-import android.os.Trace;
 import android.text.TextUtils;
 
 /**
@@ -357,7 +356,7 @@ public class SoLoader {
       }
 
       if (SYSTRACE_LIBRARY_LOADING) {
-        Trace.beginSection("SoLoader.loadLibrary[" + soName + "]");
+        Api18TraceUtils.beginTraceSection("SoLoader.loadLibrary[" + soName + "]");
       }
 
       try {
@@ -366,7 +365,7 @@ public class SoLoader {
         }
       } finally {
         if (SYSTRACE_LIBRARY_LOADING) {
-          Trace.endSection();
+          Api18TraceUtils.endSection();
         }
 
         if (restoreOldPolicy) {
