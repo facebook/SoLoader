@@ -14,6 +14,8 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
@@ -23,6 +25,9 @@ import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.StrictMode;
 import android.text.TextUtils;
+import android.util.Log;
+
+import dalvik.system.BaseDexClassLoader;
 
 /**
  * Native code loader.
@@ -90,6 +95,8 @@ public class SoLoader {
    */
   public static final int SOLOADER_ALLOW_ASYNC_INIT = (1<<1);
 
+  public static final int SOLOADER_LOOK_IN_ZIP = (1<<2);
+
   private static int sFlags;
 
   static {
@@ -145,16 +152,7 @@ public class SoLoader {
     if (sSoSources == null) {
       sFlags = flags;
 
-      if (soFileLoader != null) {
-        sSoFileLoader = soFileLoader;
-      } else {
-        sSoFileLoader = new SoFileLoader() {
-          @Override
-          public void load(String pathToSoFile, int loadFlags) {
-            System.load(pathToSoFile);
-          }
-        };
-      }
+      initSoLoader(soFileLoader);
 
       ArrayList<SoSource> soSources = new ArrayList<>();
 
@@ -238,6 +236,66 @@ public class SoLoader {
       prepareFlags |= SoSource.PREPARE_FLAG_ALLOW_ASYNC_INIT;
     }
     return prepareFlags;
+  }
+
+  private static synchronized void initSoLoader(@Nullable SoFileLoader soFileLoader) {
+    if (soFileLoader != null) {
+      sSoFileLoader = soFileLoader;
+      return;
+    }
+
+    final Runtime runtime = Runtime.getRuntime();
+    final Method nativeLoadRuntimeMethod = getNativeLoadRuntimeMethod();
+
+    final boolean hasNativeLoadMethod = nativeLoadRuntimeMethod != null;
+
+    final String localLdLibraryPath =
+        hasNativeLoadMethod ? getClassLoaderLdLoadLibrary() : null;
+    final String localLdLibraryPathNoZips = makeNonZipPath(localLdLibraryPath);
+
+    sSoFileLoader = new SoFileLoader() {
+      @Override
+      public void load(final String pathToSoFile, final int loadFlags) {
+        if (hasNativeLoadMethod) {
+          final boolean inZip = (loadFlags & SOLOADER_LOOK_IN_ZIP) == SOLOADER_LOOK_IN_ZIP;
+          final String path = inZip ? localLdLibraryPath : localLdLibraryPathNoZips;
+          try {
+            synchronized (runtime) {
+              nativeLoadRuntimeMethod.invoke(
+                  runtime,
+                  pathToSoFile,
+                  SoLoader.class.getClassLoader(),
+                  path);
+            }
+          } catch (IllegalAccessException
+              | IllegalArgumentException
+              | InvocationTargetException e) {
+            final String errMsg = "Error: Cannot load " + pathToSoFile;
+            Log.e(TAG, errMsg);
+            throw new RuntimeException(errMsg, e);
+          }
+        } else {
+          System.load(pathToSoFile);
+        }
+      }
+    };
+  }
+
+  private static Method getNativeLoadRuntimeMethod() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+      return null;
+    }
+
+    try {
+      final Method method =
+          Runtime.class
+              .getDeclaredMethod("nativeLoad", String.class, ClassLoader.class, String.class);
+      method.setAccessible(true);
+      return method;
+    } catch (final NoSuchMethodException | SecurityException e) {
+      Log.w(TAG, "Cannot get nativeLoad method", e);
+      return null;
+    }
   }
 
   /**
@@ -381,6 +439,40 @@ public class SoLoader {
 
     if (result == SoSource.LOAD_RESULT_LOADED) {
       sLoadedLibraries.add(soName);
+    }
+  }
+
+  public static String makeNonZipPath(final String localLdLibraryPath) {
+    if (localLdLibraryPath == null) {
+      return null;
+    }
+
+    final String[] paths = localLdLibraryPath.split(":");
+    final ArrayList<String> pathsWithoutZip = new ArrayList<String>(paths.length);
+    for (final String path : paths) {
+      if (path.contains("!")) {
+        continue;
+      }
+      pathsWithoutZip.add(path);
+    }
+
+    return TextUtils.join(":", pathsWithoutZip);
+  }
+
+  public static String getClassLoaderLdLoadLibrary() {
+    final ClassLoader classLoader = SoLoader.class.getClassLoader();
+
+    if (!(classLoader instanceof BaseDexClassLoader)) {
+      throw new IllegalStateException(
+          "ClassLoader " + classLoader.getClass().getName() + " should be of type BaseDexClassLoader");
+    }
+    try {
+      final BaseDexClassLoader baseDexClassLoader = (BaseDexClassLoader) classLoader;
+      final Method getLdLibraryPathMethod = BaseDexClassLoader.class.getMethod("getLdLibraryPath");
+
+      return (String) getLdLibraryPathMethod.invoke(baseDexClassLoader);
+    } catch (Exception e) {
+      throw new RuntimeException("Cannot call getLdLibraryPath", e);
     }
   }
 
