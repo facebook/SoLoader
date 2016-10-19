@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
@@ -250,7 +251,7 @@ public class SoLoader {
     final boolean hasNativeLoadMethod = nativeLoadRuntimeMethod != null;
 
     final String localLdLibraryPath =
-        hasNativeLoadMethod ? getClassLoaderLdLoadLibrary() : null;
+        hasNativeLoadMethod ? Api14Utils.getClassLoaderLdLoadLibrary() : null;
     final String localLdLibraryPathNoZips = makeNonZipPath(localLdLibraryPath);
 
     sSoFileLoader = new SoFileLoader() {
@@ -459,22 +460,6 @@ public class SoLoader {
     return TextUtils.join(":", pathsWithoutZip);
   }
 
-  public static String getClassLoaderLdLoadLibrary() {
-    final ClassLoader classLoader = SoLoader.class.getClassLoader();
-
-    if (!(classLoader instanceof BaseDexClassLoader)) {
-      throw new IllegalStateException(
-          "ClassLoader " + classLoader.getClass().getName() + " should be of type BaseDexClassLoader");
-    }
-    try {
-      final BaseDexClassLoader baseDexClassLoader = (BaseDexClassLoader) classLoader;
-      final Method getLdLibraryPathMethod = BaseDexClassLoader.class.getMethod("getLdLibraryPath");
-
-      return (String) getLdLibraryPathMethod.invoke(baseDexClassLoader);
-    } catch (Exception e) {
-      throw new RuntimeException("Cannot call getLdLibraryPath", e);
-    }
-  }
 
   public static Set<String> getLoadedLibrariesNames() {
     return sLoadedLibraries;
@@ -552,5 +537,26 @@ public class SoLoader {
     }
 
     return true;
+  }
+
+  @DoNotOptimize
+  @TargetApi(14)
+  private static class Api14Utils {
+    public static String getClassLoaderLdLoadLibrary() {
+      final ClassLoader classLoader = SoLoader.class.getClassLoader();
+
+      if (!(classLoader instanceof BaseDexClassLoader)) {
+        throw new IllegalStateException(
+            "ClassLoader " + classLoader.getClass().getName() + " should be of type BaseDexClassLoader");
+      }
+      try {
+        final BaseDexClassLoader baseDexClassLoader = (BaseDexClassLoader) classLoader;
+        final Method getLdLibraryPathMethod = BaseDexClassLoader.class.getMethod("getLdLibraryPath");
+
+        return (String) getLdLibraryPathMethod.invoke(baseDexClassLoader);
+      } catch (Exception e) {
+        throw new RuntimeException("Cannot call getLdLibraryPath", e);
+      }
+    }
   }
 }
