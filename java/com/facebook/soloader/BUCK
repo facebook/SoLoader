@@ -8,11 +8,11 @@ android_library(
   ],
   proguard_config = 'soloader.pro',
   deps = [
+    ':mapping-stub',
     # Be very careful adding new dependencies here, because this code
     # has to run very early in the app startup process.
     # Definitely do *not* depend on guava.
     '//deps:jsr-305',
-    ':mapping-stub',
   ],
   visibility = [
     'PUBLIC',
