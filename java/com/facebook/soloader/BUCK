@@ -24,3 +24,6 @@ java_library(
   srcs = ['MergedSoMapping.java'],
 )
 
+project_config(
+  src_target = ':soloader',
+)
