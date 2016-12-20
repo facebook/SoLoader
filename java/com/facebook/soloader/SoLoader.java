@@ -402,7 +402,8 @@ public class SoLoader {
     }
   }
 
-  public static void loadLibraryBySoName(String soName, int loadFlags) throws IOException {
+  public static synchronized void loadLibraryBySoName(String soName, int loadFlags)
+      throws IOException {
     int result = sLoadedLibraries.contains(soName)
       ? SoSource.LOAD_RESULT_LOADED
       : SoSource.LOAD_RESULT_NOT_FOUND;
