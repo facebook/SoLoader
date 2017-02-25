@@ -1,29 +1,32 @@
 include_defs("//oss_defs/SOLOADER_DEFS")
 
 android_library(
-  name = 'soloader',
-  srcs = glob(['*.java'], excludes = ['MergedSoMapping.java']),
-  tests = [
-    '//javatests/com/facebook/soloader:soloader',
-  ],
-  proguard_config = 'soloader.pro',
-  deps = [
-    ':mapping-stub',
-    # Be very careful adding new dependencies here, because this code
-    # has to run very early in the app startup process.
-    # Definitely do *not* depend on guava.
-    '//deps:jsr-305',
-  ],
-  visibility = [
-    'PUBLIC',
-  ],
+    name = "soloader",
+    srcs = glob(
+        ["*.java"],
+        excludes = ["MergedSoMapping.java"],
+    ),
+    proguard_config = "soloader.pro",
+    tests = [
+        "//javatests/com/facebook/soloader:soloader",
+    ],
+    visibility = [
+        "PUBLIC",
+    ],
+    deps = [
+        ":mapping-stub",
+        # Be very careful adding new dependencies here, because this code
+        # has to run very early in the app startup process.
+        # Definitely do *not* depend on guava.
+        "//deps:jsr-305",
+    ],
 )
 
 java_library(
-  name = 'mapping-stub',
-  srcs = ['MergedSoMapping.java'],
+    name = "mapping-stub",
+    srcs = ["MergedSoMapping.java"],
 )
 
 project_config(
-  src_target = ':soloader',
+    src_target = ":soloader",
 )
