@@ -33,6 +33,8 @@ import java.io.FileOutputStream;
 import java.io.FileDescriptor;
 import java.io.RandomAccessFile;
 
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Parcel;
 
 public final class SysUtil {
@@ -196,17 +198,34 @@ public final class SysUtil {
     }
   }
 
-  public static byte[] makeApkDepBlock(File apkFile) throws IOException {
+  public static byte[] makeApkDepBlock(File apkFile, Context context) throws IOException {
     apkFile = apkFile.getCanonicalFile();
     Parcel parcel = Parcel.obtain();
     try {
       parcel.writeByte(APK_SIGNATURE_VERSION);
       parcel.writeString(apkFile.getPath());
       parcel.writeLong(apkFile.lastModified());
+      parcel.writeInt(getAppVersionCode(context));
       return parcel.marshall();
     } finally {
       parcel.recycle();
     }
   }
 
+  public static int getAppVersionCode(Context context) {
+    final PackageManager pm = context.getPackageManager();
+    if (pm != null) {
+      try {
+        PackageInfo pi = pm.getPackageInfo(context.getPackageName(), 0);
+        return pi.versionCode;
+      } catch (PackageManager.NameNotFoundException e) {
+        // That should not happen
+      } catch (RuntimeException e) {
+          // To catch RuntimeException("Package manager has died") that can occur
+          // on some version of Android, when the remote PackageManager is
+          // unavailable. I suspect this sometimes occurs when the App is being reinstalled.
+      }
+    }
+    return 0;
+  }
 }
