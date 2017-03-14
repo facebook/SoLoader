@@ -125,7 +125,7 @@ public final class SysUtil {
   private static final class LollipopSysdeps {
     @DoNotOptimize
     public static String[] getSupportedAbis() {
-      return Build.SUPPORTED_32_BIT_ABIS; // We ain't doing no newfangled 64-bit
+      return Build.SUPPORTED_ABIS;
     }
 
     @DoNotOptimize
