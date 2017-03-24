@@ -8,6 +8,6 @@
     # "shared" AndroidManifest.xml file that can be used as a default.
     default_android_manifest = //res/AndroidManifest.xml
 [android]
-    target = Google Inc.:Google APIs:21
+    target = Google Inc.:Google APIs:23
 [download]
     maven_repo = https://repo1.maven.org/maven2
