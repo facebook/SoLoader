@@ -42,6 +42,11 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     mContext = context;
   }
 
+  protected UnpackingSoSource(Context context, File storePath) {
+    super(storePath, RESOLVE_DEPENDENCIES);
+    mContext = context;
+  }
+
   public static File getSoStorePath(Context context, String name) {
     return new File(context.getApplicationInfo().dataDir + "/" + name);
   }
