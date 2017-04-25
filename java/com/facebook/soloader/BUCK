@@ -26,7 +26,3 @@ java_library(
     name = "mapping-stub",
     srcs = ["MergedSoMapping.java"],
 )
-
-project_config(
-    src_target = ":soloader",
-)
