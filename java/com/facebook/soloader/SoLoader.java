@@ -262,11 +262,14 @@ public class SoLoader {
           final String path = inZip ? localLdLibraryPath : localLdLibraryPathNoZips;
           try {
             synchronized (runtime) {
-              nativeLoadRuntimeMethod.invoke(
+              String error = (String)nativeLoadRuntimeMethod.invoke(
                   runtime,
                   pathToSoFile,
                   SoLoader.class.getClassLoader(),
                   path);
+              if (error != null) {
+                throw new UnsatisfiedLinkError(error);
+              }
             }
           } catch (IllegalAccessException
               | IllegalArgumentException
