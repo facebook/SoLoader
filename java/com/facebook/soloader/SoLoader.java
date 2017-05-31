@@ -380,10 +380,19 @@ public class SoLoader {
     }
 
     if (mergedLibName != null) {
-      // We trust the JNI merging code to prevent us from
-      // invoking JNI_OnLoad more than once because
-      // it's more memory-efficient than tracking this in Java.
-      MergedSoMapping.invokeJniOnload(shortName);
+      if (SYSTRACE_LIBRARY_LOADING) {
+        Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[" + shortName + "]");
+      }
+      try {
+        // We trust the JNI merging code to prevent us from
+        // invoking JNI_OnLoad more than once because
+        // it's more memory-efficient than tracking this in Java.
+        MergedSoMapping.invokeJniOnload(shortName);
+      } finally {
+        if (SYSTRACE_LIBRARY_LOADING) {
+          Api18TraceUtils.endSection();
+        }
+      }
     }
   }
 
