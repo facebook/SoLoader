@@ -9,6 +9,8 @@
 
 package com.facebook.soloader;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -85,6 +87,7 @@ public class DirectorySoSource extends SoSource {
   }
 
   @Override
+  @Nullable
   public File unpackLibrary(String soName) throws IOException {
     File soFile = new File(soDirectory, soName);
     if (soFile.exists()) {

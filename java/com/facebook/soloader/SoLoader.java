@@ -285,6 +285,7 @@ public class SoLoader {
     };
   }
 
+  @Nullable
   private static Method getNativeLoadRuntimeMethod() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
       return null;
@@ -450,6 +451,7 @@ public class SoLoader {
     }
   }
 
+  @Nullable
   public static String makeNonZipPath(final String localLdLibraryPath) {
     if (localLdLibraryPath == null) {
       return null;

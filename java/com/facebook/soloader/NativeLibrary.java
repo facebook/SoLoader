@@ -9,6 +9,8 @@
 
 package com.facebook.soloader;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 import android.util.Log;
@@ -43,6 +45,7 @@ public abstract class NativeLibrary {
    * safe loading of native libs
    * @return true if native libs loaded properly, false otherwise
    */
+  @Nullable
   public boolean loadLibraries() {
     synchronized (mLock) {
       if (mLoadLibraries == false) {
