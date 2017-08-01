@@ -9,11 +9,9 @@
 
 package com.facebook.soloader;
 
-import javax.annotation.Nullable;
-
-import java.util.List;
-
 import android.util.Log;
+import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * This is the base class for all the classes representing certain native library.

@@ -9,36 +9,19 @@
 
 package com.facebook.soloader;
 
-import java.io.File;
-import java.io.IOException;
 import android.content.Context;
-
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.jar.JarFile;
-import java.util.jar.JarEntry;
-
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-
-import android.os.Build;
-import android.system.Os;
-import android.system.ErrnoException;
-
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Enumeration;
-
-import java.io.FileInputStream;
-import java.io.BufferedReader;
-import java.io.FileReader;
-
-import android.util.Log;
-
-import com.facebook.soloader.UnpackingSoSource.DsoManifest;
 import com.facebook.soloader.UnpackingSoSource.Dso;
+import com.facebook.soloader.UnpackingSoSource.DsoManifest;
 import com.facebook.soloader.UnpackingSoSource.InputDso;
 import com.facebook.soloader.UnpackingSoSource.InputDsoIterator;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * {@link SoSource} that retrieves libraries from an exopackage repository.

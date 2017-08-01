@@ -8,11 +8,11 @@
  */
 
 package com.facebook.soloader;
-import java.io.FileOutputStream;
+import java.io.Closeable;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileLock;
-import java.io.Closeable;
 
 public final class FileLocker implements Closeable {
 

@@ -2,20 +2,18 @@
 
 package com.facebook.soloader;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Iterator;
 import android.content.Context;
-import java.io.RandomAccessFile;
+import android.os.Parcel;
+import android.util.Log;
+import java.io.Closeable;
 import java.io.DataInput;
 import java.io.DataOutput;
-import android.util.Log;
-import java.nio.channels.FileLock;
-import java.util.Arrays;
 import java.io.EOFException;
 import java.io.File;
-import java.io.Closeable;
-import android.os.Parcel;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
+import java.util.Arrays;
 
 /**
  * {@link SoSource} that extracts libraries from an APK to the filesystem.

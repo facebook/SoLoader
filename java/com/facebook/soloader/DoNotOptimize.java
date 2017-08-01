@@ -2,11 +2,11 @@
 
 package com.facebook.soloader;
 
+import static java.lang.annotation.RetentionPolicy.CLASS;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
-
-import static java.lang.annotation.RetentionPolicy.CLASS;
 
 /**
  * A hint (which may or may not be observed) to any optimizers in our tool

@@ -9,11 +9,10 @@
 
 package com.facebook.soloader;
 
-import javax.annotation.Nullable;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import javax.annotation.Nullable;
 
 /**
  * {@link SoSource} that finds shared libraries in a given directory.

@@ -2,11 +2,11 @@
 
 package com.facebook.soloader;
 
-import java.io.File;
-import java.io.IOException;
 import android.content.Context;
 import android.os.Parcel;
 import android.util.Log;
+import java.io.File;
+import java.io.IOException;
 import java.util.zip.ZipEntry;
 
 /**

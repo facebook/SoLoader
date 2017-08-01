@@ -9,33 +9,19 @@
 
 package com.facebook.soloader;
 
-import java.io.File;
-import java.io.IOException;
 import android.content.Context;
-
-import java.util.jar.JarFile;
-import java.util.jar.JarEntry;
-
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-
-import android.os.Build;
-import android.system.Os;
-import android.system.ErrnoException;
-import android.system.OsConstants;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Enumeration;
-
-import java.io.InputStream;
-import java.io.FileOutputStream;
-import java.io.FileDescriptor;
-import java.io.RandomAccessFile;
-
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Parcel;
+import android.system.ErrnoException;
+import android.system.Os;
+import android.system.OsConstants;
+import java.io.File;
+import java.io.FileDescriptor;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
 
 public final class SysUtil {
 

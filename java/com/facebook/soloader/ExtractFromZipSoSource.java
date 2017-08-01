@@ -2,23 +2,20 @@
 
 package com.facebook.soloader;
 
+import android.content.Context;
 import java.io.File;
 import java.io.IOException;
-import android.content.Context;
-
+import java.io.InputStream;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.zip.ZipFile;
-import java.util.zip.ZipEntry;
-import java.util.regex.Pattern;
 import java.util.regex.Matcher;
-import java.io.InputStream;
-import java.io.FileOutputStream;
-import java.util.HashMap;
-import java.util.Enumeration;
-import java.util.Arrays;
+import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
-import android.util.Log;
 
 /**
  * {@link SoSource} that extracts libraries from a zip file to the filesystem.

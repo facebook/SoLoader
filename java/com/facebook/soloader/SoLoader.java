@@ -9,8 +9,14 @@
 
 package com.facebook.soloader;
 
-import javax.annotation.Nullable;
-
+import android.annotation.TargetApi;
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.os.Build;
+import android.os.StrictMode;
+import android.text.TextUtils;
+import android.util.Log;
+import dalvik.system.BaseDexClassLoader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -19,16 +25,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
-
-import android.annotation.TargetApi;
-import android.content.Context;
-import android.content.pm.ApplicationInfo;
-import android.os.Build;
-import android.os.StrictMode;
-import android.text.TextUtils;
-import android.util.Log;
-
-import dalvik.system.BaseDexClassLoader;
+import javax.annotation.Nullable;
 
 /**
  * Native code loader.
