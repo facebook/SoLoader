@@ -57,8 +57,13 @@ public abstract class NativeLibrary {
         mLibrariesLoaded = true;
         mLibraryNames = null;
       } catch (UnsatisfiedLinkError error) {
-        Log.e(TAG, "Failed to load native lib: ", error);
+        Log.e(TAG, "Failed to load native lib (initial check): ", error);
         mLinkError = error;
+        mLibrariesLoaded = false;
+      } catch (Throwable other) {
+        Log.e(TAG, "Failed to load native lib (other error): ", other);
+        mLinkError = new UnsatisfiedLinkError("Failed loading libraries");
+        mLinkError.initCause(other);
         mLibrariesLoaded = false;
       }
       mLoadLibraries = false;
