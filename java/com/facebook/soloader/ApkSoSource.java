@@ -22,7 +22,7 @@ public class ApkSoSource extends ExtractFromZipSoSource {
    */
   public static final int PREFER_ANDROID_LIBS_DIRECTORY = (1<<0);
 
-  private static final byte APK_SO_SOURCE_SIGNATURE_VERSION = 1;
+  private static final byte APK_SO_SOURCE_SIGNATURE_VERSION = 2;
   private static final byte LIBS_DIR_DONT_CARE = 0;
   private static final byte LIBS_DIR_DOESNT_EXIST = 1;
   private static final byte LIBS_DIR_SNAPSHOT = 2;
@@ -103,6 +103,7 @@ public class ApkSoSource extends ExtractFromZipSoSource {
       parcel.writeByte(APK_SO_SOURCE_SIGNATURE_VERSION);
       parcel.writeString(apkFile.getPath());
       parcel.writeLong(apkFile.lastModified());
+      parcel.writeInt(SysUtil.getAppVersionCode(mContext));
 
       if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
         parcel.writeByte(LIBS_DIR_DONT_CARE);
