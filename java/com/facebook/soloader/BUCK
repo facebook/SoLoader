@@ -25,4 +25,7 @@ android_library(
 java_library(
     name = "mapping-stub",
     srcs = ["MergedSoMapping.java"],
+    deps = [
+        "//deps:jsr-305",
+    ],
 )

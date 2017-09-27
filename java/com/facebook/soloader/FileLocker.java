@@ -13,11 +13,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileLock;
+import javax.annotation.Nullable;
 
 public final class FileLocker implements Closeable {
 
   private final FileOutputStream mLockFileOutputStream;
-  private final FileLock mLock;
+  private final @Nullable FileLock mLock;
 
   public static FileLocker lock(File lockFile) throws IOException {
     return new FileLocker(lockFile);
@@ -40,7 +41,9 @@ public final class FileLocker implements Closeable {
   @Override
   public void close() throws IOException {
     try {
-      mLock.release();
+      if (mLock != null) {
+        mLock.release();
+      }
     } finally {
       mLockFileOutputStream.close();
     }

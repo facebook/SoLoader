@@ -15,6 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import javax.annotation.Nullable;
 
 
 /**
@@ -50,7 +51,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
   protected class ZipUnpacker extends Unpacker {
 
-    private ZipDso[] mDsos;
+    private @Nullable ZipDso[] mDsos;
     private final ZipFile mZipFile;
     private final UnpackingSoSource mSoSource;
 

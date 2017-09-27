@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.Arrays;
-
+import javax.annotation.Nullable;
 /**
  * {@link SoSource} that extracts libraries from an APK to the filesystem.
  */
@@ -33,7 +33,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   private static final byte MANIFEST_VERSION = 1;
 
   protected final Context mContext;
-  private String[] mAbis;
+  private @Nullable String[] mAbis;
 
   protected UnpackingSoSource(Context context, String name) {
     super(getSoStorePath(context, name), RESOLVE_DEPENDENCIES);

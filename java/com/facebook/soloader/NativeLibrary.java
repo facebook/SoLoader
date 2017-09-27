@@ -26,10 +26,10 @@ public abstract class NativeLibrary {
   private static final String TAG = NativeLibrary.class.getName();
 
   private final Object mLock;
-  private List<String> mLibraryNames;
+  private @Nullable List<String> mLibraryNames;
   private Boolean mLoadLibraries;
   private boolean mLibrariesLoaded;
-  private volatile UnsatisfiedLinkError mLinkError;
+  private volatile @Nullable UnsatisfiedLinkError mLinkError;
 
   protected NativeLibrary(List<String> libraryNames) {
     mLock = new Object();
@@ -50,8 +50,10 @@ public abstract class NativeLibrary {
         return mLibrariesLoaded;
       }
       try {
-        for (String name: mLibraryNames) {
-          SoLoader.loadLibrary(name);
+        if (mLibraryNames != null) {
+          for (String name : mLibraryNames) {
+            SoLoader.loadLibrary(name);
+          }
         }
         initialNativeCheck();
         mLibrariesLoaded = true;
@@ -93,7 +95,7 @@ public abstract class NativeLibrary {
   protected void initialNativeCheck() throws UnsatisfiedLinkError {
   }
 
-  public UnsatisfiedLinkError getError() {
+  public @Nullable UnsatisfiedLinkError getError() {
     return mLinkError;
   }
 }

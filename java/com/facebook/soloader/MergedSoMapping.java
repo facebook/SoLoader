@@ -2,8 +2,10 @@
 
 package com.facebook.soloader;
 
+import javax.annotation.Nullable;
+
 class MergedSoMapping {
-  static String mapLibName(String preMergedLibName) {
+  static @Nullable String mapLibName(String preMergedLibName) {
     return null;
   }
 
