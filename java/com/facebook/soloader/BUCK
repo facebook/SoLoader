@@ -7,6 +7,7 @@ android_library(
         excludes = ["MergedSoMapping.java"],
     ),
     proguard_config = "soloader.pro",
+    required_for_source_only_abi = True,
     tests = [
         "//javatests/com/facebook/soloader:soloader",
     ],
