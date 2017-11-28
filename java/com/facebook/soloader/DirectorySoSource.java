@@ -9,6 +9,7 @@
 
 package com.facebook.soloader;
 
+import android.os.StrictMode;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -37,12 +38,15 @@ public class DirectorySoSource extends SoSource {
   }
 
   @Override
-  public int loadLibrary(String soName, int loadFlags) throws IOException {
-    return loadLibraryFrom(soName, loadFlags, soDirectory);
+  public int loadLibrary(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
+      throws IOException {
+    return loadLibraryFrom(soName, loadFlags, soDirectory, threadPolicy);
   }
 
   // Abstracted this logic in another method so subclasses can take advantage of it.
-  protected int loadLibraryFrom(String soName, int loadFlags, File libDir) throws IOException {
+  protected int loadLibraryFrom(
+      String soName, int loadFlags, File libDir, StrictMode.ThreadPolicy threadPolicy)
+      throws IOException {
     File soFile = new File(libDir, soName);
     if (!soFile.exists()) {
       return LOAD_RESULT_NOT_FOUND;
@@ -62,8 +66,7 @@ public class DirectorySoSource extends SoSource {
         }
 
         SoLoader.loadLibraryBySoName(
-            dependency,
-            (loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION));
+            dependency, (loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION), threadPolicy);
       }
     }
 

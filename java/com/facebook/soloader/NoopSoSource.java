@@ -9,6 +9,7 @@
 
 package com.facebook.soloader;
 
+import android.os.StrictMode;
 import java.io.File;
 
 /**
@@ -16,7 +17,7 @@ import java.io.File;
  */
 public class NoopSoSource extends SoSource {
   @Override
-  public int loadLibrary(String soName, int loadFlags) {
+  public int loadLibrary(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy) {
     return LOAD_RESULT_LOADED;
   }
 

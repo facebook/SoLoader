@@ -9,6 +9,7 @@
 
 package com.facebook.soloader;
 
+import android.os.StrictMode;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -26,9 +27,12 @@ abstract public class SoSource {
    */
   public static final int LOAD_RESULT_LOADED = 1;
 
+  /** This SoSource is loading the library. */
+  public static final int LOAD_RESULT_LOADING = 3;
+
   /**
    * This SoSource did not load the library, but verified that the system loader will load it if
-   * some other library depends on it.  Returned only if LOAD_FLAG_ALLOW_IMPLICIT_PROVISION is
+   * some other library depends on it. Returned only if LOAD_FLAG_ALLOW_IMPLICIT_PROVISION is
    * provided to loadLibrary.
    */
   public static final int LOAD_RESULT_IMPLICITLY_PROVIDED = 2;
@@ -57,14 +61,15 @@ abstract public class SoSource {
   }
 
   /**
-   * Load a shared library library into this process.  This routine is independent of
-   * {@link #loadLibrary}.
+   * Load a shared library library into this process. This routine is independent of {@link
+   * #loadLibrary}.
    *
    * @param soName Name of library to load
    * @param loadFlags Zero or more of the LOAD_FLAG_XXX constants.
    * @return One of the LOAD_RESULT_XXX constants.
    */
-  abstract public int loadLibrary(String soName, int loadFlags) throws IOException;
+  public abstract int loadLibrary(
+      String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy) throws IOException;
 
   /**
    * Ensure that a shared library exists on disk somewhere.  This routine is independent of

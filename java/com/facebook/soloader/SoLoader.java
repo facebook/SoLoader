@@ -23,7 +23,9 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 
@@ -68,9 +70,10 @@ public class SoLoader {
   private static final Set<String> sLoadedLibraries = new HashSet<>();
 
   /**
-   * Holds previous thread strict mode policy during recursive calls to loadLibraryBySoName.
+   * Libraries that are in the process of being loaded, and lock objects to synchronize on and wait
+   * for the loading to end.
    */
-  @Nullable private static StrictMode.ThreadPolicy sOldPolicy = null;
+  private static final Map<String, Object> sLoadingLibraries = new HashMap<>();
 
   /**
    * Wrapper for System.loadLlibrary.
@@ -337,27 +340,27 @@ public class SoLoader {
    * Load a shared library, initializing any JNI binding it contains.
    *
    * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
-   * @param loadFlags Control flags for the loading behavior. See available flags under
-   *                  {@link SoSource} (LOAD_FLAG_XXX).
+   * @param loadFlags Control flags for the loading behavior. See available flags under {@link
+   *     SoSource} (LOAD_FLAG_XXX).
    */
-  public static synchronized void loadLibrary(String shortName, int loadFlags)
-      throws UnsatisfiedLinkError
-  {
-    if (sSoSources == null) {
-      // This should never happen during normal operation,
-      // but if we're running in a non-Android environment,
-      // fall back to System.loadLibrary.
-      if ("http://www.android.com/".equals(System.getProperty("java.vendor.url"))) {
-        // This will throw.
-        assertInitialized();
-      } else {
-        // Not on an Android system.  Ask the JVM to load for us.
-        if (sSystemLoadLibraryWrapper != null) {
-          sSystemLoadLibraryWrapper.loadLibrary(shortName);
+  public static void loadLibrary(String shortName, int loadFlags) throws UnsatisfiedLinkError {
+    synchronized (SoLoader.class) {
+      if (sSoSources == null) {
+        // This should never happen during normal operation,
+        // but if we're running in a non-Android environment,
+        // fall back to System.loadLibrary.
+        if ("http://www.android.com/".equals(System.getProperty("java.vendor.url"))) {
+          // This will throw.
+          assertInitialized();
         } else {
-          System.loadLibrary(shortName);
+          // Not on an Android system.  Ask the JVM to load for us.
+          if (sSystemLoadLibraryWrapper != null) {
+            sSystemLoadLibraryWrapper.loadLibrary(shortName);
+          } else {
+            System.loadLibrary(shortName);
+          }
+          return;
         }
-        return;
       }
     }
 
@@ -365,7 +368,7 @@ public class SoLoader {
     String nameToLoad = mergedLibName != null ? mergedLibName : shortName;
 
     try {
-      loadLibraryBySoName(System.mapLibraryName(nameToLoad), loadFlags);
+      loadLibraryBySoName(System.mapLibraryName(nameToLoad), loadFlags, null);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     } catch (UnsatisfiedLinkError ex) {
@@ -412,19 +415,45 @@ public class SoLoader {
     }
   }
 
-  public static synchronized void loadLibraryBySoName(String soName, int loadFlags)
-      throws IOException {
-    int result = sLoadedLibraries.contains(soName)
-      ? SoSource.LOAD_RESULT_LOADED
-      : SoSource.LOAD_RESULT_NOT_FOUND;
+  public static void loadLibraryBySoName(
+      String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) throws IOException {
 
-    if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
+    Object loadingLibLock;
+    int result = SoSource.LOAD_RESULT_NOT_FOUND;
+    synchronized (SoLoader.class) {
+      if (sLoadedLibraries.contains(soName)) {
+        return;
+      } else if (sLoadingLibraries.containsKey(soName)) {
+        result = SoSource.LOAD_RESULT_LOADING;
+        loadingLibLock = sLoadingLibraries.get(soName);
+      } else {
+        loadingLibLock = new Object();
+        sLoadingLibraries.put(soName, loadingLibLock);
+      }
+    }
 
-      // This way, we set the thread policy only one per loadLibrary no matter how many dependencies
+    synchronized (loadingLibLock) {
+      synchronized (SoLoader.class) {
+        if (result == SoSource.LOAD_RESULT_LOADING) {
+          // Library was being loaded in another thread.
+          if (sLoadedLibraries.contains(soName)) {
+            // Library was successfully loaded by the other thread
+            return;
+          } else {
+            result = SoSource.LOAD_RESULT_NOT_FOUND;
+          }
+        }
+        if (sSoSources == null) {
+          throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
+        }
+      }
+
+      // This way, we set the thread policy only one per loadLibrary no matter how many
+      // dependencies
       // we load.  Each call to StrictMode.allowThreadDiskWrites allocates.
       boolean restoreOldPolicy = false;
-      if (sOldPolicy == null) {
-        sOldPolicy = StrictMode.allowThreadDiskReads();
+      if (oldPolicy == null) {
+        oldPolicy = StrictMode.allowThreadDiskReads();
         restoreOldPolicy = true;
       }
 
@@ -433,8 +462,9 @@ public class SoLoader {
       }
 
       try {
+        // sSoSources is immutable after initialization, so holding the lock here is not needed
         for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
-          result = sSoSources[i].loadLibrary(soName, loadFlags);
+          result = sSoSources[i].loadLibrary(soName, loadFlags, oldPolicy);
         }
       } finally {
         if (SYSTRACE_LIBRARY_LOADING) {
@@ -442,18 +472,17 @@ public class SoLoader {
         }
 
         if (restoreOldPolicy) {
-          StrictMode.setThreadPolicy(sOldPolicy);
-          sOldPolicy = null;
+          StrictMode.setThreadPolicy(oldPolicy);
+        }
+        synchronized (SoLoader.class) {
+          sLoadingLibraries.remove(soName);
+          if (result == SoSource.LOAD_RESULT_LOADED) {
+            sLoadedLibraries.add(soName);
+          } else if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
+            throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
+          }
         }
       }
-    }
-
-    if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
-      throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
-    }
-
-    if (result == SoSource.LOAD_RESULT_LOADED) {
-      sLoadedLibraries.add(soName);
     }
   }
 
