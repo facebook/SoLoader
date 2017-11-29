@@ -56,7 +56,7 @@ public class SoLoader {
   /* package */ static final String TAG = "SoLoader";
   /* package */ static final boolean DEBUG = false;
   /* package */ static final boolean SYSTRACE_LIBRARY_LOADING;
-  /* package */ static SoFileLoader sSoFileLoader;
+  /* package */ @Nullable static SoFileLoader sSoFileLoader;
 
   /**
    * Ordered list of sources to consult when trying to load a shared library or one of its
@@ -303,17 +303,31 @@ public class SoLoader {
     }
   }
 
-  /**
-   * Turn shared-library loading into a no-op.  Useful in special circumstances.
-   */
+  /** Turn shared-library loading into a no-op. Useful in special circumstances. */
   public static void setInTestMode() {
-    sSoSources = new SoSource[]{new NoopSoSource()};
+    setSoSources(new SoSource[] {new NoopSoSource()});
   }
 
-  /**
-   * Make shared-library loading delegate to the system.  Useful for tests.
-   */
+  /** Make shared-library loading delegate to the system. Useful for tests. */
   public static void deinitForTest() {
+    setSoSources(null);
+  }
+
+  /** Set so sources. Useful for tests. */
+  public static synchronized void setSoSources(SoSource[] sources) {
+    sSoSources = sources;
+  }
+
+  /** Set so file loader. Only for tests. */
+  public static void setSoFileLoader(SoFileLoader loader) {
+    sSoFileLoader = loader;
+  }
+
+  /** Reset internal status. Only for tests. */
+  public static synchronized void resetStatus() {
+    sLoadedLibraries.clear();
+    sLoadingLibraries.clear();
+    sSoFileLoader = null;
     sSoSources = null;
   }
 
