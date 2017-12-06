@@ -379,66 +379,35 @@ public class SoLoader {
     }
 
     String mergedLibName = MergedSoMapping.mapLibName(shortName);
-    String nameToLoad = mergedLibName != null ? mergedLibName : shortName;
 
-    try {
-      loadLibraryBySoName(System.mapLibraryName(nameToLoad), loadFlags, null);
-    } catch (IOException ex) {
-      throw new RuntimeException(ex);
-    } catch (UnsatisfiedLinkError ex) {
-      String message = ex.getMessage();
-      if (message != null && message.contains("unexpected e_machine:")) {
-        throw new WrongAbiError(ex);
-      }
-      throw ex;
-    }
+    String soName = mergedLibName != null ? mergedLibName : shortName;
 
-    if (mergedLibName != null) {
-      if (SYSTRACE_LIBRARY_LOADING) {
-        Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[" + shortName + "]");
-      }
-      try {
-        // We trust the JNI merging code to prevent us from
-        // invoking JNI_OnLoad more than once because
-        // it's more memory-efficient than tracking this in Java.
-        MergedSoMapping.invokeJniOnload(shortName);
-      } finally {
-        if (SYSTRACE_LIBRARY_LOADING) {
-          Api18TraceUtils.endSection();
-        }
-      }
-    }
+    loadLibraryBySoName(System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
   }
 
-  /**
-   * Unpack library and its dependencies, returning the location of the unpacked library file.  All
-   * non-system dependencies of the given library will either be on LD_LIBRARY_PATH or will be in
-   * the same directory as the returned File.
-   *
-   * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
-   * @return Unpacked DSO location
-   */
-  public static File unpackLibraryAndDependencies(String shortName)
-      throws UnsatisfiedLinkError
-  {
-    assertInitialized();
-    try {
-      return unpackLibraryBySoName(System.mapLibraryName(shortName));
-    } catch (IOException ex) {
-      throw new RuntimeException(ex);
-    }
+  /* package */ static void loadLibraryBySoName(
+      String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) {
+    loadLibraryBySoName(soName, null, null, loadFlags, oldPolicy);
   }
 
-  public static void loadLibraryBySoName(
-      String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) throws IOException {
+  private static void loadLibraryBySoName(
+      String soName,
+      String shortName,
+      String mergedLibName,
+      int loadFlags,
+      StrictMode.ThreadPolicy oldPolicy) {
 
     Object loadingLibLock;
-    int result = SoSource.LOAD_RESULT_NOT_FOUND;
+    boolean loaded = false;
     synchronized (SoLoader.class) {
       if (sLoadedLibraries.contains(soName)) {
-        return;
-      } else if (sLoadingLibraries.containsKey(soName)) {
-        result = SoSource.LOAD_RESULT_LOADING;
+        if (mergedLibName == null) {
+          // Not a merged lib, no need to init
+          return;
+        }
+        loaded = true;
+      }
+      if (sLoadingLibraries.containsKey(soName)) {
         loadingLibLock = sLoadingLibraries.get(soName);
       } else {
         loadingLibLock = new Object();
@@ -447,58 +416,113 @@ public class SoLoader {
     }
 
     synchronized (loadingLibLock) {
-      synchronized (SoLoader.class) {
-        if (result == SoSource.LOAD_RESULT_LOADING) {
-          // Library was being loaded in another thread.
+      if (!loaded) {
+        synchronized (SoLoader.class) {
           if (sLoadedLibraries.contains(soName)) {
-            // Library was successfully loaded by the other thread
-            return;
-          } else {
-            result = SoSource.LOAD_RESULT_NOT_FOUND;
+            // Library was successfully loaded by other thread while we waited
+            if (mergedLibName == null) {
+              // Not a merged lib, no need to init
+              return;
+            }
+            loaded = true;
+          }
+          // Else, load was not successful on other thread. We will try in this one.
+        }
+
+        if (!loaded) {
+          try {
+            doLoadLibraryBySoName(soName, loadFlags, oldPolicy);
+          } catch (IOException ex) {
+            throw new RuntimeException(ex);
+          } catch (UnsatisfiedLinkError ex) {
+            String message = ex.getMessage();
+            if (message != null && message.contains("unexpected e_machine:")) {
+              throw new WrongAbiError(ex);
+            }
+            throw ex;
+          }
+          synchronized (SoLoader.class) {
+            sLoadedLibraries.add(soName);
           }
         }
-        if (sSoSources == null) {
-          throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
-        }
       }
 
-      // This way, we set the thread policy only one per loadLibrary no matter how many
-      // dependencies
-      // we load.  Each call to StrictMode.allowThreadDiskWrites allocates.
-      boolean restoreOldPolicy = false;
-      if (oldPolicy == null) {
-        oldPolicy = StrictMode.allowThreadDiskReads();
-        restoreOldPolicy = true;
-      }
-
-      if (SYSTRACE_LIBRARY_LOADING) {
-        Api18TraceUtils.beginTraceSection("SoLoader.loadLibrary[" + soName + "]");
-      }
-
-      try {
-        // sSoSources is immutable after initialization, so holding the lock here is not needed
-        for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
-          result = sSoSources[i].loadLibrary(soName, loadFlags, oldPolicy);
-        }
-      } finally {
+      if (mergedLibName != null) {
         if (SYSTRACE_LIBRARY_LOADING) {
-          Api18TraceUtils.endSection();
+          Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[" + shortName + "]");
         }
-
-        if (restoreOldPolicy) {
-          StrictMode.setThreadPolicy(oldPolicy);
-        }
-        synchronized (SoLoader.class) {
-          sLoadingLibraries.remove(soName);
-          if (result == SoSource.LOAD_RESULT_LOADED) {
-            sLoadedLibraries.add(soName);
-          } else if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
-            throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
+        try {
+          // We trust the JNI merging code to prevent us from
+          // invoking JNI_OnLoad more than once because
+          // it's more memory-efficient than tracking this in Java.
+          MergedSoMapping.invokeJniOnload(shortName);
+        } finally {
+          if (SYSTRACE_LIBRARY_LOADING) {
+            Api18TraceUtils.endSection();
           }
         }
       }
     }
   }
+
+  /**
+   * Unpack library and its dependencies, returning the location of the unpacked library file. All
+   * non-system dependencies of the given library will either be on LD_LIBRARY_PATH or will be in
+   * the same directory as the returned File.
+   *
+   * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
+   * @return Unpacked DSO location
+   */
+  public static File unpackLibraryAndDependencies(String shortName) throws UnsatisfiedLinkError {
+    assertInitialized();
+    try {
+      return unpackLibraryBySoName(System.mapLibraryName(shortName));
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  private static void doLoadLibraryBySoName(
+      String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) throws IOException {
+
+    int result = SoSource.LOAD_RESULT_NOT_FOUND;
+    synchronized (SoLoader.class) {
+      if (sSoSources == null) {
+        throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
+      }
+    }
+
+    // This way, we set the thread policy only one per loadLibrary no matter how many
+    // dependencies we load.  Each call to StrictMode.allowThreadDiskWrites allocates.
+    boolean restoreOldPolicy = false;
+    if (oldPolicy == null) {
+      oldPolicy = StrictMode.allowThreadDiskReads();
+      restoreOldPolicy = true;
+    }
+
+    if (SYSTRACE_LIBRARY_LOADING) {
+      Api18TraceUtils.beginTraceSection("SoLoader.loadLibrary[" + soName + "]");
+    }
+
+    try {
+      // sSoSources is immutable after initialization, so holding the lock here is not needed
+      for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
+        result = sSoSources[i].loadLibrary(soName, loadFlags, oldPolicy);
+      }
+    } finally {
+      if (SYSTRACE_LIBRARY_LOADING) {
+        Api18TraceUtils.endSection();
+      }
+
+      if (restoreOldPolicy) {
+        StrictMode.setThreadPolicy(oldPolicy);
+      }
+      if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
+        throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
+      }
+    }
+  }
+
 
   @Nullable
   public static String makeNonZipPath(final String localLdLibraryPath) {

@@ -27,9 +27,6 @@ abstract public class SoSource {
    */
   public static final int LOAD_RESULT_LOADED = 1;
 
-  /** This SoSource is loading the library. */
-  public static final int LOAD_RESULT_LOADING = 3;
-
   /**
    * This SoSource did not load the library, but verified that the system loader will load it if
    * some other library depends on it. Returned only if LOAD_FLAG_ALLOW_IMPLICIT_PROVISION is
