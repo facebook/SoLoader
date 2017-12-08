@@ -104,4 +104,15 @@ public class DirectorySoSource extends SoSource {
     paths.add(soDirectory.getAbsolutePath());
   }
 
+  @Override
+  public String toString() {
+    return new StringBuilder()
+        .append(getClass().getName())
+        .append("[root = ")
+        .append(soDirectory == null ? "null" : soDirectory.getName())
+        .append(" flags = ")
+        .append(flags)
+        .append(']')
+        .toString();
+  }
 }

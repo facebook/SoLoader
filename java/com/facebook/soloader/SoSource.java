@@ -96,4 +96,14 @@ abstract public class SoSource {
     /* By default, the same as the device */
     return SysUtil.getSupportedAbis();
   }
+
+  /**
+   * Return the class name of the actual instance. Useful for debugging.
+   *
+   * @return the instance class name
+   */
+  @Override
+  public String toString() {
+    return getClass().getName();
+  }
 }

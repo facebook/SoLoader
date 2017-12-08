@@ -151,6 +151,7 @@ public class SoLoader {
       @Nullable SoFileLoader soFileLoader)
       throws IOException {
     if (sSoSources == null) {
+      Log.d(TAG, "init start");
       sFlags = flags;
 
       initSoLoader(soFileLoader);
@@ -225,9 +226,11 @@ public class SoLoader {
       SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
       int prepareFlags = makePrepareFlags();
       for (int i = finalSoSources.length; i-- > 0;) {
+        Log.d(TAG, "Preparing SO source: " + finalSoSources[i]);
         finalSoSources[i].prepare(prepareFlags);
       }
       sSoSources = finalSoSources;
+      Log.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
     }
   }
 
@@ -431,6 +434,7 @@ public class SoLoader {
 
         if (!loaded) {
           try {
+            Log.d(TAG, "About to load: " + soName);
             doLoadLibraryBySoName(soName, loadFlags, oldPolicy);
           } catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -442,6 +446,7 @@ public class SoLoader {
             throw ex;
           }
           synchronized (SoLoader.class) {
+            Log.d(TAG, "Loaded: " + soName);
             sLoadedLibraries.add(soName);
           }
         }
@@ -455,6 +460,7 @@ public class SoLoader {
           // We trust the JNI merging code to prevent us from
           // invoking JNI_OnLoad more than once because
           // it's more memory-efficient than tracking this in Java.
+          Log.d(TAG, "About to merge: " + shortName + " / " + soName);
           MergedSoMapping.invokeJniOnload(shortName);
         } finally {
           if (SYSTRACE_LIBRARY_LOADING) {
@@ -488,6 +494,7 @@ public class SoLoader {
     int result = SoSource.LOAD_RESULT_NOT_FOUND;
     synchronized (SoLoader.class) {
       if (sSoSources == null) {
+        Log.e(TAG, "Could not load: " + soName + " because no SO source exists");
         throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
       }
     }
@@ -518,6 +525,7 @@ public class SoLoader {
         StrictMode.setThreadPolicy(oldPolicy);
       }
       if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
+        Log.e(TAG, "Could not load: " + soName);
         throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
       }
     }
@@ -576,6 +584,7 @@ public class SoLoader {
     SoSource[] newSoSources = new SoSource[sSoSources.length+1];
     newSoSources[0] = extraSoSource;
     System.arraycopy(sSoSources, 0, newSoSources, 1, sSoSources.length);
+    Log.d(TAG, "Prepending to SO sources: " + extraSoSource);
     sSoSources = newSoSources;
   }
 
@@ -585,12 +594,15 @@ public class SoLoader {
    */
   public static synchronized String makeLdLibraryPath() {
     assertInitialized();
+    Log.d(TAG, "makeLdLibraryPath");
     ArrayList<String> pathElements = new ArrayList<>();
     SoSource[] soSources = sSoSources;
     for (int i = 0; i < soSources.length; ++i) {
       soSources[i].addToLdLibraryPath(pathElements);
     }
-    return TextUtils.join(":", pathElements);
+    String joinedPaths = TextUtils.join(":", pathElements);
+    Log.d(TAG, "makeLdLibraryPath final path: " + joinedPaths);
+    return joinedPaths;
   }
 
   /**
