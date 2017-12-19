@@ -7,7 +7,10 @@ import android.os.Parcel;
 import android.util.Log;
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.ZipEntry;
+import javax.annotation.Nullable;
 
 /**
  * {@link SoSource} that extracts libraries from an APK to the filesystem.
@@ -29,6 +32,8 @@ public class ApkSoSource extends ExtractFromZipSoSource {
 
   private final int mFlags;
 
+  private final Map<String, String> mExtractLogs = new HashMap<>();
+
   public ApkSoSource(Context context, String name, int flags) {
     super(
         context,
@@ -38,6 +43,11 @@ public class ApkSoSource extends ExtractFromZipSoSource {
         // during installation.
         "^lib/([^/]+)/([^/]+\\.so)$");
     mFlags = flags;
+  }
+
+  @Override
+  protected @Nullable String getExtractLogs(String soName) {
+    return mExtractLogs.get(soName);
   }
 
   @Override
@@ -58,40 +68,39 @@ public class ApkSoSource extends ExtractFromZipSoSource {
 
     @Override
     protected boolean shouldExtract(ZipEntry ze, String soName) {
+      final boolean result;
       String zipPath = ze.getName();
+      final String msg;
       if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
-        Log.d(TAG, "allowing consideration of " + zipPath + ": self-extraction preferred");
-        return true;
+        msg = "allowing consideration of " + zipPath + ": self-extraction preferred";
+        result = true;
+      } else {
+        File sysLibFile = new File(mLibDir, soName);
+        if (!sysLibFile.isFile()) {
+          msg =
+              String.format(
+                  "allowing considering of %s: %s not in system lib dir", zipPath, soName);
+          result = true;
+        } else {
+          long sysLibLength = sysLibFile.length();
+          long apkLibLength = ze.getSize();
+
+          if (sysLibLength != apkLibLength) {
+            msg =
+                String.format(
+                    "allowing consideration of %s: sysdir file length is %s, but "
+                        + "the file is %s bytes long in the APK",
+                    sysLibFile, sysLibLength, apkLibLength);
+            result = true;
+          } else {
+            msg = "not allowing consideration of " + zipPath + ": deferring to libdir";
+            result = false;
+          }
+        }
       }
-
-      File sysLibFile = new File(mLibDir, soName);
-      if (!sysLibFile.isFile()) {
-        Log.d(
-            TAG,
-            String.format(
-                "allowing considering of %s: %s not in system lib dir",
-                zipPath,
-                soName));
-        return true;
-      }
-
-      long sysLibLength = sysLibFile.length();
-      long apkLibLength = ze.getSize();
-
-      if (sysLibLength != apkLibLength) {
-        Log.d(
-            TAG,
-            String.format(
-                "allowing consideration of %s: sysdir file length is %s, but " +
-                "the file is %s bytes long in the APK",
-                sysLibFile,
-                sysLibLength,
-                apkLibLength));
-        return true;
-      }
-
-      Log.d(TAG, "not allowing consideration of " + zipPath + ": deferring to libdir");
-      return false;
+      mExtractLogs.put(soName, msg);
+      Log.d(TAG, msg);
+      return result;
     }
   }
 

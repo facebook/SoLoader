@@ -17,10 +17,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import javax.annotation.Nullable;
 
-
-/**
- * {@link SoSource} that extracts libraries from a zip file to the filesystem.
- */
+/** {@link SoSource} that extracts libraries from a zip file to the filesystem. */
 public class ExtractFromZipSoSource extends UnpackingSoSource {
 
   protected final File mZipFileName;
@@ -30,15 +27,11 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
    * @param context Application contextg
    * @param name Name of the DSO store
    * @param zipFileName Name of the zip file from which we extract; opened only on demand
-   * @param zipSearchPattern Regular expression string matching DSOs in the zip file;
-   *   subgroup 1 must be an ABI (as from Build.CPU_ABI) and subgroup 2 must be the
-   *   shared library basename.
+   * @param zipSearchPattern Regular expression string matching DSOs in the zip file; subgroup 1
+   *     must be an ABI (as from Build.CPU_ABI) and subgroup 2 must be the shared library basename.
    */
   public ExtractFromZipSoSource(
-      Context context,
-      String name,
-      File zipFileName,
-      String zipSearchPattern) {
+      Context context, String name, File zipFileName, String zipSearchPattern) {
     super(context, name);
     mZipFileName = zipFileName;
     mZipSearchPattern = zipSearchPattern;
@@ -47,6 +40,10 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
   @Override
   protected Unpacker makeUnpacker() throws IOException {
     return new ZipUnpacker(this);
+  }
+
+  protected @Nullable String getExtractLogs(String soName) {
+    return "";
   }
 
   protected class ZipUnpacker extends Unpacker {
@@ -110,8 +107,8 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     }
 
     /**
-     * Hook for subclasses to filter out certain library names from being extracted from the
-     * zip file.
+     * Hook for subclasses to filter out certain library names from being extracted from the zip
+     * file.
      *
      * @param soName Candidate soName
      * @param ze Zip entry for file to extract
@@ -177,15 +174,12 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     private static String makePseudoHash(ZipEntry ze) {
       return String.format( // Yuck, but no real metadata
           "pseudo-zip-hash-1-%s-%s-%s-%s",
-          ze.getName(),
-          ze.getSize(),
-          ze.getCompressedSize(),
-          ze.getCrc());
+          ze.getName(), ze.getSize(), ze.getCompressedSize(), ze.getCrc());
     }
 
     @Override
     public int compareTo(Object other) {
-      return name.compareTo(((ZipDso)other).name);
+      return name.compareTo(((ZipDso) other).name);
     }
   }
 }

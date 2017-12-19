@@ -1,12 +1,10 @@
 /**
- * Copyright (c) 2015-present, Facebook, Inc.
- * All rights reserved.
+ * Copyright (c) 2015-present, Facebook, Inc. All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * <p>This source code is licensed under the BSD-style license found in the LICENSE file in the root
+ * directory of this source tree. An additional grant of patent rights can be found in the PATENTS
+ * file in the same directory.
  */
-
 package com.facebook.soloader;
 
 import android.annotation.TargetApi;
@@ -32,22 +30,21 @@ import javax.annotation.Nullable;
 /**
  * Native code loader.
  *
- * <p> To load a native library, call the static method {@link #loadLibrary} from the
- * static  initializer of the Java class declaring the native methods. The argument
- * should be the library's short name.
+ * <p>To load a native library, call the static method {@link #loadLibrary} from the static
+ * initializer of the Java class declaring the native methods. The argument should be the library's
+ * short name.
  *
  * <p>For example, if the native code is in libmy_jni_methods.so:
- * <pre>
- * {@code
+ *
+ * <pre>{@code
  * class MyClass {
  *   static {
  *     SoLoader.loadLibrary("my_jni_methods");
  *   }
  * }
- * }
- * </pre>
+ * }</pre>
  *
- * <p> Before any library can be loaded SoLoader needs to be initialized. The application using
+ * <p>Before any library can be loaded SoLoader needs to be initialized. The application using
  * SoLoader should do that by calling SoLoader.init early on app initialization path. The call must
  * happen before any class using SoLoader in its static initializer is loaded.
  */
@@ -64,9 +61,7 @@ public class SoLoader {
    */
   @Nullable private static SoSource[] sSoSources = null;
 
-  /**
-   * Records the sonames (e.g., "libdistract.so") of shared libraries we've loaded.
-   */
+  /** Records the sonames (e.g., "libdistract.so") of shared libraries we've loaded. */
   private static final Set<String> sLoadedLibraries = new HashSet<>();
 
   /**
@@ -75,28 +70,22 @@ public class SoLoader {
    */
   private static final Map<String, Object> sLoadingLibraries = new HashMap<>();
 
-  /**
-   * Wrapper for System.loadLlibrary.
-   */
+  /** Wrapper for System.loadLlibrary. */
   @Nullable private static SystemLoadLibraryWrapper sSystemLoadLibraryWrapper = null;
 
-  /**
-   * Name of the directory we use for extracted DSOs from built-in SO sources (APK, exopackage)
-   */
+  /** Name of the directory we use for extracted DSOs from built-in SO sources (APK, exopackage) */
   private static String SO_STORE_NAME_MAIN = "lib-main";
 
-  /**
-   * Enable the exopackage SoSource.
-   */
-  public static final int SOLOADER_ENABLE_EXOPACKAGE = (1<<0);
+  /** Enable the exopackage SoSource. */
+  public static final int SOLOADER_ENABLE_EXOPACKAGE = (1 << 0);
 
   /**
-   * Allow deferring some initialization work to asynchronous background threads.  Shared libraries
+   * Allow deferring some initialization work to asynchronous background threads. Shared libraries
    * are nevertheless ready to load as soon as init returns.
    */
-  public static final int SOLOADER_ALLOW_ASYNC_INIT = (1<<1);
+  public static final int SOLOADER_ALLOW_ASYNC_INIT = (1 << 1);
 
-  public static final int SOLOADER_LOOK_IN_ZIP = (1<<2);
+  public static final int SOLOADER_LOOK_IN_ZIP = (1 << 2);
 
   private static int sFlags;
 
@@ -134,9 +123,7 @@ public class SoLoader {
     }
   }
 
-  /**
-   * Backward compatibility
-   */
+  /** Backward compatibility */
   public static void init(Context context, boolean nativeExopackage) {
     try {
       init(context, nativeExopackage ? SOLOADER_ENABLE_EXOPACKAGE : 0);
@@ -146,10 +133,7 @@ public class SoLoader {
   }
 
   private static synchronized void initImpl(
-      Context context,
-      int flags,
-      @Nullable SoFileLoader soFileLoader)
-      throws IOException {
+      Context context, int flags, @Nullable SoFileLoader soFileLoader) throws IOException {
     if (sSoSources == null) {
       Log.d(TAG, "init start");
       sFlags = flags;
@@ -174,9 +158,7 @@ public class SoLoader {
         // these libraries have on each other, so doing that ourselves would be a waste.
         File systemSoDirectory = new File(systemLibraryDirectories[i]);
         soSources.add(
-            new DirectorySoSource(
-                systemSoDirectory,
-                DirectorySoSource.ON_LD_LIBRARY_PATH));
+            new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
       }
 
       //
@@ -195,8 +177,8 @@ public class SoLoader {
         } else {
           ApplicationInfo applicationInfo = context.getApplicationInfo();
           boolean isSystemApplication =
-              (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0 &&
-              (applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
+              (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0
+                  && (applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
           int apkSoSourceFlags;
           if (isSystemApplication) {
             apkSoSourceFlags = 0;
@@ -213,9 +195,8 @@ public class SoLoader {
               ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
             }
 
-            SoSource ourSoSource = new DirectorySoSource(
-                new File(applicationInfo.nativeLibraryDir),
-                ourSoSourceFlags);
+            SoSource ourSoSource =
+                new DirectorySoSource(new File(applicationInfo.nativeLibraryDir), ourSoSourceFlags);
             soSources.add(0, ourSoSource);
           }
 
@@ -225,7 +206,7 @@ public class SoLoader {
 
       SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
       int prepareFlags = makePrepareFlags();
-      for (int i = finalSoSources.length; i-- > 0;) {
+      for (int i = finalSoSources.length; i-- > 0; ) {
         Log.d(TAG, "Preparing SO source: " + finalSoSources[i]);
         finalSoSources[i].prepare(prepareFlags);
       }
@@ -257,35 +238,35 @@ public class SoLoader {
         hasNativeLoadMethod ? Api14Utils.getClassLoaderLdLoadLibrary() : null;
     final String localLdLibraryPathNoZips = makeNonZipPath(localLdLibraryPath);
 
-    sSoFileLoader = new SoFileLoader() {
-      @Override
-      public void load(final String pathToSoFile, final int loadFlags) {
-        if (hasNativeLoadMethod) {
-          final boolean inZip = (loadFlags & SOLOADER_LOOK_IN_ZIP) == SOLOADER_LOOK_IN_ZIP;
-          final String path = inZip ? localLdLibraryPath : localLdLibraryPathNoZips;
-          try {
-            synchronized (runtime) {
-              String error = (String)nativeLoadRuntimeMethod.invoke(
-                  runtime,
-                  pathToSoFile,
-                  SoLoader.class.getClassLoader(),
-                  path);
-              if (error != null) {
-                throw new UnsatisfiedLinkError(error);
+    sSoFileLoader =
+        new SoFileLoader() {
+          @Override
+          public void load(final String pathToSoFile, final int loadFlags) {
+            if (hasNativeLoadMethod) {
+              final boolean inZip = (loadFlags & SOLOADER_LOOK_IN_ZIP) == SOLOADER_LOOK_IN_ZIP;
+              final String path = inZip ? localLdLibraryPath : localLdLibraryPathNoZips;
+              try {
+                synchronized (runtime) {
+                  String error =
+                      (String)
+                          nativeLoadRuntimeMethod.invoke(
+                              runtime, pathToSoFile, SoLoader.class.getClassLoader(), path);
+                  if (error != null) {
+                    throw new UnsatisfiedLinkError(error);
+                  }
+                }
+              } catch (IllegalAccessException
+                  | IllegalArgumentException
+                  | InvocationTargetException e) {
+                final String errMsg = "Error: Cannot load " + pathToSoFile;
+                Log.e(TAG, errMsg);
+                throw new RuntimeException(errMsg, e);
               }
+            } else {
+              System.load(pathToSoFile);
             }
-          } catch (IllegalAccessException
-              | IllegalArgumentException
-              | InvocationTargetException e) {
-            final String errMsg = "Error: Cannot load " + pathToSoFile;
-            Log.e(TAG, errMsg);
-            throw new RuntimeException(errMsg, e);
           }
-        } else {
-          System.load(pathToSoFile);
-        }
-      }
-    };
+        };
   }
 
   @Nullable
@@ -296,8 +277,8 @@ public class SoLoader {
 
     try {
       final Method method =
-          Runtime.class
-              .getDeclaredMethod("nativeLoad", String.class, ClassLoader.class, String.class);
+          Runtime.class.getDeclaredMethod(
+              "nativeLoad", String.class, ClassLoader.class, String.class);
       method.setAccessible(true);
       return method;
     } catch (final NoSuchMethodException | SecurityException e) {
@@ -335,8 +316,8 @@ public class SoLoader {
   }
 
   /**
-   * Provide a wrapper object for calling {@link System#loadLibrary}.
-   * This is useful for controlling which ClassLoader libraries are loaded into.
+   * Provide a wrapper object for calling {@link System#loadLibrary}. This is useful for controlling
+   * which ClassLoader libraries are loaded into.
    */
   public static void setSystemLoadLibraryWrapper(SystemLoadLibraryWrapper wrapper) {
     sSystemLoadLibraryWrapper = wrapper;
@@ -492,10 +473,15 @@ public class SoLoader {
       String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) throws IOException {
 
     int result = SoSource.LOAD_RESULT_NOT_FOUND;
+    SoSource[] localSoSources;
     synchronized (SoLoader.class) {
       if (sSoSources == null) {
         Log.e(TAG, "Could not load: " + soName + " because no SO source exists");
         throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
+      } else {
+        // TODO: Remove local copy after UnsatisfiedLinkError investigation
+        localSoSources = new SoSource[sSoSources.length];
+        System.arraycopy(sSoSources, 0, localSoSources, 0, sSoSources.length);
       }
     }
 
@@ -512,9 +498,15 @@ public class SoLoader {
     }
 
     try {
-      // sSoSources is immutable after initialization, so holding the lock here is not needed
-      for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
-        result = sSoSources[i].loadLibrary(soName, loadFlags, oldPolicy);
+      for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < localSoSources.length; ++i) {
+        result = localSoSources[i].loadLibrary(soName, loadFlags, oldPolicy);
+        if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
+          Log.d(TAG, "Result " + result + " for " + soName + " in source " + localSoSources[i]);
+        }
+        if (localSoSources[i] instanceof ExtractFromZipSoSource) {
+          ExtractFromZipSoSource soSource = (ExtractFromZipSoSource) localSoSources[i];
+          Log.d(TAG, "Extraction logs: " + soSource.getExtractLogs(soName));
+        }
       }
     } finally {
       if (SYSTRACE_LIBRARY_LOADING) {
@@ -530,7 +522,6 @@ public class SoLoader {
       }
     }
   }
-
 
   @Nullable
   public static String makeNonZipPath(final String localLdLibraryPath) {
@@ -549,7 +540,6 @@ public class SoLoader {
 
     return TextUtils.join(":", pathsWithoutZip);
   }
-
 
   public static Set<String> getLoadedLibrariesNames() {
     return sLoadedLibraries;
@@ -573,7 +563,7 @@ public class SoLoader {
   }
 
   /**
-   * Add a new source of native libraries.  SoLoader consults the new source before any
+   * Add a new source of native libraries. SoLoader consults the new source before any
    * currently-installed source.
    *
    * @param extraSoSource The SoSource to install
@@ -581,7 +571,7 @@ public class SoLoader {
   public static synchronized void prependSoSource(SoSource extraSoSource) throws IOException {
     assertInitialized();
     extraSoSource.prepare(makePrepareFlags());
-    SoSource[] newSoSources = new SoSource[sSoSources.length+1];
+    SoSource[] newSoSources = new SoSource[sSoSources.length + 1];
     newSoSources[0] = extraSoSource;
     System.arraycopy(sSoSources, 0, newSoSources, 1, sSoSources.length);
     Log.d(TAG, "Prepending to SO sources: " + extraSoSource);
@@ -589,8 +579,8 @@ public class SoLoader {
   }
 
   /**
-   * Retrieve an LD_LIBRARY_PATH value suitable for using the native linker to resolve our
-   * shared libraries.
+   * Retrieve an LD_LIBRARY_PATH value suitable for using the native linker to resolve our shared
+   * libraries.
    */
   public static synchronized String makeLdLibraryPath() {
     assertInitialized();
@@ -606,8 +596,9 @@ public class SoLoader {
   }
 
   /**
-   * This function ensure that every SoSources Abi is supported for at least one
-   * abi in SysUtil.getSupportedAbis
+   * This function ensure that every SoSources Abi is supported for at least one abi in
+   * SysUtil.getSupportedAbis
+   *
    * @return true if all SoSources have their Abis supported
    */
   public static boolean areSoSourcesAbisSupported() {
@@ -641,11 +632,14 @@ public class SoLoader {
 
       if (!(classLoader instanceof BaseDexClassLoader)) {
         throw new IllegalStateException(
-            "ClassLoader " + classLoader.getClass().getName() + " should be of type BaseDexClassLoader");
+            "ClassLoader "
+                + classLoader.getClass().getName()
+                + " should be of type BaseDexClassLoader");
       }
       try {
         final BaseDexClassLoader baseDexClassLoader = (BaseDexClassLoader) classLoader;
-        final Method getLdLibraryPathMethod = BaseDexClassLoader.class.getMethod("getLdLibraryPath");
+        final Method getLdLibraryPathMethod =
+            BaseDexClassLoader.class.getMethod("getLdLibraryPath");
 
         return (String) getLdLibraryPathMethod.invoke(baseDexClassLoader);
       } catch (Exception e) {
