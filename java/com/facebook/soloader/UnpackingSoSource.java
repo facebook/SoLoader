@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.Arrays;
 import javax.annotation.Nullable;
+
 /**
  * {@link SoSource} that extracts libraries from an APK to the filesystem.
  */
@@ -231,7 +232,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         try {
           existingManifest = DsoManifest.read(manifestFile);
         } catch (Exception ex) {
-        Log.i(TAG, "error reading existing DSO manifest", ex);
+          Log.i(TAG, "error reading existing DSO manifest", ex);
         }
       }
 
@@ -240,7 +241,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       }
 
       deleteUnmentionedFiles(desiredManifest.dsos);
-      byte[] ioBuffer = new byte[32*1024];
+      byte[] ioBuffer = new byte[32 * 1024];
       while (dsoIterator.hasNext()) {
         try (InputDso iDso = dsoIterator.next()) {
           boolean obsolete = true;
@@ -256,6 +257,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         }
       }
     }
+    Log.v(TAG, "Finished regenerating DSO store " + getClass().getName());
   }
 
   private boolean refreshLocked(

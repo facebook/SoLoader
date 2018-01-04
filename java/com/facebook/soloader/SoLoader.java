@@ -252,6 +252,7 @@ public class SoLoader {
                           nativeLoadRuntimeMethod.invoke(
                               runtime, pathToSoFile, SoLoader.class.getClassLoader(), path);
                   if (error != null) {
+                    Log.e(TAG, "Error when loading lib: " + error);
                     throw new UnsatisfiedLinkError(error);
                   }
                 }
@@ -569,13 +570,14 @@ public class SoLoader {
    * @param extraSoSource The SoSource to install
    */
   public static synchronized void prependSoSource(SoSource extraSoSource) throws IOException {
+    Log.d(TAG, "Prepending to SO sources: " + extraSoSource);
     assertInitialized();
     extraSoSource.prepare(makePrepareFlags());
     SoSource[] newSoSources = new SoSource[sSoSources.length + 1];
     newSoSources[0] = extraSoSource;
     System.arraycopy(sSoSources, 0, newSoSources, 1, sSoSources.length);
-    Log.d(TAG, "Prepending to SO sources: " + extraSoSource);
     sSoSources = newSoSources;
+    Log.d(TAG, "Prepended to SO sources: " + extraSoSource);
   }
 
   /**

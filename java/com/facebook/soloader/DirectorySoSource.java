@@ -10,8 +10,10 @@
 package com.facebook.soloader;
 
 import android.os.StrictMode;
+import android.util.Log;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import javax.annotation.Nullable;
 
@@ -49,6 +51,7 @@ public class DirectorySoSource extends SoSource {
       throws IOException {
     File soFile = new File(libDir, soName);
     if (!soFile.exists()) {
+      Log.d(SoLoader.TAG, soName + " not found on " + libDir.getCanonicalPath());
       return LOAD_RESULT_NOT_FOUND;
     }
 
@@ -59,6 +62,9 @@ public class DirectorySoSource extends SoSource {
 
     if ((flags & RESOLVE_DEPENDENCIES) != 0) {
       String dependencies[] = getDependencies(soFile);
+      if (dependencies.length > 0) {
+        Log.d(SoLoader.TAG, "Loading lib dependencies: " + Arrays.toString(dependencies));
+      }
       for (int i = 0; i < dependencies.length; ++i) {
         String dependency = dependencies[i];
         if (dependency.startsWith("/")) {
@@ -106,10 +112,16 @@ public class DirectorySoSource extends SoSource {
 
   @Override
   public String toString() {
+    String path;
+    try {
+      path = String.valueOf(soDirectory.getCanonicalPath());
+    } catch (IOException e) {
+      path = soDirectory.getName();
+    }
     return new StringBuilder()
         .append(getClass().getName())
         .append("[root = ")
-        .append(soDirectory == null ? "null" : soDirectory.getName())
+        .append(path)
         .append(" flags = ")
         .append(flags)
         .append(']')
