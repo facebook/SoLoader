@@ -26,6 +26,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * Native code loader.
@@ -48,6 +50,7 @@ import javax.annotation.Nullable;
  * SoLoader should do that by calling SoLoader.init early on app initialization path. The call must
  * happen before any class using SoLoader in its static initializer is loaded.
  */
+@ThreadSafe
 public class SoLoader {
 
   /* package */ static final String TAG = "SoLoader";
@@ -59,22 +62,26 @@ public class SoLoader {
    * Ordered list of sources to consult when trying to load a shared library or one of its
    * dependencies. {@code null} indicates that SoLoader is uninitialized.
    */
-  @Nullable private static SoSource[] sSoSources = null;
+  @GuardedBy("SoLoader.class")
+  @Nullable
+  private static SoSource[] sSoSources = null;
 
   /** Records the sonames (e.g., "libdistract.so") of shared libraries we've loaded. */
+  @GuardedBy("SoLoader.class")
   private static final Set<String> sLoadedLibraries = new HashSet<>();
 
   /**
    * Libraries that are in the process of being loaded, and lock objects to synchronize on and wait
    * for the loading to end.
    */
+  @GuardedBy("SoLoader.class")
   private static final Map<String, Object> sLoadingLibraries = new HashMap<>();
 
   /** Wrapper for System.loadLlibrary. */
   @Nullable private static SystemLoadLibraryWrapper sSystemLoadLibraryWrapper = null;
 
   /** Name of the directory we use for extracted DSOs from built-in SO sources (APK, exopackage) */
-  private static String SO_STORE_NAME_MAIN = "lib-main";
+  private static final String SO_STORE_NAME_MAIN = "lib-main";
 
   /** Enable the exopackage SoSource. */
   public static final int SOLOADER_ENABLE_EXOPACKAGE = (1 << 0);
@@ -542,11 +549,11 @@ public class SoLoader {
     return TextUtils.join(":", pathsWithoutZip);
   }
 
-  public static Set<String> getLoadedLibrariesNames() {
+  public static synchronized Set<String> getLoadedLibrariesNames() {
     return sLoadedLibraries;
   }
 
-  /* package */ static File unpackLibraryBySoName(String soName) throws IOException {
+  /* package */ static synchronized File unpackLibraryBySoName(String soName) throws IOException {
     for (int i = 0; i < sSoSources.length; ++i) {
       File unpacked = sSoSources[i].unpackLibrary(soName);
       if (unpacked != null) {
@@ -603,7 +610,7 @@ public class SoLoader {
    *
    * @return true if all SoSources have their Abis supported
    */
-  public static boolean areSoSourcesAbisSupported() {
+  public static synchronized boolean areSoSourcesAbisSupported() {
     SoSource[] soSources = sSoSources;
     if (soSources == null) {
       return false;
