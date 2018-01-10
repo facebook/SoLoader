@@ -1,6 +1,4 @@
-load("@fbandroid//oss_defs:CLOSED_SOURCE_DEFS", "define_list_deps_target", "maven_library")
-
-include_defs("//oss_defs/SOLOADER_DEFS")
+load("//oss_defs:SOLOADER_DEFS", "maven_library", "define_list_deps_target")
 
 maven_library(
     name = "jsr-305",

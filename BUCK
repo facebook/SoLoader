@@ -1,4 +1,4 @@
-include_defs("fbandroid//oss_defs/SOLOADER_DEFS")
+include_defs("//oss_defs/SOLOADER_DEFS")
 
 android_aar(
     name = "soloader",
