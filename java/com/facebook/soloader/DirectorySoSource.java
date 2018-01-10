@@ -57,14 +57,13 @@ public class DirectorySoSource extends SoSource {
 
     if ((loadFlags & LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) != 0 &&
         (flags & ON_LD_LIBRARY_PATH) != 0) {
+      Log.d(SoLoader.TAG, soName + " loaded implicitly");
       return LOAD_RESULT_IMPLICITLY_PROVIDED;
     }
 
     if ((flags & RESOLVE_DEPENDENCIES) != 0) {
       String dependencies[] = getDependencies(soFile);
-      if (dependencies.length > 0) {
-        Log.d(SoLoader.TAG, "Loading lib dependencies: " + Arrays.toString(dependencies));
-      }
+      Log.d(SoLoader.TAG, "Loading lib dependencies: " + Arrays.toString(dependencies));
       for (int i = 0; i < dependencies.length; ++i) {
         String dependency = dependencies[i];
         if (dependency.startsWith("/")) {
@@ -74,6 +73,8 @@ public class DirectorySoSource extends SoSource {
         SoLoader.loadLibraryBySoName(
             dependency, (loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION), threadPolicy);
       }
+    } else {
+      Log.d(SoLoader.TAG, "Not resolving dependencies for " + soName);
     }
 
     SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);

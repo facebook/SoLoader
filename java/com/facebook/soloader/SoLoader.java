@@ -16,10 +16,15 @@ import android.text.TextUtils;
 import android.util.Log;
 import dalvik.system.BaseDexClassLoader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -191,16 +196,7 @@ public class SoLoader {
             apkSoSourceFlags = 0;
           } else {
             apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
-            int ourSoSourceFlags = 0;
-
-            // On old versions of Android, Bionic doesn't add our library directory to its internal
-            // search path, and the system doesn't resolve dependencies between modules we ship. On
-            // these systems, we resolve dependencies ourselves. On other systems, Bionic's built-in
-            // resolver suffices.
-
-            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-              ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
-            }
+            int ourSoSourceFlags = DirectorySoSource.RESOLVE_DEPENDENCIES;
 
             SoSource ourSoSource =
                 new DirectorySoSource(new File(applicationInfo.nativeLibraryDir), ourSoSourceFlags);
@@ -249,30 +245,64 @@ public class SoLoader {
         new SoFileLoader() {
           @Override
           public void load(final String pathToSoFile, final int loadFlags) {
+            String error = null;
             if (hasNativeLoadMethod) {
               final boolean inZip = (loadFlags & SOLOADER_LOOK_IN_ZIP) == SOLOADER_LOOK_IN_ZIP;
               final String path = inZip ? localLdLibraryPath : localLdLibraryPathNoZips;
               try {
                 synchronized (runtime) {
-                  String error =
+                  error =
                       (String)
                           nativeLoadRuntimeMethod.invoke(
                               runtime, pathToSoFile, SoLoader.class.getClassLoader(), path);
                   if (error != null) {
-                    Log.e(TAG, "Error when loading lib: " + error);
                     throw new UnsatisfiedLinkError(error);
                   }
                 }
               } catch (IllegalAccessException
                   | IllegalArgumentException
                   | InvocationTargetException e) {
-                final String errMsg = "Error: Cannot load " + pathToSoFile;
-                Log.e(TAG, errMsg);
-                throw new RuntimeException(errMsg, e);
+                error = "Error: Cannot load " + pathToSoFile;
+                throw new RuntimeException(error, e);
+              } finally {
+                if (error != null) {
+                  Log.e(
+                      TAG,
+                      "Error when loading lib: "
+                          + error
+                          + " lib hash: "
+                          + getLibHash(pathToSoFile)
+                          + " search path is "
+                          + path);
+                }
               }
             } else {
               System.load(pathToSoFile);
             }
+          }
+
+          /** * Logs MD5 of lib that failed loading */
+          private String getLibHash(String libPath) {
+            String digestStr;
+            try {
+              File libFile = new File(libPath);
+              MessageDigest digest = MessageDigest.getInstance("MD5");
+
+              try (InputStream libInStream = new FileInputStream(libFile)) {
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = libInStream.read(buffer)) > 0) {
+                  digest.update(buffer, 0, bytesRead);
+                }
+                digestStr = String.format("%32x", new BigInteger(1, digest.digest()));
+              }
+
+            } catch (IOException e) {
+              digestStr = e.toString();
+            } catch (NoSuchAlgorithmException e) {
+              digestStr = e.toString();
+            }
+            return digestStr;
           }
         };
   }
@@ -505,6 +535,7 @@ public class SoLoader {
       Api18TraceUtils.beginTraceSection("SoLoader.loadLibrary[" + soName + "]");
     }
 
+    UnsatisfiedLinkError unsatisfiedLinkError = null;
     try {
       for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < localSoSources.length; ++i) {
         result = localSoSources[i].loadLibrary(soName, loadFlags, oldPolicy);
@@ -516,6 +547,8 @@ public class SoLoader {
           Log.d(TAG, "Extraction logs: " + soSource.getExtractLogs(soName));
         }
       }
+    } catch (UnsatisfiedLinkError error) {
+      unsatisfiedLinkError = error;
     } finally {
       if (SYSTRACE_LIBRARY_LOADING) {
         Api18TraceUtils.endSection();
@@ -525,8 +558,12 @@ public class SoLoader {
         StrictMode.setThreadPolicy(oldPolicy);
       }
       if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
-        Log.e(TAG, "Could not load: " + soName);
-        throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
+        String message = "couldn't find DSO to load: " + soName;
+        if (unsatisfiedLinkError != null) {
+          message += " caused by: " + unsatisfiedLinkError.getMessage();
+        }
+        Log.e(TAG, message);
+        throw new UnsatisfiedLinkError(message);
       }
     }
   }
