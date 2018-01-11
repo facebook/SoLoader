@@ -26,10 +26,12 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -81,6 +83,9 @@ public class SoLoader {
    */
   @GuardedBy("SoLoader.class")
   private static final Map<String, Object> sLoadingLibraries = new HashMap<>();
+
+  private static final Set<String> sLoadedAndMergedLibraries =
+      Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
   /** Wrapper for System.loadLlibrary. */
   @Nullable private static SystemLoadLibraryWrapper sSystemLoadLibraryWrapper = null;
@@ -414,10 +419,17 @@ public class SoLoader {
 
   private static void loadLibraryBySoName(
       String soName,
-      String shortName,
-      String mergedLibName,
+      @Nullable String shortName,
+      @Nullable String mergedLibName,
       int loadFlags,
-      StrictMode.ThreadPolicy oldPolicy) {
+      @Nullable StrictMode.ThreadPolicy oldPolicy) {
+    // While we trust the JNI merging code (`invokeJniOnload(..)` below) to prevent us from invoking
+    // JNI_OnLoad more than once and acknowledge it's more memory-efficient than tracking in Java,
+    // by tracking loaded and merged libs in Java we can avoid undue synchronization and blocking
+    // waits (which may occur on the UI thread and thus trigger ANRs).
+    if (!TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName)) {
+      return;
+    }
 
     Object loadingLibLock;
     boolean loaded = false;
@@ -471,16 +483,16 @@ public class SoLoader {
         }
       }
 
-      if (mergedLibName != null) {
+      boolean isAlreadyMerged =
+          !TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName);
+      if (mergedLibName != null && !isAlreadyMerged) {
         if (SYSTRACE_LIBRARY_LOADING) {
           Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[" + shortName + "]");
         }
         try {
-          // We trust the JNI merging code to prevent us from
-          // invoking JNI_OnLoad more than once because
-          // it's more memory-efficient than tracking this in Java.
           Log.d(TAG, "About to merge: " + shortName + " / " + soName);
           MergedSoMapping.invokeJniOnload(shortName);
+          sLoadedAndMergedLibraries.add(shortName);
         } finally {
           if (SYSTRACE_LIBRARY_LOADING) {
             Api18TraceUtils.endSection();
