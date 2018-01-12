@@ -201,7 +201,16 @@ public class SoLoader {
             apkSoSourceFlags = 0;
           } else {
             apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
-            int ourSoSourceFlags = DirectorySoSource.RESOLVE_DEPENDENCIES;
+            int ourSoSourceFlags = 0;
+
+            // On old versions of Android, Bionic doesn't add our library directory to its internal
+            // search path, and the system doesn't resolve dependencies between modules we ship. On
+            // these systems, we resolve dependencies ourselves. On other systems, Bionic's built-in
+            // resolver suffices.
+
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+              ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
+            }
 
             SoSource ourSoSource =
                 new DirectorySoSource(new File(applicationInfo.nativeLibraryDir), ourSoSourceFlags);

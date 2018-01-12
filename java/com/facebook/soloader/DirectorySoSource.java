@@ -62,24 +62,39 @@ public class DirectorySoSource extends SoSource {
     }
 
     if ((flags & RESOLVE_DEPENDENCIES) != 0) {
-      String dependencies[] = getDependencies(soFile);
-      Log.d(SoLoader.TAG, "Loading lib dependencies: " + Arrays.toString(dependencies));
-      for (int i = 0; i < dependencies.length; ++i) {
-        String dependency = dependencies[i];
-        if (dependency.startsWith("/")) {
-          continue;
-        }
-
-        SoLoader.loadLibraryBySoName(
-            dependency, (loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION), threadPolicy);
-      }
+      loadDependencies(soFile, loadFlags, threadPolicy);
     } else {
       Log.d(SoLoader.TAG, "Not resolving dependencies for " + soName);
     }
 
-    SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
+    try {
+      SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
+    } catch (UnsatisfiedLinkError e) {
+      if ((flags & RESOLVE_DEPENDENCIES) == 0) {
+        Log.d(SoLoader.TAG, "Will try again resolving dependencies manually");
+        loadDependencies(soFile, loadFlags, threadPolicy);
+        SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
+      } else {
+        throw e;
+      }
+    }
 
     return LOAD_RESULT_LOADED;
+  }
+
+  private void loadDependencies(File soFile, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
+      throws IOException {
+    String dependencies[] = getDependencies(soFile);
+    Log.d(SoLoader.TAG, "Loading lib dependencies: " + Arrays.toString(dependencies));
+    for (int i = 0; i < dependencies.length; ++i) {
+      String dependency = dependencies[i];
+      if (dependency.startsWith("/")) {
+        continue;
+      }
+
+      SoLoader.loadLibraryBySoName(
+          dependency, (loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION), threadPolicy);
+    }
   }
 
   private static String[] getDependencies(File soFile) throws IOException {
