@@ -106,6 +106,9 @@ public class SoLoader {
 
   private static int sFlags;
 
+  /** A backup SoSource to try if a lib file is corrupted */
+  @Nullable private static UnpackingSoSource sBackupSoSource;
+
   static {
     boolean shouldSystrace = false;
     try {
@@ -190,6 +193,7 @@ public class SoLoader {
         //
 
         if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
+          sBackupSoSource = null;
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
         } else {
           ApplicationInfo applicationInfo = context.getApplicationInfo();
@@ -217,7 +221,8 @@ public class SoLoader {
             soSources.add(0, ourSoSource);
           }
 
-          soSources.add(0, new ApkSoSource(context, SO_STORE_NAME_MAIN, apkSoSourceFlags));
+          sBackupSoSource = new ApkSoSource(context, SO_STORE_NAME_MAIN, apkSoSourceFlags);
+          soSources.add(0, sBackupSoSource);
         }
       }
 
@@ -560,6 +565,13 @@ public class SoLoader {
     try {
       for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < localSoSources.length; ++i) {
         result = localSoSources[i].loadLibrary(soName, loadFlags, oldPolicy);
+        if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSource != null) {
+          // Let's try from the backup source
+          Log.d(TAG, "Trying backup SoSource for " + soName);
+          sBackupSoSource.prepare(soName);
+          result = sBackupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
+          break;
+        }
         if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
           Log.d(TAG, "Result " + result + " for " + soName + " in source " + localSoSources[i]);
         }
@@ -578,7 +590,8 @@ public class SoLoader {
       if (restoreOldPolicy) {
         StrictMode.setThreadPolicy(oldPolicy);
       }
-      if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
+      if (result == SoSource.LOAD_RESULT_NOT_FOUND
+          || result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE) {
         String message = "couldn't find DSO to load: " + soName;
         if (unsatisfiedLinkError != null) {
           message += " caused by: " + unsatisfiedLinkError.getMessage();

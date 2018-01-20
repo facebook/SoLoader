@@ -4,6 +4,7 @@ package com.facebook.soloader;
 
 import android.content.Context;
 import android.os.Parcel;
+import android.os.StrictMode;
 import android.util.Log;
 import java.io.Closeable;
 import java.io.DataInput;
@@ -14,6 +15,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -34,7 +37,11 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   private static final byte MANIFEST_VERSION = 1;
 
   protected final Context mContext;
-  private @Nullable String[] mAbis;
+  @Nullable protected String mCorruptedLib;
+
+  @Nullable private String[] mAbis;
+
+  private final Map<String, Object> mLibsBeingLoaded = new HashMap<>();
 
   protected UnpackingSoSource(Context context, String name) {
     super(getSoStorePath(context, name), RESOLVE_DEPENDENCIES);
@@ -292,7 +299,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         state = STATE_DIRTY;
       }
 
-      if (state == STATE_DIRTY) {
+      if (state == STATE_DIRTY || ((flags & SoSource.PREPARE_FLAG_FORCE_REFRESH) != 0)) {
         Log.v(TAG, "so store dirty: regenerating");
         writeState(stateFileName, STATE_DIRTY);
 
@@ -406,6 +413,39 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         Log.v(TAG, "not releasing dso store lock for "
             + soDirectory + " (syncer thread started)");
       }
+    }
+  }
+
+  private Object getLibraryLock(String soName) {
+    synchronized (mLibsBeingLoaded) {
+      Object lock = mLibsBeingLoaded.get(soName);
+      if (lock == null) {
+        lock = new Object();
+        mLibsBeingLoaded.put(soName, lock);
+      }
+      return lock;
+    }
+  }
+
+  /** Prepare this SoSource extracting a corrupted library. */
+  protected synchronized void prepare(String soName) throws IOException {
+    // Only one thread at a time can try to recover a corrupted lib from the same source
+    Object lock = getLibraryLock(soName);
+    synchronized (lock) {
+      // While recovering, do not allow loading the same lib from another thread
+      mCorruptedLib = soName;
+      prepare(SoSource.PREPARE_FLAG_FORCE_REFRESH);
+    }
+  }
+
+  @Override
+  public int loadLibrary(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
+      throws IOException {
+    Object lock = getLibraryLock(soName);
+    synchronized (lock) {
+      // Holds a lock on the specific library being loaded to avoid trying to recover it in another
+      // thread while loading
+      return loadLibraryFrom(soName, loadFlags, soDirectory, threadPolicy);
     }
   }
 }

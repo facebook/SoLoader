@@ -54,7 +54,6 @@ public class DirectorySoSource extends SoSource {
       Log.d(SoLoader.TAG, soName + " not found on " + libDir.getCanonicalPath());
       return LOAD_RESULT_NOT_FOUND;
     }
-
     if ((loadFlags & LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) != 0 &&
         (flags & ON_LD_LIBRARY_PATH) != 0) {
       Log.d(SoLoader.TAG, soName + " loaded implicitly");
@@ -70,7 +69,11 @@ public class DirectorySoSource extends SoSource {
     try {
       SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
     } catch (UnsatisfiedLinkError e) {
-      if ((flags & RESOLVE_DEPENDENCIES) == 0) {
+      if (e.getMessage().contains("bad ELF magic")) {
+        Log.d(SoLoader.TAG, "Corrupted lib file detected");
+        // Swallow exception. Higher layers will try again from a backup source
+        return LOAD_RESULT_CORRUPTED_LIB_FILE;
+      } else if ((flags & RESOLVE_DEPENDENCIES) == 0) {
         Log.d(SoLoader.TAG, "Will try again resolving dependencies manually");
         loadDependencies(soFile, loadFlags, threadPolicy);
         SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);

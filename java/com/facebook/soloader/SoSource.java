@@ -34,9 +34,10 @@ abstract public class SoSource {
    */
   public static final int LOAD_RESULT_IMPLICITLY_PROVIDED = 2;
 
-  /**
-   * Allow loadLibrary to implicitly provide the library instead of actually loading it.
-   */
+  /** This SoSource tried to load the library but it seems that the file is corrupted. */
+  public static final int LOAD_RESULT_CORRUPTED_LIB_FILE = 3;
+
+  /** Allow loadLibrary to implicitly provide the library instead of actually loading it. */
   public static final int LOAD_FLAG_ALLOW_IMPLICIT_PROVISION = 1;
 
   /**
@@ -50,9 +51,10 @@ abstract public class SoSource {
    */
   public static final int PREPARE_FLAG_ALLOW_ASYNC_INIT = (1<<0);
 
-  /**
-   * Prepare to install this SoSource in SoLoader.
-   */
+  /** Force prepare to refresh libs. */
+  public static final int PREPARE_FLAG_FORCE_REFRESH = (1 << 1);
+
+  /** Prepare to install this SoSource in SoLoader. */
   protected void prepare(int flags) throws IOException {
     /* By default, do nothing */
   }

@@ -71,7 +71,11 @@ public class ApkSoSource extends ExtractFromZipSoSource {
       final boolean result;
       String zipPath = ze.getName();
       final String msg;
-      if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
+      if (soName.equals(mCorruptedLib)) {
+        mCorruptedLib = null;
+        msg = String.format("allowing consideration of corrupted lib %s", soName);
+        result = true;
+      } else if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
         msg = "allowing consideration of " + zipPath + ": self-extraction preferred";
         result = true;
       } else {
