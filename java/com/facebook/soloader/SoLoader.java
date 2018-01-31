@@ -537,15 +537,10 @@ public class SoLoader {
       String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) throws IOException {
 
     int result = SoSource.LOAD_RESULT_NOT_FOUND;
-    SoSource[] localSoSources;
     synchronized (SoLoader.class) {
       if (sSoSources == null) {
         Log.e(TAG, "Could not load: " + soName + " because no SO source exists");
         throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
-      } else {
-        // TODO: Remove local copy after UnsatisfiedLinkError investigation
-        localSoSources = new SoSource[sSoSources.length];
-        System.arraycopy(sSoSources, 0, localSoSources, 0, sSoSources.length);
       }
     }
 
@@ -563,8 +558,9 @@ public class SoLoader {
 
     UnsatisfiedLinkError unsatisfiedLinkError = null;
     try {
-      for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < localSoSources.length; ++i) {
-        result = localSoSources[i].loadLibrary(soName, loadFlags, oldPolicy);
+      for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
+        SoSource currentSource = sSoSources[i];
+        result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
         if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSource != null) {
           // Let's try from the backup source
           Log.d(TAG, "Trying backup SoSource for " + soName);
@@ -573,11 +569,7 @@ public class SoLoader {
           break;
         }
         if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
-          Log.d(TAG, "Result " + result + " for " + soName + " in source " + localSoSources[i]);
-        }
-        if (localSoSources[i] instanceof ExtractFromZipSoSource) {
-          ExtractFromZipSoSource soSource = (ExtractFromZipSoSource) localSoSources[i];
-          Log.d(TAG, "Extraction logs: " + soSource.getExtractLogs(soName));
+          Log.d(TAG, "Result " + result + " for " + soName + " in source " + currentSource);
         }
       }
     } catch (UnsatisfiedLinkError error) {

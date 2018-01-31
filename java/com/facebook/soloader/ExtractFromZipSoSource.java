@@ -42,10 +42,6 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     return new ZipUnpacker(this);
   }
 
-  protected @Nullable String getExtractLogs(String soName) {
-    return "";
-  }
-
   protected class ZipUnpacker extends Unpacker {
 
     private @Nullable ZipDso[] mDsos;

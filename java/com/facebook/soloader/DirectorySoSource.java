@@ -73,10 +73,6 @@ public class DirectorySoSource extends SoSource {
         Log.d(SoLoader.TAG, "Corrupted lib file detected");
         // Swallow exception. Higher layers will try again from a backup source
         return LOAD_RESULT_CORRUPTED_LIB_FILE;
-      } else if ((flags & RESOLVE_DEPENDENCIES) == 0) {
-        Log.d(SoLoader.TAG, "Will try again resolving dependencies manually");
-        loadDependencies(soFile, loadFlags, threadPolicy);
-        SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
       } else {
         throw e;
       }

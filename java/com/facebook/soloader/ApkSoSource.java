@@ -32,8 +32,6 @@ public class ApkSoSource extends ExtractFromZipSoSource {
 
   private final int mFlags;
 
-  private final Map<String, String> mExtractLogs = new HashMap<>();
-
   public ApkSoSource(Context context, String name, int flags) {
     super(
         context,
@@ -43,11 +41,6 @@ public class ApkSoSource extends ExtractFromZipSoSource {
         // during installation.
         "^lib/([^/]+)/([^/]+\\.so)$");
     mFlags = flags;
-  }
-
-  @Override
-  protected @Nullable String getExtractLogs(String soName) {
-    return mExtractLogs.get(soName);
   }
 
   @Override
@@ -102,7 +95,6 @@ public class ApkSoSource extends ExtractFromZipSoSource {
           }
         }
       }
-      mExtractLogs.put(soName, msg);
       Log.d(TAG, msg);
       return result;
     }
