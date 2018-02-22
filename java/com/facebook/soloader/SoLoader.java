@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -66,15 +67,22 @@ public class SoLoader {
   /* package */ @Nullable static SoFileLoader sSoFileLoader;
 
   /**
+   * locking controlling the list of SoSources. We want to allow long running iterations over the
+   * list to happen concurrently, but also ensure that nothing modifies the list while others are
+   * reading it.
+   */
+  private static final ReentrantReadWriteLock sSoSourcesLock = new ReentrantReadWriteLock();
+
+  /**
    * Ordered list of sources to consult when trying to load a shared library or one of its
    * dependencies. {@code null} indicates that SoLoader is uninitialized.
    */
-  @GuardedBy("SoLoader.class")
+  @GuardedBy("sSoSourcesLock")
   @Nullable
   private static SoSource[] sSoSources = null;
 
   /** A backup SoSource to try if a lib file is corrupted */
-  @GuardedBy("SoLoader.class")
+  @GuardedBy("sSoSourcesLock")
   @Nullable
   private static UnpackingSoSource sBackupSoSource;
 
@@ -109,8 +117,8 @@ public class SoLoader {
 
   public static final int SOLOADER_LOOK_IN_ZIP = (1 << 2);
 
+  @GuardedBy("sSoSourcesLock")
   private static int sFlags;
-
 
   static {
     boolean shouldSystrace = false;
@@ -156,95 +164,108 @@ public class SoLoader {
     }
   }
 
-  private static synchronized void initSoSources(
-      Context context, int flags, @Nullable SoFileLoader soFileLoader) throws IOException {
-    if (sSoSources == null) {
-      Log.d(TAG, "init start");
-      sFlags = flags;
+  private static void initSoSources(Context context, int flags, @Nullable SoFileLoader soFileLoader)
+      throws IOException {
+    sSoSourcesLock.writeLock().lock();
+    try {
+      if (sSoSources == null) {
+        Log.d(TAG, "init start");
+        sFlags = flags;
 
-      ArrayList<SoSource> soSources = new ArrayList<>();
+        ArrayList<SoSource> soSources = new ArrayList<>();
 
-      //
-      // Add SoSource objects for each of the system library directories.
-      //
-
-      String LD_LIBRARY_PATH = System.getenv("LD_LIBRARY_PATH");
-      if (LD_LIBRARY_PATH == null) {
-        LD_LIBRARY_PATH = "/vendor/lib:/system/lib";
-      }
-
-      String[] systemLibraryDirectories = LD_LIBRARY_PATH.split(":");
-      for (int i = 0; i < systemLibraryDirectories.length; ++i) {
-        // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
-        // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
-        // these libraries have on each other, so doing that ourselves would be a waste.
-        File systemSoDirectory = new File(systemLibraryDirectories[i]);
-        soSources.add(
-            new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
-      }
-
-      //
-      // We can only proceed forward if we have a Context. The prominent case
-      // where we don't have a Context is barebones dalvikvm instantiations. In
-      // that case, the caller is responsible for providing a correct LD_LIBRARY_PATH.
-      //
-
-      if (context != null) {
         //
-        // Prepend our own SoSource for our own DSOs.
+        // Add SoSource objects for each of the system library directories.
         //
 
-        if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
-          sBackupSoSource = null;
-          soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
-        } else {
-          ApplicationInfo applicationInfo = context.getApplicationInfo();
-          boolean isSystemApplication =
-              (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0
-                  && (applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
-          int apkSoSourceFlags;
-          if (isSystemApplication) {
-            apkSoSourceFlags = 0;
+        String LD_LIBRARY_PATH = System.getenv("LD_LIBRARY_PATH");
+        if (LD_LIBRARY_PATH == null) {
+          LD_LIBRARY_PATH = "/vendor/lib:/system/lib";
+        }
+
+        String[] systemLibraryDirectories = LD_LIBRARY_PATH.split(":");
+        for (int i = 0; i < systemLibraryDirectories.length; ++i) {
+          // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
+          // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
+          // these libraries have on each other, so doing that ourselves would be a waste.
+          File systemSoDirectory = new File(systemLibraryDirectories[i]);
+          soSources.add(
+              new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
+        }
+
+        //
+        // We can only proceed forward if we have a Context. The prominent case
+        // where we don't have a Context is barebones dalvikvm instantiations. In
+        // that case, the caller is responsible for providing a correct LD_LIBRARY_PATH.
+        //
+
+        if (context != null) {
+          //
+          // Prepend our own SoSource for our own DSOs.
+          //
+
+          if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
+            sBackupSoSource = null;
+            soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
           } else {
-            apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
-            int ourSoSourceFlags = 0;
+            ApplicationInfo applicationInfo = context.getApplicationInfo();
+            boolean isSystemApplication =
+                (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0
+                    && (applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
+            int apkSoSourceFlags;
+            if (isSystemApplication) {
+              apkSoSourceFlags = 0;
+            } else {
+              apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
+              int ourSoSourceFlags = 0;
 
-            // On old versions of Android, Bionic doesn't add our library directory to its internal
-            // search path, and the system doesn't resolve dependencies between modules we ship. On
-            // these systems, we resolve dependencies ourselves. On other systems, Bionic's built-in
-            // resolver suffices.
+              // On old versions of Android, Bionic doesn't add our library directory to its
+              // internal search path, and the system doesn't resolve dependencies between
+              // modules we ship. On these systems, we resolve dependencies ourselves. On other
+              // systems, Bionic's built-in resolver suffices.
 
-            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-              ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
+              if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
+              }
+
+              SoSource ourSoSource =
+                  new DirectorySoSource(
+                      new File(applicationInfo.nativeLibraryDir), ourSoSourceFlags);
+              soSources.add(0, ourSoSource);
             }
 
-            SoSource ourSoSource =
-                new DirectorySoSource(new File(applicationInfo.nativeLibraryDir), ourSoSourceFlags);
-            soSources.add(0, ourSoSource);
+            sBackupSoSource = new ApkSoSource(context, SO_STORE_NAME_MAIN, apkSoSourceFlags);
+            soSources.add(0, sBackupSoSource);
           }
-
-          sBackupSoSource = new ApkSoSource(context, SO_STORE_NAME_MAIN, apkSoSourceFlags);
-          soSources.add(0, sBackupSoSource);
         }
-      }
 
-      SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
-      int prepareFlags = makePrepareFlags();
-      for (int i = finalSoSources.length; i-- > 0; ) {
-        Log.d(TAG, "Preparing SO source: " + finalSoSources[i]);
-        finalSoSources[i].prepare(prepareFlags);
+        SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
+        int prepareFlags = makePrepareFlags();
+        for (int i = finalSoSources.length; i-- > 0; ) {
+          Log.d(TAG, "Preparing SO source: " + finalSoSources[i]);
+          finalSoSources[i].prepare(prepareFlags);
+        }
+        sSoSources = finalSoSources;
+        Log.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
       }
-      sSoSources = finalSoSources;
-      Log.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
+    } finally {
+      sSoSourcesLock.writeLock().unlock();
     }
   }
 
   private static int makePrepareFlags() {
     int prepareFlags = 0;
-    if ((sFlags & SOLOADER_ALLOW_ASYNC_INIT) != 0) {
-      prepareFlags |= SoSource.PREPARE_FLAG_ALLOW_ASYNC_INIT;
+    // ensure the write lock is being held to protect sFlags
+    // this is used when preparing new SoSources in the list.
+    sSoSourcesLock.writeLock().lock();
+    try {
+      if ((sFlags & SOLOADER_ALLOW_ASYNC_INIT) != 0) {
+        prepareFlags |= SoSource.PREPARE_FLAG_ALLOW_ASYNC_INIT;
+      }
+      return prepareFlags;
+    } finally {
+      sSoSourcesLock.writeLock().unlock();
     }
-    return prepareFlags;
   }
 
   private static synchronized void initSoLoader(@Nullable SoFileLoader soFileLoader) {
@@ -357,8 +378,13 @@ public class SoLoader {
   }
 
   /** Set so sources. Useful for tests. */
-  public static synchronized void setSoSources(SoSource[] sources) {
-    sSoSources = sources;
+  public static void setSoSources(SoSource[] sources) {
+    sSoSourcesLock.writeLock().lock();
+    try {
+      sSoSources = sources;
+    } finally {
+      sSoSourcesLock.writeLock().unlock();
+    }
   }
 
   /** Set so file loader. Only for tests. */
@@ -367,11 +393,13 @@ public class SoLoader {
   }
 
   /** Reset internal status. Only for tests. */
-  public static synchronized void resetStatus() {
-    sLoadedLibraries.clear();
-    sLoadingLibraries.clear();
-    sSoFileLoader = null;
-    sSoSources = null;
+  public static void resetStatus() {
+    synchronized (SoLoader.class) {
+      sLoadedLibraries.clear();
+      sLoadingLibraries.clear();
+      sSoFileLoader = null;
+    }
+    setSoSources(null);
   }
 
   /**
@@ -401,7 +429,8 @@ public class SoLoader {
    *     SoSource} (LOAD_FLAG_XXX).
    */
   public static void loadLibrary(String shortName, int loadFlags) throws UnsatisfiedLinkError {
-    synchronized (SoLoader.class) {
+    sSoSourcesLock.readLock().lock();
+    try {
       if (sSoSources == null) {
         // This should never happen during normal operation,
         // but if we're running in a non-Android environment,
@@ -411,14 +440,18 @@ public class SoLoader {
           assertInitialized();
         } else {
           // Not on an Android system.  Ask the JVM to load for us.
-          if (sSystemLoadLibraryWrapper != null) {
-            sSystemLoadLibraryWrapper.loadLibrary(shortName);
-          } else {
-            System.loadLibrary(shortName);
+          synchronized (SoLoader.class) {
+            if (sSystemLoadLibraryWrapper != null) {
+              sSystemLoadLibraryWrapper.loadLibrary(shortName);
+            } else {
+              System.loadLibrary(shortName);
+            }
+            return;
           }
-          return;
         }
       }
+    } finally {
+      sSoSourcesLock.readLock().unlock();
     }
 
     String mergedLibName = MergedSoMapping.mapLibName(shortName);
@@ -539,11 +572,14 @@ public class SoLoader {
       String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) throws IOException {
 
     int result = SoSource.LOAD_RESULT_NOT_FOUND;
-    synchronized (SoLoader.class) {
+    sSoSourcesLock.readLock().lock();
+    try {
       if (sSoSources == null) {
         Log.e(TAG, "Could not load: " + soName + " because no SO source exists");
         throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
       }
+    } finally {
+      sSoSourcesLock.readLock().unlock();
     }
 
     // This way, we set the thread policy only one per loadLibrary no matter how many
@@ -560,19 +596,24 @@ public class SoLoader {
 
     UnsatisfiedLinkError unsatisfiedLinkError = null;
     try {
-      for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
-        SoSource currentSource = sSoSources[i];
-        result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
-        if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSource != null) {
-          // Let's try from the backup source
-          Log.d(TAG, "Trying backup SoSource for " + soName);
-          sBackupSoSource.prepare(soName);
-          result = sBackupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
-          break;
+      sSoSourcesLock.readLock().lock();
+      try {
+        for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
+          SoSource currentSource = sSoSources[i];
+          result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
+          if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSource != null) {
+            // Let's try from the backup source
+            Log.d(TAG, "Trying backup SoSource for " + soName);
+            sBackupSoSource.prepare(soName);
+            result = sBackupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
+            break;
+          }
+          if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
+            Log.d(TAG, "Result " + result + " for " + soName + " in source " + currentSource);
+          }
         }
-        if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
-          Log.d(TAG, "Result " + result + " for " + soName + " in source " + currentSource);
-        }
+      } finally {
+        sSoSourcesLock.readLock().unlock();
       }
     } catch (UnsatisfiedLinkError error) {
       unsatisfiedLinkError = error;
@@ -618,20 +659,30 @@ public class SoLoader {
     return sLoadedLibraries;
   }
 
-  /* package */ static synchronized File unpackLibraryBySoName(String soName) throws IOException {
-    for (int i = 0; i < sSoSources.length; ++i) {
-      File unpacked = sSoSources[i].unpackLibrary(soName);
-      if (unpacked != null) {
-        return unpacked;
+  /* package */ static File unpackLibraryBySoName(String soName) throws IOException {
+    sSoSourcesLock.readLock().lock();
+    try {
+      for (int i = 0; i < sSoSources.length; ++i) {
+        File unpacked = sSoSources[i].unpackLibrary(soName);
+        if (unpacked != null) {
+          return unpacked;
+        }
       }
+    } finally {
+      sSoSourcesLock.readLock().unlock();
     }
 
     throw new FileNotFoundException(soName);
   }
 
   private static void assertInitialized() {
-    if (sSoSources == null) {
-      throw new RuntimeException("SoLoader.init() not yet called");
+    sSoSourcesLock.readLock().lock();
+    try {
+      if (sSoSources == null) {
+        throw new RuntimeException("SoLoader.init() not yet called");
+      }
+    } finally {
+      sSoSourcesLock.readLock().unlock();
     }
   }
 
@@ -642,31 +693,41 @@ public class SoLoader {
    * @param extraSoSource The SoSource to install
    */
   public static synchronized void prependSoSource(SoSource extraSoSource) throws IOException {
-    Log.d(TAG, "Prepending to SO sources: " + extraSoSource);
-    assertInitialized();
-    extraSoSource.prepare(makePrepareFlags());
-    SoSource[] newSoSources = new SoSource[sSoSources.length + 1];
-    newSoSources[0] = extraSoSource;
-    System.arraycopy(sSoSources, 0, newSoSources, 1, sSoSources.length);
-    sSoSources = newSoSources;
-    Log.d(TAG, "Prepended to SO sources: " + extraSoSource);
+    sSoSourcesLock.writeLock().lock();
+    try {
+      Log.d(TAG, "Prepending to SO sources: " + extraSoSource);
+      assertInitialized();
+      extraSoSource.prepare(makePrepareFlags());
+      SoSource[] newSoSources = new SoSource[sSoSources.length + 1];
+      newSoSources[0] = extraSoSource;
+      System.arraycopy(sSoSources, 0, newSoSources, 1, sSoSources.length);
+      sSoSources = newSoSources;
+      Log.d(TAG, "Prepended to SO sources: " + extraSoSource);
+    } finally {
+      sSoSourcesLock.writeLock().unlock();
+    }
   }
 
   /**
    * Retrieve an LD_LIBRARY_PATH value suitable for using the native linker to resolve our shared
    * libraries.
    */
-  public static synchronized String makeLdLibraryPath() {
-    assertInitialized();
-    Log.d(TAG, "makeLdLibraryPath");
-    ArrayList<String> pathElements = new ArrayList<>();
-    SoSource[] soSources = sSoSources;
-    for (int i = 0; i < soSources.length; ++i) {
-      soSources[i].addToLdLibraryPath(pathElements);
+  public static String makeLdLibraryPath() {
+    sSoSourcesLock.readLock().lock();
+    try {
+      assertInitialized();
+      Log.d(TAG, "makeLdLibraryPath");
+      ArrayList<String> pathElements = new ArrayList<>();
+      SoSource[] soSources = sSoSources;
+      for (int i = 0; i < soSources.length; ++i) {
+        soSources[i].addToLdLibraryPath(pathElements);
+      }
+      String joinedPaths = TextUtils.join(":", pathElements);
+      Log.d(TAG, "makeLdLibraryPath final path: " + joinedPaths);
+      return joinedPaths;
+    } finally {
+      sSoSourcesLock.readLock().unlock();
     }
-    String joinedPaths = TextUtils.join(":", pathElements);
-    Log.d(TAG, "makeLdLibraryPath final path: " + joinedPaths);
-    return joinedPaths;
   }
 
   /**
@@ -675,27 +736,31 @@ public class SoLoader {
    *
    * @return true if all SoSources have their Abis supported
    */
-  public static synchronized boolean areSoSourcesAbisSupported() {
-    SoSource[] soSources = sSoSources;
-    if (soSources == null) {
-      return false;
-    }
+  public static boolean areSoSourcesAbisSupported() {
+    sSoSourcesLock.readLock().lock();
+    try {
+      if (sSoSources == null) {
+        return false;
+      }
 
-    String supportedAbis[] = SysUtil.getSupportedAbis();
-    for (int i = 0; i < soSources.length; ++i) {
-      String[] soSourceAbis = soSources[i].getSoSourceAbis();
-      for (int j = 0; j < soSourceAbis.length; ++j) {
-        boolean soSourceSupported = false;
-        for (int k = 0; k < supportedAbis.length && !soSourceSupported; ++k) {
-          soSourceSupported = soSourceAbis[j].equals(supportedAbis[k]);
-        }
-        if (!soSourceSupported) {
-          return false;
+      String supportedAbis[] = SysUtil.getSupportedAbis();
+      for (int i = 0; i < sSoSources.length; ++i) {
+        String[] soSourceAbis = sSoSources[i].getSoSourceAbis();
+        for (int j = 0; j < soSourceAbis.length; ++j) {
+          boolean soSourceSupported = false;
+          for (int k = 0; k < supportedAbis.length && !soSourceSupported; ++k) {
+            soSourceSupported = soSourceAbis[j].equals(supportedAbis[k]);
+          }
+          if (!soSourceSupported) {
+            return false;
+          }
         }
       }
-    }
 
-    return true;
+      return true;
+    } finally {
+      sSoSourcesLock.readLock().unlock();
+    }
   }
 
   @DoNotOptimize
