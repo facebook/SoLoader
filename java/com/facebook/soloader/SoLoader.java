@@ -73,6 +73,11 @@ public class SoLoader {
   @Nullable
   private static SoSource[] sSoSources = null;
 
+  /** A backup SoSource to try if a lib file is corrupted */
+  @GuardedBy("SoLoader.class")
+  @Nullable
+  private static UnpackingSoSource sBackupSoSource;
+
   /** Records the sonames (e.g., "libdistract.so") of shared libraries we've loaded. */
   @GuardedBy("SoLoader.class")
   private static final Set<String> sLoadedLibraries = new HashSet<>();
@@ -106,8 +111,6 @@ public class SoLoader {
 
   private static int sFlags;
 
-  /** A backup SoSource to try if a lib file is corrupted */
-  @Nullable private static UnpackingSoSource sBackupSoSource;
 
   static {
     boolean shouldSystrace = false;
@@ -137,7 +140,8 @@ public class SoLoader {
       throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
-      initImpl(context, flags, soFileLoader);
+      initSoLoader(soFileLoader);
+      initSoSources(context, flags, soFileLoader);
     } finally {
       StrictMode.setThreadPolicy(oldPolicy);
     }
@@ -152,13 +156,11 @@ public class SoLoader {
     }
   }
 
-  private static synchronized void initImpl(
+  private static synchronized void initSoSources(
       Context context, int flags, @Nullable SoFileLoader soFileLoader) throws IOException {
     if (sSoSources == null) {
       Log.d(TAG, "init start");
       sFlags = flags;
-
-      initSoLoader(soFileLoader);
 
       ArrayList<SoSource> soSources = new ArrayList<>();
 
