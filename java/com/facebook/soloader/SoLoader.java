@@ -81,10 +81,20 @@ public class SoLoader {
   @Nullable
   private static SoSource[] sSoSources = null;
 
+  private static int sSoSourcesVersion = 0;
+
   /** A backup SoSource to try if a lib file is corrupted */
   @GuardedBy("sSoSourcesLock")
   @Nullable
   private static UnpackingSoSource sBackupSoSource;
+
+  /**
+   * A SoSource for the Context.ApplicationInfo.nativeLibsDir that can be updated if the application
+   * moves this directory
+   */
+  @GuardedBy("sSoSourcesLock")
+  @Nullable
+  private static ApplicationSoSource sApplicationSoSource;
 
   /** Records the sonames (e.g., "libdistract.so") of shared libraries we've loaded. */
   @GuardedBy("SoLoader.class")
@@ -188,6 +198,7 @@ public class SoLoader {
           // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
           // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
           // these libraries have on each other, so doing that ourselves would be a waste.
+          Log.d(TAG, "adding system library source: " + systemLibraryDirectories[i]);
           File systemSoDirectory = new File(systemLibraryDirectories[i]);
           soSources.add(
               new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
@@ -206,6 +217,7 @@ public class SoLoader {
 
           if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
             sBackupSoSource = null;
+            Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
             soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
           } else {
             ApplicationInfo applicationInfo = context.getApplicationInfo();
@@ -228,13 +240,13 @@ public class SoLoader {
                 ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
               }
 
-              SoSource ourSoSource =
-                  new DirectorySoSource(
-                      new File(applicationInfo.nativeLibraryDir), ourSoSourceFlags);
-              soSources.add(0, ourSoSource);
+              sApplicationSoSource = new ApplicationSoSource(context, ourSoSourceFlags);
+              Log.d(TAG, "adding application source: " + sApplicationSoSource.toString());
+              soSources.add(0, sApplicationSoSource);
             }
 
             sBackupSoSource = new ApkSoSource(context, SO_STORE_NAME_MAIN, apkSoSourceFlags);
+            Log.d(TAG, "adding backup  source: " + sBackupSoSource.toString());
             soSources.add(0, sBackupSoSource);
           }
         }
@@ -246,9 +258,11 @@ public class SoLoader {
           finalSoSources[i].prepare(prepareFlags);
         }
         sSoSources = finalSoSources;
+        sSoSourcesVersion++;
         Log.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
       }
     } finally {
+      Log.d(TAG, "init exiting");
       sSoSourcesLock.writeLock().unlock();
     }
   }
@@ -382,6 +396,7 @@ public class SoLoader {
     sSoSourcesLock.writeLock().lock();
     try {
       sSoSources = sources;
+      sSoSourcesVersion++;
     } finally {
       sSoSourcesLock.writeLock().unlock();
     }
@@ -596,25 +611,45 @@ public class SoLoader {
 
     UnsatisfiedLinkError unsatisfiedLinkError = null;
     try {
-      sSoSourcesLock.readLock().lock();
-      try {
-        for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
-          SoSource currentSource = sSoSources[i];
-          result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
-          if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSource != null) {
-            // Let's try from the backup source
-            Log.d(TAG, "Trying backup SoSource for " + soName);
-            sBackupSoSource.prepare(soName);
-            result = sBackupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
-            break;
+      boolean retry;
+      do {
+        retry = false;
+        sSoSourcesLock.readLock().lock();
+        int currentSoSourcesVersion = sSoSourcesVersion;
+        try {
+          for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
+            SoSource currentSource = sSoSources[i];
+            result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
+            if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSource != null) {
+              // Let's try from the backup source
+              Log.d(TAG, "Trying backup SoSource for " + soName);
+              sBackupSoSource.prepare(soName);
+              result = sBackupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
+              break;
+            }
+            if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
+              Log.d(TAG, "Result " + result + " for " + soName + " in source " + currentSource);
+            }
           }
-          if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
-            Log.d(TAG, "Result " + result + " for " + soName + " in source " + currentSource);
+        } finally {
+          sSoSourcesLock.readLock().unlock();
+        }
+        if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
+          sSoSourcesLock.writeLock().lock();
+          try {
+            // TODO(T26270128): check and update sBackupSoSource as well
+            if (sApplicationSoSource != null && sApplicationSoSource.checkAndMaybeUpdate()) {
+              sSoSourcesVersion++;
+            }
+            if (sSoSourcesVersion != currentSoSourcesVersion) {
+              // our list was updated, let's retry
+              retry = true;
+            }
+          } finally {
+            sSoSourcesLock.writeLock().unlock();
           }
         }
-      } finally {
-        sSoSourcesLock.readLock().unlock();
-      }
+      } while (retry);
     } catch (UnsatisfiedLinkError error) {
       unsatisfiedLinkError = error;
     } finally {
@@ -702,6 +737,7 @@ public class SoLoader {
       newSoSources[0] = extraSoSource;
       System.arraycopy(sSoSources, 0, newSoSources, 1, sSoSources.length);
       sSoSources = newSoSources;
+      sSoSourcesVersion++;
       Log.d(TAG, "Prepended to SO sources: " + extraSoSource);
     } finally {
       sSoSourcesLock.writeLock().unlock();
