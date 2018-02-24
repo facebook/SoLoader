@@ -727,7 +727,7 @@ public class SoLoader {
    *
    * @param extraSoSource The SoSource to install
    */
-  public static synchronized void prependSoSource(SoSource extraSoSource) throws IOException {
+  public static void prependSoSource(SoSource extraSoSource) throws IOException {
     sSoSourcesLock.writeLock().lock();
     try {
       Log.d(TAG, "Prepending to SO sources: " + extraSoSource);
