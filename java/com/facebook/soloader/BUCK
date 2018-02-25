@@ -23,7 +23,7 @@ android_library(
     ],
 )
 
-java_library(
+fb_java_library(
     name = "mapping-stub",
     srcs = ["MergedSoMapping.java"],
     deps = [
