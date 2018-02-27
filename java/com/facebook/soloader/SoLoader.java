@@ -154,7 +154,7 @@ public class SoLoader {
    * @param flags Zero or more of the SOLOADER_* flags
    * @param soFileLoader
    */
-  public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
+  private static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
       throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
@@ -392,7 +392,7 @@ public class SoLoader {
   }
 
   /** Set so sources. Useful for tests. */
-  public static void setSoSources(SoSource[] sources) {
+  /* package */ static void setSoSources(SoSource[] sources) {
     sSoSourcesLock.writeLock().lock();
     try {
       sSoSources = sources;
@@ -403,12 +403,12 @@ public class SoLoader {
   }
 
   /** Set so file loader. Only for tests. */
-  public static void setSoFileLoader(SoFileLoader loader) {
+  /* package */ static void setSoFileLoader(SoFileLoader loader) {
     sSoFileLoader = loader;
   }
 
   /** Reset internal status. Only for tests. */
-  public static void resetStatus() {
+  /* package */ static void resetStatus() {
     synchronized (SoLoader.class) {
       sLoadedLibraries.clear();
       sLoadingLibraries.clear();
@@ -609,7 +609,7 @@ public class SoLoader {
       Api18TraceUtils.beginTraceSection("SoLoader.loadLibrary[" + soName + "]");
     }
 
-    UnsatisfiedLinkError unsatisfiedLinkError = null;
+    Throwable error = null;
     try {
       boolean retry;
       do {
@@ -626,9 +626,6 @@ public class SoLoader {
               sBackupSoSource.prepare(soName);
               result = sBackupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
               break;
-            }
-            if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
-              Log.d(TAG, "Result " + result + " for " + soName + " in source " + currentSource);
             }
           }
         } finally {
@@ -650,8 +647,8 @@ public class SoLoader {
           }
         }
       } while (retry);
-    } catch (UnsatisfiedLinkError error) {
-      unsatisfiedLinkError = error;
+    } catch (Throwable t) {
+      error = t;
     } finally {
       if (SYSTRACE_LIBRARY_LOADING) {
         Api18TraceUtils.endSection();
@@ -663,8 +660,8 @@ public class SoLoader {
       if (result == SoSource.LOAD_RESULT_NOT_FOUND
           || result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE) {
         String message = "couldn't find DSO to load: " + soName;
-        if (unsatisfiedLinkError != null) {
-          message += " caused by: " + unsatisfiedLinkError.getMessage();
+        if (error != null) {
+          message += " caused by: " + error.getMessage();
         }
         Log.e(TAG, message);
         throw new UnsatisfiedLinkError(message);
@@ -688,10 +685,6 @@ public class SoLoader {
     }
 
     return TextUtils.join(":", pathsWithoutZip);
-  }
-
-  public static synchronized Set<String> getLoadedLibrariesNames() {
-    return sLoadedLibraries;
   }
 
   /* package */ static File unpackLibraryBySoName(String soName) throws IOException {

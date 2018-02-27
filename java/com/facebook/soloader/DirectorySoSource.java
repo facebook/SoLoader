@@ -53,6 +53,8 @@ public class DirectorySoSource extends SoSource {
     if (!soFile.exists()) {
       Log.d(SoLoader.TAG, soName + " not found on " + libDir.getCanonicalPath());
       return LOAD_RESULT_NOT_FOUND;
+    } else {
+      Log.d(SoLoader.TAG, soName + " found on " + libDir.getCanonicalPath());
     }
     if ((loadFlags & LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) != 0 &&
         (flags & ON_LD_LIBRARY_PATH) != 0) {
