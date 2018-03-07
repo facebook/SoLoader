@@ -53,6 +53,9 @@ public class ApplicationSoSource extends SoSource {
         Log.d(
             SoLoader.TAG,
             "Native library directory updated from " + nativeLibDir + " to " + updatedNativeLibDir);
+        // update flags to resolve dependencies since the system does not properly resolve
+        // dependencies when the location has moved
+        flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
         soSource = new DirectorySoSource(updatedNativeLibDir, flags);
         soSource.prepare(flags);
         applicationContext = updatedContext;
