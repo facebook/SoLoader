@@ -222,6 +222,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       if (!dsoFileName.setExecutable(true /* allow exec... */, false /* ...for everyone */)) {
         throw new IOException("cannot make file executable: " + dsoFileName);
       }
+    } catch (IOException e) {
+      SysUtil.dumbDeleteRecursive(dsoFileName);
+      throw e;
     } finally {
       dsoFile.close();
     }
