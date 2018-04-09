@@ -4,7 +4,7 @@ android_library(
     name = "soloader",
     srcs = glob(
         ["*.java"],
-        excludes = ["MergedSoMapping.java"],
+        exclude = ["MergedSoMapping.java"],
     ),
     proguard_config = "soloader.pro",
     required_for_source_only_abi = True,
