@@ -43,4 +43,4 @@ outlined on that page and do not file a public issue.
 
 ## License
 By contributing to SoLoader, you agree that your contributions will be licensed
-under its [BSD license](https://github.com/facebook/soloader/blob/master/LICENSE).
+under its [Apache 2](https://github.com/facebook/soloader/blob/master/LICENSE).

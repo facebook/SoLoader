@@ -29,5 +29,4 @@ See the [CONTRIBUTING](https://github.com/facebook/soloader/blob/master/CONTRIBU
 help out.
 
 ## License
-SoLoader is [BSD-licensed](https://github.com/facebook/soloader/blob/master/LICENSE).
-We also provide an additional [patent grant](https://github.com/facebook/soloader/blob/master/PATENTS).
+SoLoader is [Apache-2.0-licensed](https://github.com/facebook/soloader/blob/master/LICENSE).
