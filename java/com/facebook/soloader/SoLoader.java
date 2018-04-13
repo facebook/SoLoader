@@ -106,7 +106,7 @@ public class SoLoader {
 
   /** Records the sonames (e.g., "libdistract.so") of shared libraries we've loaded. */
   @GuardedBy("SoLoader.class")
-  private static final Set<String> sLoadedLibraries = new HashSet<>();
+  private static final HashSet<String> sLoadedLibraries = new HashSet<>();
 
   /**
    * Libraries that are in the process of being loaded, and lock objects to synchronize on and wait
@@ -487,6 +487,12 @@ public class SoLoader {
   /* package */ static void loadLibraryBySoName(
       String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) {
     loadLibraryBySoName(soName, null, null, loadFlags, oldPolicy);
+  }
+
+  public static Set<String> getLoadedLibraries() {
+    synchronized (SoLoader.class) {
+      return (HashSet<String>) sLoadedLibraries.clone();
+    }
   }
 
   private static void loadLibraryBySoName(
