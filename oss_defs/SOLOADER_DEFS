@@ -15,6 +15,7 @@ def _deps_decorator(original_rule):
 
 android_library = _deps_decorator(android_library)
 android_aar = _deps_decorator(android_aar)
+fb_java_library = _deps_decorator(java_library)
 
 
 DEPENDENCIES_INDEX = {}
@@ -78,3 +79,8 @@ def define_list_deps_target():
         out='dependencies.json',
         cmd="""echo '{}' > $OUT""".format(json_deps)
     )
+
+
+def fb_java_library(**kwargs):
+    """Delegates to a native java_library rule."""
+    java_library(**kwargs)
