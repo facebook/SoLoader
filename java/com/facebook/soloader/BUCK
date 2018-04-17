@@ -19,6 +19,8 @@ android_library(
         # Be very careful adding new dependencies here, because this code
         # has to run very early in the app startup process.
         # Definitely do *not* depend on guava.
+    ],
+    provided_deps = [
         "//deps:jsr-305",
     ],
 )
@@ -26,7 +28,7 @@ android_library(
 fb_java_library(
     name = "mapping-stub",
     srcs = ["MergedSoMapping.java"],
-    deps = [
+    provided_deps = [
         "//deps:jsr-305",
     ],
 )
