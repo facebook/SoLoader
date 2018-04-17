@@ -18,7 +18,7 @@ To build SoLoader from source you'll need [Buck](https://buckbuild.com/).
 Once you have Buck installed execute following commands from the project root
 directory:
 ```shell
-  python scripts/fetch_deps.py
+  buck fetch //...
   buck build :soloader
 ```
 The build command generates `buck-out/gen/soloader.aar` file.
