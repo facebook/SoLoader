@@ -1,12 +1,17 @@
+load("//build_defs:fb_core_android_library.bzl", "fb_core_android_library")
+
 include_defs("//oss_defs/SOLOADER_DEFS")
 
-android_library(
+fb_core_android_library(
     name = "soloader",
     srcs = glob(
         ["*.java"],
         exclude = ["MergedSoMapping.java"],
     ),
     proguard_config = "soloader.pro",
+    provided_deps = [
+        "//deps:jsr-305",
+    ],
     required_for_source_only_abi = True,
     tests = [
         "//javatests/com/facebook/soloader:soloader",
@@ -19,9 +24,6 @@ android_library(
         # Be very careful adding new dependencies here, because this code
         # has to run very early in the app startup process.
         # Definitely do *not* depend on guava.
-    ],
-    provided_deps = [
-        "//deps:jsr-305",
     ],
 )
 
