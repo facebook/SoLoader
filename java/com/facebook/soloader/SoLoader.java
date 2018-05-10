@@ -440,8 +440,8 @@ public class SoLoader {
     }
   }
 
-  public static void loadLibrary(String shortName) {
-    loadLibrary(shortName, 0);
+  public static boolean loadLibrary(String shortName) {
+    return loadLibrary(shortName, 0);
   }
 
   /**
@@ -450,8 +450,10 @@ public class SoLoader {
    * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
    * @param loadFlags Control flags for the loading behavior. See available flags under {@link
    *     SoSource} (LOAD_FLAG_XXX).
+   * @return Whether the library was loaded as a result of this call (true), or was already loaded
+   *     through a previous call to SoLoader (false).
    */
-  public static void loadLibrary(String shortName, int loadFlags) throws UnsatisfiedLinkError {
+  public static boolean loadLibrary(String shortName, int loadFlags) throws UnsatisfiedLinkError {
     sSoSourcesLock.readLock().lock();
     try {
       if (sSoSources == null) {
@@ -464,12 +466,15 @@ public class SoLoader {
         } else {
           // Not on an Android system.  Ask the JVM to load for us.
           synchronized (SoLoader.class) {
-            if (sSystemLoadLibraryWrapper != null) {
-              sSystemLoadLibraryWrapper.loadLibrary(shortName);
-            } else {
-              System.loadLibrary(shortName);
+            boolean needsLoad = !sLoadedLibraries.contains(shortName);
+            if (needsLoad) {
+              if (sSystemLoadLibraryWrapper != null) {
+                sSystemLoadLibraryWrapper.loadLibrary(shortName);
+              } else {
+                System.loadLibrary(shortName);
+              }
             }
-            return;
+            return needsLoad;
           }
         }
       }
@@ -481,7 +486,8 @@ public class SoLoader {
 
     String soName = mergedLibName != null ? mergedLibName : shortName;
 
-    loadLibraryBySoName(System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
+    return loadLibraryBySoName(
+        System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
   }
 
   /* package */ static void loadLibraryBySoName(
@@ -495,7 +501,7 @@ public class SoLoader {
     }
   }
 
-  private static void loadLibraryBySoName(
+  private static boolean loadLibraryBySoName(
       String soName,
       @Nullable String shortName,
       @Nullable String mergedLibName,
@@ -506,7 +512,7 @@ public class SoLoader {
     // by tracking loaded and merged libs in Java we can avoid undue synchronization and blocking
     // waits (which may occur on the UI thread and thus trigger ANRs).
     if (!TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName)) {
-      return;
+      return false;
     }
 
     Object loadingLibLock;
@@ -515,7 +521,7 @@ public class SoLoader {
       if (sLoadedLibraries.contains(soName)) {
         if (mergedLibName == null) {
           // Not a merged lib, no need to init
-          return;
+          return false;
         }
         loaded = true;
       }
@@ -534,7 +540,7 @@ public class SoLoader {
             // Library was successfully loaded by other thread while we waited
             if (mergedLibName == null) {
               // Not a merged lib, no need to init
-              return;
+              return false;
             }
             loaded = true;
           }
@@ -578,6 +584,7 @@ public class SoLoader {
         }
       }
     }
+    return !loaded;
   }
 
   /**
