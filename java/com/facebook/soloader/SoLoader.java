@@ -316,9 +316,14 @@ public class SoLoader {
               try {
                 synchronized (runtime) {
                   error =
-                      (String)
-                          nativeLoadRuntimeMethod.invoke(
-                              runtime, pathToSoFile, SoLoader.class.getClassLoader(), path);
+                      // the third argument of nativeLoad method was removed in Android P API
+                      Build.VERSION.SDK_INT <= 27
+                          ? (String)
+                              nativeLoadRuntimeMethod.invoke(
+                                  runtime, pathToSoFile, SoLoader.class.getClassLoader(), path)
+                          : (String)
+                              nativeLoadRuntimeMethod.invoke(
+                                  runtime, pathToSoFile, SoLoader.class.getClassLoader());
                   if (error != null) {
                     throw new UnsatisfiedLinkError(error);
                   }
@@ -378,9 +383,15 @@ public class SoLoader {
     }
 
     try {
-      final Method method =
-          Runtime.class.getDeclaredMethod(
-              "nativeLoad", String.class, ClassLoader.class, String.class);
+      final Method method;
+      if (Build.VERSION.SDK_INT <= 27) {
+        method =
+            Runtime.class.getDeclaredMethod(
+                "nativeLoad", String.class, ClassLoader.class, String.class);
+      } else {
+        method = Runtime.class.getDeclaredMethod("nativeLoad", String.class, ClassLoader.class);
+      }
+
       method.setAccessible(true);
       return method;
     } catch (final NoSuchMethodException | SecurityException e) {
