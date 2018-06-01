@@ -693,7 +693,11 @@ public class SoLoader {
           || result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE) {
         String message = "couldn't find DSO to load: " + soName;
         if (error != null) {
-          message += " caused by: " + error.getMessage();
+          String cause = error.getMessage();
+          if (cause == null) {
+            cause = error.toString();
+          }
+          message += " caused by: " + cause;
         }
         Log.e(TAG, message);
         throw new UnsatisfiedLinkError(message);
