@@ -1,28 +1,31 @@
-def _deps_decorator(original_rule):
+def _deps_decorator(**kwargs):
     """
     Dependencies starting with '//deps/' should be provided (included in
     'provided_deps' rather than 'deps'). This decorator takes care
     of moving all such dependencies from 'deps' to 'provided_deps'.
     """
-    def augmented_rule(**kwargs):
-        all_deps = kwargs.get('deps', [])
-        oss_deps = [dep for dep in all_deps if dep.startswith('//deps:')]
-        kwargs['deps'] = [dep for dep in all_deps if dep not in oss_deps]
-        kwargs.setdefault('provided_deps', []).extend(oss_deps)
-        original_rule(**kwargs)
-    return augmented_rule
+    all_deps = kwargs.get('deps', [])
+    oss_deps = [dep for dep in all_deps if dep.startswith('//deps:')]
+    kwargs['deps'] = [dep for dep in all_deps if dep not in oss_deps]
+    kwargs.setdefault('provided_deps', []).extend(oss_deps)
+    return kwargs
 
+def android_library(**kwargs):
+    native.android_library(**_deps_decorator(**kwargs))
 
-android_library = _deps_decorator(android_library)
-android_aar = _deps_decorator(android_aar)
-fb_java_library = _deps_decorator(java_library)
-fb_core_android_library = android_library
+def android_aar(**kwargs):
+    native.android_aar(**_deps_decorator(**kwargs))
 
+def fb_java_library(**kwargs):
+    native.java_library(**_deps_decorator(**kwargs))
+
+def fb_core_android_library(**kwargs):
+    android_library(**kwargs)
 
 DEPENDENCIES_INDEX = {}
+
 def _add_dependency_to_index(name, **dep):
     DEPENDENCIES_INDEX[name] = dep
-
 
 def maven_library(
         name,
@@ -47,7 +50,7 @@ def maven_library(
     )
 
     remote_file_name = '{}-remote'.format(name)
-    remote_file(
+    native.remote_file(
         name=remote_file_name,
         out='{}-{}.{}'.format(name, version, packaging),
         url=':'.join(['mvn', group, artifact, packaging, version]),
@@ -55,27 +58,25 @@ def maven_library(
     )
 
     if packaging == 'jar':
-        prebuilt_jar(
+        native.prebuilt_jar(
             name=name,
             binary_jar=':{}'.format(remote_file_name),
             visibility=visibility
         )
     else:
-        android_prebuilt_aar(
+        native.android_prebuilt_aar(
             name=name,
             aar=':{}'.format(remote_file_name),
             visibility=visibility
         )
-
 
 def define_list_deps_target():
     """
     Generates rule that dumps all maven_libraries defined in given
     BUCK file in json format.
     """
-    import json
-    json_deps = json.dumps(DEPENDENCIES_INDEX)
-    genrule(
+    json_deps = struct(**DEPENDENCIES_INDEX).to_json()
+    native.genrule(
         name='list-deps',
         out='dependencies.json',
         cmd="""echo '{}' > $OUT""".format(json_deps)

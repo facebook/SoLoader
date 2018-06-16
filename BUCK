@@ -1,4 +1,5 @@
-include_defs("//oss_defs/SOLOADER_DEFS")
+# BUILD FILE SYNTAX: SKYLARK
+load("//oss_defs:soloader_defs.bzl", "android_aar")
 
 android_aar(
     name = "soloader",
