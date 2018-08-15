@@ -817,6 +817,7 @@ public class SoLoader {
             soSourceSupported = soSourceAbis[j].equals(supportedAbis[k]);
           }
           if (!soSourceSupported) {
+            Log.e(TAG, "abi not supported: " + soSourceAbis[j]);
             return false;
           }
         }
