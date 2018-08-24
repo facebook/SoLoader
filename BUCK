@@ -1,4 +1,3 @@
-# BUILD FILE SYNTAX: SKYLARK
 load("//oss_defs:soloader_defs.bzl", "android_aar")
 
 android_aar(
