@@ -76,6 +76,9 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
         Enumeration<? extends ZipEntry> entries = mZipFile.entries();
         while (entries.hasMoreElements()) {
           ZipEntry entry = entries.nextElement();
+          if (entry.getName().contains("../")) {
+            throw new RuntimeException("unsecurity zip file");
+          }
           Matcher m = zipSearchPattern.matcher(entry.getName());
           if (m.matches()) {
             String libraryAbi = m.group(1);
