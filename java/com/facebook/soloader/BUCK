@@ -8,7 +8,7 @@ fb_core_android_library(
     ),
     proguard_config = "soloader.pro",
     provided_deps = [
-        "//deps:jsr-305",
+        "//deps:jsr_305",
     ],
     required_for_source_only_abi = True,
     tests = [
@@ -29,6 +29,6 @@ fb_java_library(
     name = "mapping-stub",
     srcs = ["MergedSoMapping.java"],
     provided_deps = [
-        "//deps:jsr-305",
+        "//deps:jsr_305",
     ],
 )

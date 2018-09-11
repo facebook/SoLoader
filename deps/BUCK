@@ -1,7 +1,7 @@
 load("//oss_defs:soloader_defs.bzl", "define_list_deps_target", "maven_library")
 
 maven_library(
-    name = "jsr-305",
+    name = "jsr_305",
     artifact = "jsr305",
     group = "com.google.code.findbugs",
     scope = "provided",
