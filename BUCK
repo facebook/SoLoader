@@ -1,4 +1,4 @@
-load("//oss_defs:soloader_defs.bzl", "android_aar")
+load("//tools/build_defs/oss:soloader_defs.bzl", "android_aar")
 
 android_aar(
     name = "soloader",

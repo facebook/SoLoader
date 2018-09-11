@@ -1,4 +1,4 @@
-load("//oss_defs:soloader_defs.bzl", "define_list_deps_target", "maven_library")
+load("//tools/build_defs/oss:soloader_defs.bzl", "define_list_deps_target", "maven_library")
 
 maven_library(
     name = "jsr_305",

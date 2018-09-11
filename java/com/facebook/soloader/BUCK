@@ -1,4 +1,4 @@
-load("//oss_defs:soloader_defs.bzl", "fb_core_android_library", "fb_java_library")
+load("//tools/build_defs/oss:soloader_defs.bzl", "fb_core_android_library", "fb_java_library")
 
 fb_core_android_library(
     name = "soloader",
