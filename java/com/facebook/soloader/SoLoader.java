@@ -506,12 +506,6 @@ public class SoLoader {
     loadLibraryBySoName(soName, null, null, loadFlags, oldPolicy);
   }
 
-  public static Set<String> getLoadedLibraries() {
-    synchronized (SoLoader.class) {
-      return (HashSet<String>) sLoadedLibraries.clone();
-    }
-  }
-
   private static boolean loadLibraryBySoName(
       String soName,
       @Nullable String shortName,
