@@ -16,6 +16,7 @@
 
 package com.facebook.soloader;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -115,6 +116,8 @@ public final class SysUtil {
    * Encapsulate Lollipop-specific calls into an independent class so we don't fail preverification
    * downlevel.
    */
+  @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+  @DoNotOptimize
   private static final class LollipopSysdeps {
     @DoNotOptimize
     public static String[] getSupportedAbis() {
