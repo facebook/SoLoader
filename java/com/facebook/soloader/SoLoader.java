@@ -316,14 +316,9 @@ public class SoLoader {
               try {
                 synchronized (runtime) {
                   error =
-                      // the third argument of nativeLoad method was removed in Android P API
-                      Build.VERSION.SDK_INT <= 27
-                          ? (String)
-                              nativeLoadRuntimeMethod.invoke(
-                                  runtime, pathToSoFile, SoLoader.class.getClassLoader(), path)
-                          : (String)
-                              nativeLoadRuntimeMethod.invoke(
-                                  runtime, pathToSoFile, SoLoader.class.getClassLoader());
+                      (String)
+                          nativeLoadRuntimeMethod.invoke(
+                              runtime, pathToSoFile, SoLoader.class.getClassLoader(), path);
                   if (error != null) {
                     throw new UnsatisfiedLinkError(error);
                   }
@@ -356,7 +351,6 @@ public class SoLoader {
             try {
               File libFile = new File(libPath);
               MessageDigest digest = MessageDigest.getInstance("MD5");
-
               try (InputStream libInStream = new FileInputStream(libFile)) {
                 byte[] buffer = new byte[4096];
                 int bytesRead;
@@ -365,8 +359,9 @@ public class SoLoader {
                 }
                 digestStr = String.format("%32x", new BigInteger(1, digest.digest()));
               }
-
             } catch (IOException e) {
+              digestStr = e.toString();
+            } catch (SecurityException e) {
               digestStr = e.toString();
             } catch (NoSuchAlgorithmException e) {
               digestStr = e.toString();
@@ -378,19 +373,15 @@ public class SoLoader {
 
   @Nullable
   private static Method getNativeLoadRuntimeMethod() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Build.VERSION.SDK_INT > 27) {
       return null;
     }
 
     try {
       final Method method;
-      if (Build.VERSION.SDK_INT <= 27) {
-        method =
-            Runtime.class.getDeclaredMethod(
-                "nativeLoad", String.class, ClassLoader.class, String.class);
-      } else {
-        method = Runtime.class.getDeclaredMethod("nativeLoad", String.class, ClassLoader.class);
-      }
+      method =
+          Runtime.class.getDeclaredMethod(
+              "nativeLoad", String.class, ClassLoader.class, String.class);
 
       method.setAccessible(true);
       return method;
