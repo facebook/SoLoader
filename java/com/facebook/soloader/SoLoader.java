@@ -135,6 +135,12 @@ public class SoLoader {
 
   public static final int SOLOADER_LOOK_IN_ZIP = (1 << 2);
 
+  /**
+   * In some contexts, using a backup so source in case of so corruption is not feasible e.g. lack
+   * of write permissions to the library path.
+   */
+  public static final int SOLOADER_DISABLE_BACKUP_SOSOURCE = (1 << 3);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -253,9 +259,13 @@ public class SoLoader {
               soSources.add(0, sApplicationSoSource);
             }
 
-            sBackupSoSource = new ApkSoSource(context, SO_STORE_NAME_MAIN, apkSoSourceFlags);
-            Log.d(TAG, "adding backup  source: " + sBackupSoSource.toString());
-            soSources.add(0, sBackupSoSource);
+            if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
+              sBackupSoSource = null;
+            } else {
+              sBackupSoSource = new ApkSoSource(context, SO_STORE_NAME_MAIN, apkSoSourceFlags);
+              Log.d(TAG, "adding backup  source: " + sBackupSoSource.toString());
+              soSources.add(0, sBackupSoSource);
+            }
           }
         }
 
