@@ -1,0 +1,13 @@
+os: linux
+language: android
+android:
+  components:
+    - build-tools-27.0.3
+    - android-26
+
+  before_script:
+  - echo 'install buck here'
+
+script:
+  - buck fetch //...
+  - buck build :soloader
