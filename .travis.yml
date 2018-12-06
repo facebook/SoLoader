@@ -6,12 +6,10 @@ android:
     - android-26
 
   before_script:
-    - git clone https://github.com/facebook/buck.git --branch master --depth=1
-    - cd buck
-    - ant
-    - bin/buck --version
-    - cd ..
+    - git clone https://github.com/facebook/buck.git --branch master --depth=1 $HOME/buck
+    - cd $HOME/buck ant
+    - $HOME/bin/buck --version
 
 script:
-  - buck/bin/buck fetch //...
-  - buck/bin/buck build :soloader
+  - $HOME/buck/bin/buck fetch //...
+  - $HOME/buck/bin/buck build :soloader
