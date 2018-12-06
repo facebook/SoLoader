@@ -16,3 +16,4 @@ script:
   - cd $TRAVIS_BUILD_DIR
   - $HOME/buck/bin/buck fetch //...
   - $HOME/buck/bin/buck build :soloader
+  - true # Just triggering a change.
