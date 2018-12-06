@@ -6,8 +6,12 @@ android:
     - android-26
 
   before_script:
-  - echo 'install buck here'
+    - git clone https://github.com/facebook/buck.git --branch master --depth=1
+    - cd buck
+    - ant
+    - bin/buck --version
+    - cd ..
 
 script:
-  - buck fetch //...
-  - buck build :soloader
+  - buck/bin/buck fetch //...
+  - buck/bin/buck build :soloader
