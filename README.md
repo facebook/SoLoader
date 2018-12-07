@@ -1,4 +1,4 @@
-# SoLoader
+# SoLoader [![Build Status](https://travis-ci.com/facebook/SoLoader.svg?branch=master)](https://travis-ci.com/facebook/SoLoader)
 SoLoader is a native code loader for Android. It takes care of unpacking your native libraries
 and recursively loads dependencies on platforms that don't support that out of the box.
 
