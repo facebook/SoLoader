@@ -46,11 +46,11 @@ public class ApkSoSource extends ExtractFromZipSoSource {
 
   private final int mFlags;
 
-  public ApkSoSource(Context context, String name, int flags) {
+  public ApkSoSource(Context context, String apkPath, String name, int flags) {
     super(
         context,
         name,
-        new File(context.getApplicationInfo().sourceDir),
+        new File(apkPath),
         // The regular expression matches libraries that would ordinarily be unpacked
         // during installation.
         "^lib/([^/]+)/([^/]+\\.so)$");
