@@ -499,7 +499,11 @@ public class SoLoader {
     String soName = mergedLibName != null ? mergedLibName : shortName;
 
     return loadLibraryBySoName(
-        System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
+        System.mapLibraryName(soName),
+        shortName,
+        mergedLibName,
+        loadFlags | SoSource.LOAD_FLAG_ALLOW_SOURCE_CHANGE,
+        null);
   }
 
   /* package */ static void loadLibraryBySoName(
@@ -658,7 +662,9 @@ public class SoLoader {
         } finally {
           sSoSourcesLock.readLock().unlock();
         }
-        if (result == SoSource.LOAD_RESULT_NOT_FOUND) {
+        if ((loadFlags & SoSource.LOAD_FLAG_ALLOW_SOURCE_CHANGE)
+                == SoSource.LOAD_FLAG_ALLOW_SOURCE_CHANGE
+            && result == SoSource.LOAD_RESULT_NOT_FOUND) {
           sSoSourcesLock.writeLock().lock();
           try {
             // TODO(T26270128): check and update sBackupSoSource as well

@@ -101,7 +101,9 @@ public class DirectorySoSource extends SoSource {
       }
 
       SoLoader.loadLibraryBySoName(
-          dependency, (loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION), threadPolicy);
+          dependency,
+          (loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION & ~LOAD_FLAG_ALLOW_SOURCE_CHANGE),
+          threadPolicy);
     }
   }
 
