@@ -270,13 +270,16 @@ public class SoLoader {
               ArrayList<UnpackingSoSource> backupSources = new ArrayList<>();
               ApkSoSource mainApkSource = new ApkSoSource(context, mainApkDir, SO_STORE_NAME_MAIN, apkSoSourceFlags);
               backupSources.add(mainApkSource);
-              Log.d(TAG, "adding backup  source: " + mainApkSource.toString());
+              Log.d(TAG, "adding backup source from : " + mainApkSource.toString());
 
-              int splitIndex = 0;
-              for (String splitApkDir: context.getApplicationInfo().splitSourceDirs) {
-                ApkSoSource splittedApkSource = new ApkSoSource(context, splitApkDir, SO_STORE_NAME_SPLITTED + (splitIndex++), apkSoSourceFlags);
-                Log.d(TAG, "adding backup  source: " + mainApkSource.toString());
-                backupSources.add(splittedApkSource);
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                Log.d(TAG, "adding backup sources from split apks");
+                int splitIndex = 0;
+                for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
+                  ApkSoSource splittedApkSource = new ApkSoSource(context, splitApkDir, SO_STORE_NAME_SPLITTED + (splitIndex++), apkSoSourceFlags);
+                  Log.d(TAG, "adding backup source: " + splittedApkSource.toString());
+                  backupSources.add(splittedApkSource);
+                }
               }
 
               sBackupSoSources = backupSources.toArray(new UnpackingSoSource[backupSources.size()]);
