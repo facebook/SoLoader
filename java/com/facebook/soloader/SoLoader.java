@@ -272,7 +272,7 @@ public class SoLoader {
               backupSources.add(mainApkSource);
               Log.d(TAG, "adding backup source from : " + mainApkSource.toString());
 
-              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && context.getApplicationInfo().splitSourceDirs != null) {
                 Log.d(TAG, "adding backup sources from split apks");
                 int splitIndex = 0;
                 for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
