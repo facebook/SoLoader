@@ -21,10 +21,7 @@ import android.os.Parcel;
 import android.util.Log;
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.zip.ZipEntry;
-import javax.annotation.Nullable;
 
 /**
  * {@link SoSource} that extracts libraries from an APK to the filesystem.
@@ -47,10 +44,14 @@ public class ApkSoSource extends ExtractFromZipSoSource {
   private final int mFlags;
 
   public ApkSoSource(Context context, String name, int flags) {
+    this(context, new File(context.getApplicationInfo().sourceDir), name, flags);
+  }
+
+  public ApkSoSource(Context context, File apkPath, String name, int flags) {
     super(
         context,
         name,
-        new File(context.getApplicationInfo().sourceDir),
+        apkPath,
         // The regular expression matches libraries that would ordinarily be unpacked
         // during installation.
         "^lib/([^/]+)/([^/]+\\.so)$");

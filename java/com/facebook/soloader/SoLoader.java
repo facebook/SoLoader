@@ -91,10 +91,10 @@ public class SoLoader {
 
   private static int sSoSourcesVersion = 0;
 
-  /** A backup SoSource to try if a lib file is corrupted */
+  /** A backup SoSources to try if a lib file is corrupted */
   @GuardedBy("sSoSourcesLock")
   @Nullable
-  private static UnpackingSoSource sBackupSoSource;
+  private static UnpackingSoSource[] sBackupSoSources;
 
   /**
    * A SoSource for the Context.ApplicationInfo.nativeLibsDir that can be updated if the application
@@ -121,8 +121,13 @@ public class SoLoader {
   /** Wrapper for System.loadLlibrary. */
   @Nullable private static SystemLoadLibraryWrapper sSystemLoadLibraryWrapper = null;
 
-  /** Name of the directory we use for extracted DSOs from built-in SO sources (APK, exopackage) */
+  /**
+   * Name of the directory we use for extracted DSOs from built-in SO sources (main APK, exopackage)
+   */
   private static final String SO_STORE_NAME_MAIN = "lib-main";
+
+  /** Name of the directory we use for extracted DSOs from split APKs */
+  private static final String SO_STORE_NAME_SPLITTED = "lib-";
 
   /** Enable the exopackage SoSource. */
   public static final int SOLOADER_ENABLE_EXOPACKAGE = (1 << 0);
@@ -230,7 +235,7 @@ public class SoLoader {
           //
 
           if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
-            sBackupSoSource = null;
+            sBackupSoSources = null;
             Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
             soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
           } else {
@@ -260,11 +265,34 @@ public class SoLoader {
             }
 
             if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
-              sBackupSoSource = null;
+              sBackupSoSources = null;
             } else {
-              sBackupSoSource = new ApkSoSource(context, SO_STORE_NAME_MAIN, apkSoSourceFlags);
-              Log.d(TAG, "adding backup  source: " + sBackupSoSource.toString());
-              soSources.add(0, sBackupSoSource);
+
+              final File mainApkDir = new File(context.getApplicationInfo().sourceDir);
+              ArrayList<UnpackingSoSource> backupSources = new ArrayList<>();
+              ApkSoSource mainApkSource =
+                  new ApkSoSource(context, mainApkDir, SO_STORE_NAME_MAIN, apkSoSourceFlags);
+              backupSources.add(mainApkSource);
+              Log.d(TAG, "adding backup source from : " + mainApkSource.toString());
+
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+                  && context.getApplicationInfo().splitSourceDirs != null) {
+                Log.d(TAG, "adding backup sources from split apks");
+                int splitIndex = 0;
+                for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
+                  ApkSoSource splittedApkSource =
+                      new ApkSoSource(
+                          context,
+                          new File(splitApkDir),
+                          SO_STORE_NAME_SPLITTED + (splitIndex++),
+                          apkSoSourceFlags);
+                  Log.d(TAG, "adding backup source: " + splittedApkSource.toString());
+                  backupSources.add(splittedApkSource);
+                }
+              }
+
+              sBackupSoSources = backupSources.toArray(new UnpackingSoSource[backupSources.size()]);
+              soSources.addAll(0, backupSources);
             }
           }
         }
@@ -651,11 +679,17 @@ public class SoLoader {
           for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
             SoSource currentSource = sSoSources[i];
             result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
-            if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSource != null) {
+            if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSources != null) {
               // Let's try from the backup source
               Log.d(TAG, "Trying backup SoSource for " + soName);
-              sBackupSoSource.prepare(soName);
-              result = sBackupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
+              for (UnpackingSoSource backupSoSource : sBackupSoSources) {
+                backupSoSource.prepare(soName);
+                int resultFromBackup = backupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
+                if (resultFromBackup == SoSource.LOAD_RESULT_LOADED) {
+                  result = resultFromBackup;
+                  break;
+                }
+              }
               break;
             }
           }
