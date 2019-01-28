@@ -127,7 +127,7 @@ public class SoLoader {
   private static final String SO_STORE_NAME_MAIN = "lib-main";
 
   /** Name of the directory we use for extracted DSOs from split APKs */
-  private static final String SO_STORE_NAME_SPLITTED = "lib-";
+  private static final String SO_STORE_NAME_SPLIT = "lib-";
 
   /** Enable the exopackage SoSource. */
   public static final int SOLOADER_ENABLE_EXOPACKAGE = (1 << 0);
@@ -280,14 +280,14 @@ public class SoLoader {
                 Log.d(TAG, "adding backup sources from split apks");
                 int splitIndex = 0;
                 for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
-                  ApkSoSource splittedApkSource =
+                  ApkSoSource splitApkSource =
                       new ApkSoSource(
                           context,
                           new File(splitApkDir),
-                          SO_STORE_NAME_SPLITTED + (splitIndex++),
+                          SO_STORE_NAME_SPLIT + (splitIndex++),
                           apkSoSourceFlags);
-                  Log.d(TAG, "adding backup source: " + splittedApkSource.toString());
-                  backupSources.add(splittedApkSource);
+                  Log.d(TAG, "adding backup source: " + splitApkSource.toString());
+                  backupSources.add(splitApkSource);
                 }
               }
 
