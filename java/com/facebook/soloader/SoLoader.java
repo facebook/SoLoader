@@ -23,9 +23,11 @@ import android.os.StrictMode;
 import android.text.TextUtils;
 import android.util.Log;
 import dalvik.system.BaseDexClassLoader;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -256,6 +258,8 @@ public class SoLoader {
               // systems, Bionic's built-in resolver suffices.
 
               if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
+              } else if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT && isHoudiniLoaded()) {
                 ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
               }
 
@@ -862,6 +866,22 @@ public class SoLoader {
     } finally {
       sSoSourcesLock.readLock().unlock();
     }
+  }
+
+  private static boolean isHoudiniLoaded() {
+    try {
+      BufferedReader br = new BufferedReader(new FileReader("/proc/" +
+          android.os.Process.myPid() + "/maps"));
+      String line = "";
+      while ((line = br.readLine()) != null) {
+        if (line.contains("/system/lib/libhoudini.so")) {
+          return true;
+        }
+      }
+    } catch (Exception e) {
+      // ignore silently
+    }
+    return false;
   }
 
   @DoNotOptimize
