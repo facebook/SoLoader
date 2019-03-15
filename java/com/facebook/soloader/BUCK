@@ -11,9 +11,6 @@ fb_core_android_library(
         "//deps:jsr_305",
     ],
     required_for_source_only_abi = True,
-    tests = [
-        "//javatests/com/facebook/soloader:soloader",
-    ],
     visibility = [
         "PUBLIC",
     ],
