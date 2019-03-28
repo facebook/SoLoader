@@ -480,6 +480,29 @@ public class SoLoader {
     }
   }
 
+  /**
+   * Gets the full path of a library.
+   *
+   * @param libName the library file name, including the prefix and extension.
+   * @return the full path of the library, or null if it is not found in none of the SoSources.
+   * @throws IOException
+   */
+  public static @Nullable String getLibraryPath(String libName) throws IOException {
+    sSoSourcesLock.readLock().lock();
+    String libPath = null;
+    try {
+      if (sSoSources != null) {
+        for (int i = 0; libPath == null && i < sSoSources.length; ++i) {
+          SoSource currentSource = sSoSources[i];
+          libPath = currentSource.getLibraryPath(libName);
+        }
+      }
+    } finally {
+      sSoSourcesLock.readLock().unlock();
+    }
+    return libPath;
+  }
+
   public static boolean loadLibrary(String shortName) {
     return loadLibrary(shortName, 0);
   }

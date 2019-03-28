@@ -90,6 +90,16 @@ public class DirectorySoSource extends SoSource {
     return LOAD_RESULT_LOADED;
   }
 
+  @Override
+  @Nullable
+  public String getLibraryPath(String soName) throws IOException {
+    File soFile = new File(soDirectory, soName);
+    if (soFile.exists()) {
+      return soFile.getCanonicalPath();
+    }
+    return null;
+  }
+
   private void loadDependencies(File soFile, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
     String dependencies[] = getDependencies(soFile);

@@ -81,6 +81,12 @@ public class ApplicationSoSource extends SoSource {
     return soSource.loadLibrary(soName, loadFlags, threadPolicy);
   }
 
+  @Override
+  @Nullable
+  public String getLibraryPath(String soName) throws IOException {
+    return soSource.getLibraryPath(soName);
+  }
+
   @Nullable
   @Override
   public File unpackLibrary(String soName) throws IOException {

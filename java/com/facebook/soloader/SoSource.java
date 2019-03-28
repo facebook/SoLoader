@@ -91,6 +91,18 @@ abstract public class SoSource {
   abstract public File unpackLibrary(String soName) throws IOException;
 
   /**
+   * Gets the full path of a library if it is found on this SoSource.
+   *
+   * @param soFileName the full file name of the library
+   * @return the full path of a library if it is found on this SoSource, null otherwise.
+   * @throws IOException
+   */
+  @Nullable
+  public String getLibraryPath(String soFileName) throws IOException {
+    return null;
+  }
+
+  /**
    * Add an element to an LD_LIBRARY_PATH under construction.
    *
    * @param paths Collection of paths to which to add
