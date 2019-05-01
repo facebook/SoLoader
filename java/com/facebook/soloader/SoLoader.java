@@ -149,6 +149,8 @@ public class SoLoader {
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
+  private static boolean isSystemApp;
+
   static {
     boolean shouldSystrace = false;
     try {
@@ -177,6 +179,7 @@ public class SoLoader {
       throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
+      isSystemApp = checkIfSystemApp(context);
       initSoLoader(soFileLoader);
       initSoSources(context, flags, soFileLoader);
     } finally {
@@ -239,12 +242,8 @@ public class SoLoader {
             Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
             soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
           } else {
-            ApplicationInfo applicationInfo = context.getApplicationInfo();
-            boolean isSystemApplication =
-                (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0
-                    && (applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
             int apkSoSourceFlags;
-            if (isSystemApplication) {
+            if (isSystemApp) {
               apkSoSourceFlags = 0;
             } else {
               apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
@@ -429,6 +428,13 @@ public class SoLoader {
     }
   }
 
+  private static boolean checkIfSystemApp(Context context) {
+    return (context != null)
+        && (context.getApplicationInfo().flags
+                & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP))
+            != 0;
+  }
+
   /** Turn shared-library loading into a no-op. Useful in special circumstances. */
   public static void setInTestMode() {
     setSoSources(new SoSource[] {new NoopSoSource()});
@@ -543,6 +549,13 @@ public class SoLoader {
       }
     } finally {
       sSoSourcesLock.readLock().unlock();
+    }
+
+    // This is to account for the fact that we want to load .so files from the apk itself when it is
+    // a system app.
+    if (isSystemApp && sSystemLoadLibraryWrapper != null) {
+      sSystemLoadLibraryWrapper.loadLibrary(shortName);
+      return true;
     }
 
     String mergedLibName = MergedSoMapping.mapLibName(shortName);
