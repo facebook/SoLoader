@@ -9,7 +9,7 @@ URL = 'https://github.com/facebook/soloader'
 
 LICENSES = [
   {
-    'name' : 'BSD License',
+    'name' : 'Apache-2',
     'url' : 'https://github.com/facebook/soloader/blob/master/LICENSE'
   }
 ]
