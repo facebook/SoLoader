@@ -2,7 +2,7 @@ NAME = 'SoLoader'
 
 GROUP = 'com.facebook.soloader'
 ARTIFACT = 'soloader'
-VERSION='0.6.0'
+VERSION='0.6.1'
 
 DESCRIPTION = "Reliable native code loader for Android"
 URL = 'https://github.com/facebook/soloader'
