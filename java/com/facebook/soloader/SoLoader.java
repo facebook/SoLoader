@@ -146,6 +146,14 @@ public class SoLoader {
    */
   public static final int SOLOADER_DISABLE_BACKUP_SOSOURCE = (1 << 3);
 
+  /**
+   * Skip calling JNI_OnLoad if the library is merged. This is necessary for libraries that don't
+   * define JNI_OnLoad and are only loaded for their side effects (like static constructors
+   * registering callbacks). DO NOT use this to allow implicit JNI registration (by naming your
+   * methods Java_com_facebook_whatever) because that is buggy on Android.
+   */
+  public static final int SOLOADER_SKIP_MERGED_JNI_ONLOAD = (1 << 4);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -641,19 +649,21 @@ public class SoLoader {
         }
       }
 
-      boolean isAlreadyMerged =
-          !TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName);
-      if (mergedLibName != null && !isAlreadyMerged) {
-        if (SYSTRACE_LIBRARY_LOADING) {
-          Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[" + shortName + "]");
-        }
-        try {
-          Log.d(TAG, "About to merge: " + shortName + " / " + soName);
-          MergedSoMapping.invokeJniOnload(shortName);
-          sLoadedAndMergedLibraries.add(shortName);
-        } finally {
+      if ((loadFlags & SOLOADER_SKIP_MERGED_JNI_ONLOAD) == 0) {
+        boolean isAlreadyMerged =
+            !TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName);
+        if (mergedLibName != null && !isAlreadyMerged) {
           if (SYSTRACE_LIBRARY_LOADING) {
-            Api18TraceUtils.endSection();
+            Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[" + shortName + "]");
+          }
+          try {
+            Log.d(TAG, "About to merge: " + shortName + " / " + soName);
+            MergedSoMapping.invokeJniOnload(shortName);
+            sLoadedAndMergedLibraries.add(shortName);
+          } finally {
+            if (SYSTRACE_LIBRARY_LOADING) {
+              Api18TraceUtils.endSection();
+            }
           }
         }
       }
