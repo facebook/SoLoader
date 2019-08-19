@@ -1,0 +1,31 @@
+load("//tools/build_defs/oss:soloader_defs.bzl", "fb_core_android_library")
+
+fb_core_android_library(
+    name = "soloader_aar",
+    srcs = glob(
+        ["*.java"],
+    ),
+    provided_deps = [
+        "//java/com/facebook/soloader:soloader",
+        "//java/com/facebook/soloader/nativeloader:nativeloader",
+    ],
+    required_for_source_only_abi = True,
+    visibility = [
+        "PUBLIC",
+    ],
+)
+
+fb_core_android_library(
+    name = "soloader",
+    required_for_source_only_abi = True,
+    visibility = [
+        "PUBLIC",
+    ],
+    deps = [
+        "//java/com/facebook/soloader:loader",
+        "//java/com/facebook/soloader/nativeloader:nativeloader",
+    ],
+    exported_deps = [
+        ":soloader_aar",
+    ],
+)

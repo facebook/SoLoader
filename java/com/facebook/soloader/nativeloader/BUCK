@@ -1,0 +1,13 @@
+load("//tools/build_defs/oss:soloader_defs.bzl", "fb_core_android_library")
+
+fb_core_android_library(
+    name = "nativeloader",
+    srcs = glob([
+        "delegate/*.java",
+        "*.java",
+    ]),
+    required_for_source_only_abi = True,
+    visibility = [
+        "PUBLIC",
+    ],
+)
