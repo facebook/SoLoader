@@ -2,12 +2,32 @@ load("//tools/build_defs/oss:soloader_defs.bzl", "fb_core_android_library", "fb_
 
 fb_core_android_library(
     name = "soloader",
+    proguard_config = "soloader.pro",
+    provided_deps = [
+        "//deps:jsr_305",
+    ],
+    required_for_source_only_abi = True,
+    visibility = [
+        "PUBLIC",
+    ],
+    exported_deps = [
+        ":annotation",
+        ":loader",
+    ],
+)
+
+fb_core_android_library(
+    name = "loader",
     srcs = glob(
         ["*.java"],
-        exclude = ["MergedSoMapping.java"],
+        exclude = [
+            "MergedSoMapping.java",
+            "DoNotOptimize.java",
+        ],
     ),
     proguard_config = "soloader.pro",
     provided_deps = [
+        ":annotation",
         "//deps:jsr_305",
     ],
     required_for_source_only_abi = True,
@@ -27,5 +47,14 @@ fb_java_library(
     srcs = ["MergedSoMapping.java"],
     provided_deps = [
         "//deps:jsr_305",
+    ],
+)
+
+fb_java_library(
+    name = "annotation",
+    srcs = ["DoNotOptimize.java"],
+    required_for_source_only_abi = True,
+    visibility = [
+        "PUBLIC",
     ],
 )
