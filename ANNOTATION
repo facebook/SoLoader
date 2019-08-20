@@ -1,10 +1,10 @@
 NAME = 'SoLoader'
 
 GROUP = 'com.facebook.soloader'
-ARTIFACT = 'soloader'
-VERSION='0.6.1'
+ARTIFACT = 'annotation'
+VERSION='0.7.0'
 
-DESCRIPTION = "Reliable native code loader for Android"
+DESCRIPTION = "DoNotOptimize class"
 URL = 'https://github.com/facebook/soloader'
 
 LICENSES = [

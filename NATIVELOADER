@@ -1,0 +1,21 @@
+NAME = 'SoLoader'
+
+GROUP = 'com.facebook.soloader'
+ARTIFACT = 'nativeloader'
+VERSION='0.7.0'
+
+DESCRIPTION = "Native code loader for Android interface"
+URL = 'https://github.com/facebook/soloader'
+
+LICENSES = [
+  {
+    'name' : 'Apache-2',
+    'url' : 'https://github.com/facebook/soloader/blob/master/LICENSE'
+  }
+]
+
+SCM = {
+  'url' : 'https://github.com/facebook/soloader.git',
+  'connection' : 'scm:git:https://github.com/facebook/soloader.git',
+  'developerConnection' : 'scm:git:git@github.com:facebook/soloader.git',
+}

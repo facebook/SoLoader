@@ -20,7 +20,7 @@ android_aar(
     name = "soloaderdelegate",
     manifest_skeleton = "AndroidManifestSkeleton.xml",
     deps = [
-        "//java/com/facebook/soloader/nativeloader/soloader:soloader",
+        "//java/com/facebook/soloader/nativeloader/soloader:soloader_aar",
     ],
 )
 
