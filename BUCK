@@ -31,3 +31,11 @@ android_aar(
         "//java/com/facebook/soloader:annotation",
     ],
 )
+
+android_aar(
+    name = "testloaderdelegate",
+    manifest_skeleton = "AndroidManifestSkeleton.xml",
+    deps = [
+        "//java/com/facebook/soloader/nativeloader/testloader:testloader_aar",
+    ],
+)
