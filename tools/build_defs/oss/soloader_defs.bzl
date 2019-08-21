@@ -1,6 +1,6 @@
 def _deps_decorator(**kwargs):
     """
-    Dependencies starting with '//deps/' should be provided (included in
+    Dependencies starting with '//deps:' should be provided (included in
     'provided_deps' rather than 'deps'). This decorator takes care
     of moving all such dependencies from 'deps' to 'provided_deps'.
     """
