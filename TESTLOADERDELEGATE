@@ -4,7 +4,7 @@ GROUP = 'com.facebook.soloader'
 ARTIFACT = 'testloaderdelegate'
 VERSION='0.7.0'
 
-DESCRIPTION = "NativeLoader delegate which allow to use SoLoader in Test Mode"
+DESCRIPTION = "NativeLoader delegate for testing purposes"
 URL = 'https://github.com/facebook/soloader'
 
 LICENSES = [
