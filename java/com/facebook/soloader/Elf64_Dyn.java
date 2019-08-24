@@ -16,6 +16,7 @@
 
 // AUTOMATICALLY GENERATED CODE. Regenerate with genstructs.sh.
 package com.facebook.soloader;
+
 final class Elf64_Dyn {
   public static final int d_tag = 0x0;
   public static final int d_un = 0x8;

@@ -24,9 +24,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import javax.annotation.Nullable;
 
-/**
- * {@link SoSource} that finds shared libraries in a given directory.
- */
+/** {@link SoSource} that finds shared libraries in a given directory. */
 public class DirectorySoSource extends SoSource {
 
   public static final int RESOLVE_DEPENDENCIES = 1;
@@ -36,10 +34,10 @@ public class DirectorySoSource extends SoSource {
   protected final int flags;
 
   /**
-   * Make a new DirectorySoSource.  If {@code flags} contains {@code RESOLVE_DEPENDENCIES},
-   * recursively load dependencies for shared objects loaded from this directory.  (We shouldn't
-   * need to resolve dependencies for libraries loaded from system directories: the dynamic linker
-   * is smart enough to do it on its own there.)
+   * Make a new DirectorySoSource. If {@code flags} contains {@code RESOLVE_DEPENDENCIES},
+   * recursively load dependencies for shared objects loaded from this directory. (We shouldn't need
+   * to resolve dependencies for libraries loaded from system directories: the dynamic linker is
+   * smart enough to do it on its own there.)
    */
   public DirectorySoSource(File soDirectory, int flags) {
     this.soDirectory = soDirectory;
@@ -63,8 +61,8 @@ public class DirectorySoSource extends SoSource {
     } else {
       Log.d(SoLoader.TAG, soName + " found on " + libDir.getCanonicalPath());
     }
-    if ((loadFlags & LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) != 0 &&
-        (flags & ON_LD_LIBRARY_PATH) != 0) {
+    if ((loadFlags & LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) != 0
+        && (flags & ON_LD_LIBRARY_PATH) != 0) {
       Log.d(SoLoader.TAG, soName + " loaded implicitly");
       return LOAD_RESULT_IMPLICITLY_PROVIDED;
     }

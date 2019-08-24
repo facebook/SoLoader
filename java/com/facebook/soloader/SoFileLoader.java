@@ -18,8 +18,6 @@ package com.facebook.soloader;
 
 public interface SoFileLoader {
 
-  /**
-   * Load the so file from given path.
-   */
+  /** Load the so file from given path. */
   void load(String pathToSoFile, int loadFlags);
 }

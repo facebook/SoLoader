@@ -22,16 +22,12 @@ import java.io.IOException;
 import java.util.Collection;
 import javax.annotation.Nullable;
 
-abstract public class SoSource {
+public abstract class SoSource {
 
-  /**
-   * This SoSource doesn't know how to provide the given library.
-   */
+  /** This SoSource doesn't know how to provide the given library. */
   public static final int LOAD_RESULT_NOT_FOUND = 0;
 
-  /**
-   * This SoSource loaded the given library.
-   */
+  /** This SoSource loaded the given library. */
   public static final int LOAD_RESULT_LOADED = 1;
 
   /**
@@ -56,10 +52,8 @@ abstract public class SoSource {
    */
   public static final int LOAD_FLAG_MIN_CUSTOM_FLAG = LOAD_FLAG_ALLOW_SOURCE_CHANGE << 1;
 
-  /**
-   * Allow prepare to spawn threads to do background work.
-   */
-  public static final int PREPARE_FLAG_ALLOW_ASYNC_INIT = (1<<0);
+  /** Allow prepare to spawn threads to do background work. */
+  public static final int PREPARE_FLAG_ALLOW_ASYNC_INIT = (1 << 0);
 
   /** Force prepare to refresh libs. */
   public static final int PREPARE_FLAG_FORCE_REFRESH = (1 << 1);
@@ -81,14 +75,14 @@ abstract public class SoSource {
       String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy) throws IOException;
 
   /**
-   * Ensure that a shared library exists on disk somewhere.  This routine is independent of
-   * {@link #loadLibrary}.
+   * Ensure that a shared library exists on disk somewhere. This routine is independent of {@link
+   * #loadLibrary}.
    *
    * @param soName Name of library to load
    * @return File if library found; {@code null} if not.
    */
   @Nullable
-  abstract public File unpackLibrary(String soName) throws IOException;
+  public abstract File unpackLibrary(String soName) throws IOException;
 
   /**
    * Gets the full path of a library if it is found on this SoSource.

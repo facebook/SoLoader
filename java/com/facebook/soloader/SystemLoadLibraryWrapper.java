@@ -16,9 +16,7 @@
 
 package com.facebook.soloader;
 
-/**
- * @see SoLoader#setSystemLoadLibraryWrapper
- */
+/** @see SoLoader#setSystemLoadLibraryWrapper */
 public interface SystemLoadLibraryWrapper {
   void loadLibrary(String libName);
 }

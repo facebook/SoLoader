@@ -20,8 +20,8 @@ import android.annotation.TargetApi;
 import android.os.Trace;
 
 /**
- * Encapsulate Trace calls introduced in API18 into an independent class
- * so that, we don't fail preverification down level on versions below API 18.
+ * Encapsulate Trace calls introduced in API18 into an independent class so that, we don't fail
+ * preverification down level on versions below API 18.
  */
 @DoNotOptimize
 @TargetApi(18)

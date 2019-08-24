@@ -16,6 +16,7 @@
 
 // AUTOMATICALLY GENERATED CODE. Regenerate with genstructs.sh.
 package com.facebook.soloader;
+
 final class Elf64_Shdr {
   public static final int sh_name = 0x0;
   public static final int sh_type = 0x4;

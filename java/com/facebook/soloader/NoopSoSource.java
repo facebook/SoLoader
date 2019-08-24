@@ -19,9 +19,7 @@ package com.facebook.soloader;
 import android.os.StrictMode;
 import java.io.File;
 
-/**
- * {@link SoSource} that does nothing and pretends to successfully load all libraries.
- */
+/** {@link SoSource} that does nothing and pretends to successfully load all libraries. */
 public class NoopSoSource extends SoSource {
   @Override
   public int loadLibrary(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy) {
@@ -30,7 +28,6 @@ public class NoopSoSource extends SoSource {
 
   @Override
   public File unpackLibrary(String soName) {
-    throw new UnsupportedOperationException(
-        "unpacking not supported in test mode");
+    throw new UnsupportedOperationException("unpacking not supported in test mode");
   }
 }

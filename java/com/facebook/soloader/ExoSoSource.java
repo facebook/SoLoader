@@ -30,9 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/**
- * {@link SoSource} that retrieves libraries from an exopackage repository.
- */
+/** {@link SoSource} that retrieves libraries from an exopackage repository. */
 public final class ExoSoSource extends UnpackingSoSource {
 
   public ExoSoSource(Context context, String name) {
@@ -50,10 +48,8 @@ public final class ExoSoSource extends UnpackingSoSource {
 
     ExoUnpacker(final UnpackingSoSource soSource) throws IOException {
       Context context = mContext;
-      File exoDir = new File(
-          "/data/local/tmp/exopackage/"
-          + context.getPackageName()
-          + "/native-libs/");
+      File exoDir =
+          new File("/data/local/tmp/exopackage/" + context.getPackageName() + "/native-libs/");
 
       ArrayList<FileDso> providedLibraries = new ArrayList<>();
 
@@ -101,10 +97,7 @@ public final class ExoSoSource extends UnpackingSoSource {
 
             String backingFileBaseName = line.substring(sep + 1);
             providedLibraries.add(
-                new FileDso(
-                    soName,
-                    backingFileBaseName,
-                    new File(abiDir, backingFileBaseName)));
+                new FileDso(soName, backingFileBaseName, new File(abiDir, backingFileBaseName)));
           }
         }
       }
@@ -150,6 +143,7 @@ public final class ExoSoSource extends UnpackingSoSource {
 
   private static final class FileDso extends Dso {
     final File backingFile;
+
     FileDso(String name, String hash, File backingFile) {
       super(name, hash);
       this.backingFile = backingFile;

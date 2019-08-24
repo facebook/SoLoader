@@ -16,6 +16,7 @@
 
 // AUTOMATICALLY GENERATED CODE. Regenerate with genstructs.sh.
 package com.facebook.soloader;
+
 final class Elf64_Phdr {
   public static final int p_type = 0x0;
   public static final int p_flags = 0x4;

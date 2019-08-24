@@ -23,11 +23,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 /**
- * A hint (which may or may not be observed) to any optimizers in our tool
- * chain that we don't want optimizations being applied to the annotated
- * elements.
+ * A hint (which may or may not be observed) to any optimizers in our tool chain that we don't want
+ * optimizations being applied to the annotated elements.
  */
-@Target({ ElementType.TYPE, ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR })
+@Target({ElementType.TYPE, ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR})
 @Retention(CLASS)
-public @interface DoNotOptimize {
-}
+public @interface DoNotOptimize {}

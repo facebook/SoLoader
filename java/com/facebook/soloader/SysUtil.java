@@ -59,23 +59,22 @@ public final class SysUtil {
   }
 
   /**
-   * Return an list of ABIs we supported on this device ordered according to preference.  Use a
-   * separate inner class to isolate the version-dependent call where it won't cause the whole
-   * class to fail preverification.
+   * Return an list of ABIs we supported on this device ordered according to preference. Use a
+   * separate inner class to isolate the version-dependent call where it won't cause the whole class
+   * to fail preverification.
    *
    * @return Ordered array of supported ABIs
    */
   public static String[] getSupportedAbis() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-      return new String[]{Build.CPU_ABI, Build.CPU_ABI2};
+      return new String[] {Build.CPU_ABI, Build.CPU_ABI2};
     } else {
       return LollipopSysdeps.getSupportedAbis();
     }
   }
 
   /**
-   * Pre-allocate disk space for a file if we can do that
-   * on this version of the OS.
+   * Pre-allocate disk space for a file if we can do that on this version of the OS.
    *
    * @param fd File descriptor for file
    * @param length Number of bytes to allocate.
@@ -89,7 +88,7 @@ public final class SysUtil {
   /**
    * Delete a directory and its contents.
    *
-   * WARNING: Java APIs do not let us distinguish directories from symbolic links to directories.
+   * <p>WARNING: Java APIs do not let us distinguish directories from symbolic links to directories.
    * Consequently, if the directory contains symbolic links to directories, we will attempt to
    * delete the contents of pointed-to directories.
    *
@@ -129,9 +128,9 @@ public final class SysUtil {
       try {
         Os.posix_fallocate(fd, 0, length);
       } catch (ErrnoException ex) {
-        if (ex.errno != OsConstants.EOPNOTSUPP &&
-            ex.errno != OsConstants.ENOSYS &&
-            ex.errno != OsConstants.EINVAL) {
+        if (ex.errno != OsConstants.EOPNOTSUPP
+            && ex.errno != OsConstants.ENOSYS
+            && ex.errno != OsConstants.EINVAL) {
           throw new IOException(ex.toString(), ex);
         }
       }
@@ -139,10 +138,10 @@ public final class SysUtil {
   }
 
   /**
-   * Like File.mkdirs, but throws on error.  Succeeds even if
-   * File.mkdirs "fails", but dir still names a directory.
+   * Like File.mkdirs, but throws on error. Succeeds even if File.mkdirs "fails", but dir still
+   * names a directory.
    *
-   * @param dir Directory to create.  All parents created as well.
+   * @param dir Directory to create. All parents created as well.
    */
   static void mkdirOrThrow(File dir) throws IOException {
     if (!dir.mkdirs() && !dir.isDirectory()) {
@@ -164,11 +163,8 @@ public final class SysUtil {
     // Yes, this method is exactly the same as the above, just with a different type for `os'.
     int bytesCopied = 0;
     int nrRead;
-    while (bytesCopied < byteLimit &&
-        (nrRead = is.read(
-            buffer,
-            0,
-            Math.min(buffer.length, byteLimit - bytesCopied))) != -1) {
+    while (bytesCopied < byteLimit
+        && (nrRead = is.read(buffer, 0, Math.min(buffer.length, byteLimit - bytesCopied))) != -1) {
       os.write(buffer, 0, nrRead);
       bytesCopied += nrRead;
     }
@@ -217,9 +213,9 @@ public final class SysUtil {
       } catch (PackageManager.NameNotFoundException e) {
         // That should not happen
       } catch (RuntimeException e) {
-          // To catch RuntimeException("Package manager has died") that can occur
-          // on some version of Android, when the remote PackageManager is
-          // unavailable. I suspect this sometimes occurs when the App is being reinstalled.
+        // To catch RuntimeException("Package manager has died") that can occur
+        // on some version of Android, when the remote PackageManager is
+        // unavailable. I suspect this sometimes occurs when the App is being reinstalled.
       }
     }
     return 0;

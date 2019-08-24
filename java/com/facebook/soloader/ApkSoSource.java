@@ -23,9 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.zip.ZipEntry;
 
-/**
- * {@link SoSource} that extracts libraries from an APK to the filesystem.
- */
+/** {@link SoSource} that extracts libraries from an APK to the filesystem. */
 public class ApkSoSource extends ExtractFromZipSoSource {
 
   private static final String TAG = "ApkSoSource";
@@ -34,7 +32,7 @@ public class ApkSoSource extends ExtractFromZipSoSource {
    * If this flag is given, do not extract libraries that appear to be correctly extracted to the
    * application libs directory.
    */
-  public static final int PREFER_ANDROID_LIBS_DIRECTORY = (1<<0);
+  public static final int PREFER_ANDROID_LIBS_DIRECTORY = (1 << 0);
 
   private static final byte APK_SO_SOURCE_SIGNATURE_VERSION = 2;
   private static final byte LIBS_DIR_DONT_CARE = 0;
@@ -138,8 +136,8 @@ public class ApkSoSource extends ExtractFromZipSoSource {
 
       File canonicalFile = new File(nativeLibraryDir).getCanonicalFile();
       if (!canonicalFile.exists()) {
-          parcel.writeByte(LIBS_DIR_DOESNT_EXIST);
-          return parcel.marshall();
+        parcel.writeByte(LIBS_DIR_DOESNT_EXIST);
+        return parcel.marshall();
       }
 
       parcel.writeByte(LIBS_DIR_SNAPSHOT);

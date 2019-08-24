@@ -33,9 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/**
- * {@link SoSource} that extracts libraries from an APK to the filesystem.
- */
+/** {@link SoSource} that extracts libraries from an APK to the filesystem. */
 public abstract class UnpackingSoSource extends DirectorySoSource {
 
   private static final String TAG = "fb-UnpackingSoSource";
@@ -82,7 +80,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     return mAbis;
   }
 
-  public void setSoSourceAbis(final String []abis) {
+  public void setSoSourceAbis(final String[] abis) {
     mAbis = abis;
   }
 
@@ -90,7 +88,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     public final String name;
     public final String hash;
 
-    public Dso (String name, String hash) {
+    public Dso(String name, String hash) {
       this.name = name;
       this.hash = hash;
     }
@@ -99,13 +97,12 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   public static final class DsoManifest {
 
     public final Dso[] dsos;
+
     public DsoManifest(Dso[] dsos) {
       this.dsos = dsos;
     }
 
-    /**
-     * @return Dso manifest, or {@code null} if manifest is corrupt or illegible.
-     */
+    /** @return Dso manifest, or {@code null} if manifest is corrupt or illegible. */
     static final DsoManifest read(DataInput xdi) throws IOException {
       int version = xdi.readByte();
       if (version != MANIFEST_VERSION) {
@@ -137,6 +134,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   protected static final class InputDso implements Closeable {
     public final Dso dso;
     public final InputStream content;
+
     public InputDso(Dso dso, InputStream content) {
       this.dso = dso;
       this.content = content;
@@ -150,8 +148,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   protected abstract static class InputDsoIterator implements Closeable {
 
-    abstract public boolean hasNext();
-    abstract public InputDso next() throws IOException;
+    public abstract boolean hasNext();
+
+    public abstract InputDso next() throws IOException;
 
     @Override
     public void close() throws IOException {
@@ -161,7 +160,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   protected abstract static class Unpacker implements Closeable {
     protected abstract DsoManifest getDsoManifest() throws IOException;
+
     protected abstract InputDsoIterator openDsoIterator() throws IOException;
+
     @Override
     public void close() throws IOException {
       /* By default, do nothing */
@@ -177,9 +178,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     }
   }
 
-  /**
-   * Delete files not mentioned in the given DSO list.
-   */
+  /** Delete files not mentioned in the given DSO list. */
   private void deleteUnmentionedFiles(Dso[] dsos) throws IOException {
     String[] existingFiles = soDirectory.list();
     if (existingFiles == null) {
@@ -188,10 +187,10 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
     for (int i = 0; i < existingFiles.length; ++i) {
       String fileName = existingFiles[i];
-      if (fileName.equals(STATE_FILE_NAME) ||
-          fileName.equals(LOCK_FILE_NAME) ||
-          fileName.equals(DEPS_FILE_NAME) ||
-          fileName.equals(MANIFEST_FILE_NAME)) {
+      if (fileName.equals(STATE_FILE_NAME)
+          || fileName.equals(LOCK_FILE_NAME)
+          || fileName.equals(DEPS_FILE_NAME)
+          || fileName.equals(MANIFEST_FILE_NAME)) {
         continue;
       }
 
@@ -244,10 +243,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     }
   }
 
-  private void regenerate(
-      byte state,
-      DsoManifest desiredManifest,
-      InputDsoIterator dsoIterator) throws IOException {
+  private void regenerate(byte state, DsoManifest desiredManifest, InputDsoIterator dsoIterator)
+      throws IOException {
     Log.v(TAG, "regenerating DSO store " + getClass().getName());
     File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
     try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
@@ -270,8 +267,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         try (InputDso iDso = dsoIterator.next()) {
           boolean obsolete = true;
           for (int i = 0; obsolete && i < existingManifest.dsos.length; ++i) {
-            if (existingManifest.dsos[i].name.equals(iDso.dso.name) &&
-                existingManifest.dsos[i].hash.equals(iDso.dso.hash)) {
+            if (existingManifest.dsos[i].name.equals(iDso.dso.name)
+                && existingManifest.dsos[i].hash.equals(iDso.dso.hash)) {
               obsolete = false;
             }
           }
@@ -284,10 +281,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     Log.v(TAG, "Finished regenerating DSO store " + getClass().getName());
   }
 
-  private boolean refreshLocked(
-      final FileLocker lock,
-      final int flags,
-      final byte[] deps) throws IOException {
+  private boolean refreshLocked(final FileLocker lock, final int flags, final byte[] deps)
+      throws IOException {
     final File stateFileName = new File(soDirectory, STATE_FILE_NAME);
     byte state;
     try (RandomAccessFile stateFile = new RandomAccessFile(stateFileName, "rw")) {
@@ -335,41 +330,42 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
     final DsoManifest manifest = desiredManifest;
 
-    Runnable syncer = new Runnable() {
-        @Override
-        public void run() {
-          try {
+    Runnable syncer =
+        new Runnable() {
+          @Override
+          public void run() {
             try {
-              Log.v(TAG, "starting syncer worker");
+              try {
+                Log.v(TAG, "starting syncer worker");
 
-              // N.B. We can afford to write the deps file and the manifest file without
-              // synchronization or fsyncs because we've marked the DSO store STATE_DIRTY, which
-              // will cause us to ignore all intermediate state when regenerating it.  That is,
-              // it's okay for the depsFile or manifestFile blocks to hit the disk before the
-              // actual DSO data file blocks as long as both hit the disk before we reset
-              // STATE_CLEAN.
+                // N.B. We can afford to write the deps file and the manifest file without
+                // synchronization or fsyncs because we've marked the DSO store STATE_DIRTY, which
+                // will cause us to ignore all intermediate state when regenerating it.  That is,
+                // it's okay for the depsFile or manifestFile blocks to hit the disk before the
+                // actual DSO data file blocks as long as both hit the disk before we reset
+                // STATE_CLEAN.
 
-              try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
-                depsFile.write(deps);
-                depsFile.setLength(depsFile.getFilePointer());
+                try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
+                  depsFile.write(deps);
+                  depsFile.setLength(depsFile.getFilePointer());
+                }
+
+                File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
+                try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
+                  manifest.write(manifestFile);
+                }
+
+                SysUtil.fsyncRecursive(soDirectory);
+                writeState(stateFileName, STATE_CLEAN);
+              } finally {
+                Log.v(TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
+                lock.close();
               }
-
-              File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
-              try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
-                manifest.write(manifestFile);
-              }
-
-              SysUtil.fsyncRecursive(soDirectory);
-              writeState(stateFileName, STATE_CLEAN);
-            } finally {
-              Log.v(TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
-              lock.close();
+            } catch (IOException ex) {
+              throw new RuntimeException(ex);
             }
-          } catch (IOException ex) {
-            throw new RuntimeException(ex);
           }
-        }
-      };
+        };
 
     if ((flags & PREPARE_FLAG_ALLOW_ASYNC_INIT) != 0) {
       new Thread(syncer, "SoSync:" + soDirectory.getName()).start();
@@ -385,7 +381,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
    * block differs from one we've previously saved, we go through the heavyweight refresh process
    * that involves calling {@link #getDsoManifest} and {@link #openDsoIterator}.
    *
-   * Subclasses should override this method if {@link #getDsoManifest} is expensive.
+   * <p>Subclasses should override this method if {@link #getDsoManifest} is expensive.
    *
    * @return dependency block
    */
@@ -407,9 +403,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     return depsBlock;
   }
 
-  /**
-   * Verify or refresh the state of the shared library store.
-   */
+  /** Verify or refresh the state of the shared library store. */
   @Override
   protected void prepare(int flags) throws IOException {
     SysUtil.mkdirOrThrow(soDirectory);
@@ -427,8 +421,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         Log.v(TAG, "releasing dso store lock for " + soDirectory);
         lock.close();
       } else {
-        Log.v(TAG, "not releasing dso store lock for "
-            + soDirectory + " (syncer thread started)");
+        Log.v(TAG, "not releasing dso store lock for " + soDirectory + " (syncer thread started)");
       }
     }
   }

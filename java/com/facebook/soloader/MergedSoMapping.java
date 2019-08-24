@@ -24,7 +24,6 @@ class MergedSoMapping {
   }
 
   static void invokeJniOnload(String preMergedLibName) {
-    throw new IllegalArgumentException(
-        "Unknown library: " + preMergedLibName);
+    throw new IllegalArgumentException("Unknown library: " + preMergedLibName);
   }
 }

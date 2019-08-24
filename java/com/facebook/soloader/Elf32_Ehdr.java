@@ -16,6 +16,7 @@
 
 // AUTOMATICALLY GENERATED CODE. Regenerate with genstructs.sh.
 package com.facebook.soloader;
+
 final class Elf32_Ehdr {
   public static final int e_ident = 0x0;
   public static final int e_type = 0x10;
