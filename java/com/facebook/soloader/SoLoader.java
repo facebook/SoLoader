@@ -779,6 +779,7 @@ public class SoLoader {
             cause = error.toString();
           }
           message += " caused by: " + cause;
+          error.printStackTrace();
         }
         Log.e(TAG, message);
         throw new UnsatisfiedLinkError(message);
