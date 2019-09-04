@@ -30,6 +30,9 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 
 public final class SysUtil {
 
@@ -120,7 +123,36 @@ public final class SysUtil {
   private static final class LollipopSysdeps {
     @DoNotOptimize
     public static String[] getSupportedAbis() {
-      return Build.SUPPORTED_ABIS;
+      String[] supportedAbis = Build.SUPPORTED_ABIS;
+      ArrayList<String> priorAbis = new ArrayList<>();
+      try {
+        // SoLoader will give first rank to arm64-v8a & x86_64, if current process is app_process64.
+        // Otherwise(means current process is app_process32), give first rank to armeabi-v7a & x86.
+        if (Os.readlink("/proc/self/exe").contains("64")) {
+          priorAbis.add(MinElf.ISA.AARCH64.toString());
+          priorAbis.add(MinElf.ISA.X86_64.toString());
+        } else {
+          priorAbis.add(MinElf.ISA.ARM.toString());
+          priorAbis.add(MinElf.ISA.X86.toString());
+        }
+      } catch(ErrnoException e) {
+        throw new RuntimeException(e);
+      }
+      final ArrayList<String> finalPriorAbis = priorAbis;
+      // Reorder supported ABIs based on preferred ABIs for the current process.
+      Arrays.sort(supportedAbis, new Comparator<String>() {
+        @Override
+        public int compare(String o1, String o2) {
+          if (finalPriorAbis.contains(o1)) {
+            return -1;
+          } else if (finalPriorAbis.contains(o2)) {
+            return 1;
+          } else {
+            return 0;
+          }
+        }
+      });
+      return supportedAbis;
     }
 
     @DoNotOptimize

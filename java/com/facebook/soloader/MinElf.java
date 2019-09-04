@@ -32,6 +32,26 @@ import java.nio.channels.FileChannel;
  */
 public final class MinElf {
 
+  public static enum ISA {
+    NOT_SO("not_so"),
+    X86("x86"),
+    ARM("armeabi-v7a"),
+    X86_64("x86_64"),
+    AARCH64("arm64-v8a"),
+    OTHERS("others");
+
+    private final String value;
+
+    ISA(final String value) {
+      this.value = value;
+    }
+
+    @Override
+    public String toString() {
+      return value;
+    }
+  };
+
   public static final int ELF_MAGIC = 0x464c457f;
 
   public static final int DT_NULL = 0;
