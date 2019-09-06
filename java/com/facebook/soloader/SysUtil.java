@@ -25,6 +25,7 @@ import android.os.Parcel;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
+import android.util.Log;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -35,6 +36,8 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 public final class SysUtil {
+
+  private static final String TAG = "SysUtil";
 
   private static final byte APK_SIGNATURE_VERSION = 1;
 
@@ -135,23 +138,26 @@ public final class SysUtil {
           priorAbis.add(MinElf.ISA.ARM.toString());
           priorAbis.add(MinElf.ISA.X86.toString());
         }
-      } catch(ErrnoException e) {
-        throw new RuntimeException(e);
+      } catch (ErrnoException e) {
+        Log.e(TAG, "Could not read /proc/self/exe. Falling back to default ABI list.", e);
+        return Build.SUPPORTED_ABIS;
       }
       final ArrayList<String> finalPriorAbis = priorAbis;
       // Reorder supported ABIs based on preferred ABIs for the current process.
-      Arrays.sort(supportedAbis, new Comparator<String>() {
-        @Override
-        public int compare(String o1, String o2) {
-          if (finalPriorAbis.contains(o1)) {
-            return -1;
-          } else if (finalPriorAbis.contains(o2)) {
-            return 1;
-          } else {
-            return 0;
-          }
-        }
-      });
+      Arrays.sort(
+          supportedAbis,
+          new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+              if (finalPriorAbis.contains(o1)) {
+                return -1;
+              } else if (finalPriorAbis.contains(o2)) {
+                return 1;
+              } else {
+                return 0;
+              }
+            }
+          });
       return supportedAbis;
     }
 
