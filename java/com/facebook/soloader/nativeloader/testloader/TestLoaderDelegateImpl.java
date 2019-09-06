@@ -24,7 +24,7 @@ import java.io.IOException;
 public class TestLoaderDelegateImpl implements NativeLoaderDelegate {
 
   /**
-   * Set SoLoader in Test Mode. Initializes native code loading for this app; this class's other
+   * Set SoLoader in test mode. Initializes native code loading for this app; this class's other
    * static facilities cannot be used until this {@link #init} is called. This method is idempotent:
    * calls after the first are ignored.
    *
