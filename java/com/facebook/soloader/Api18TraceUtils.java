@@ -18,6 +18,7 @@ package com.facebook.soloader;
 
 import android.annotation.TargetApi;
 import android.os.Trace;
+import javax.annotation.Nullable;
 
 /**
  * Encapsulate Trace calls introduced in API18 into an independent class so that, we don't fail
@@ -26,8 +27,14 @@ import android.os.Trace;
 @DoNotOptimize
 @TargetApi(18)
 class Api18TraceUtils {
+  private static final int MAX_SECTION_NAME_LENGTH = 127;
 
-  public static void beginTraceSection(String sectionName) {
+  public static void beginTraceSection(String prefix, @Nullable String middle, String suffix) {
+    String sectionName = prefix + middle + suffix;
+    if (sectionName.length() > MAX_SECTION_NAME_LENGTH && middle != null) {
+      int remaining = MAX_SECTION_NAME_LENGTH - prefix.length() - suffix.length();
+      sectionName = prefix + middle.substring(0, remaining) + suffix;
+    }
     Trace.beginSection(sectionName);
   }
 

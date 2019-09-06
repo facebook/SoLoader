@@ -654,7 +654,7 @@ public class SoLoader {
             !TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName);
         if (mergedLibName != null && !isAlreadyMerged) {
           if (SYSTRACE_LIBRARY_LOADING) {
-            Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[" + shortName + "]");
+            Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[", shortName, "]");
           }
           try {
             Log.d(TAG, "About to merge: " + shortName + " / " + soName);
@@ -711,7 +711,7 @@ public class SoLoader {
     }
 
     if (SYSTRACE_LIBRARY_LOADING) {
-      Api18TraceUtils.beginTraceSection("SoLoader.loadLibrary[" + soName + "]");
+      Api18TraceUtils.beginTraceSection("SoLoader.loadLibrary[", soName, "]");
     }
 
     Throwable error = null;

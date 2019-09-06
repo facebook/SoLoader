@@ -117,7 +117,7 @@ public class DirectorySoSource extends SoSource {
 
   private static String[] getDependencies(File soFile) throws IOException {
     if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
-      Api18TraceUtils.beginTraceSection("SoLoader.getElfDependencies[" + soFile.getName() + "]");
+      Api18TraceUtils.beginTraceSection("SoLoader.getElfDependencies[", soFile.getName(), "]");
     }
     try {
       return MinElf.extract_DT_NEEDED(soFile);
