@@ -6,6 +6,7 @@ fb_core_android_library(
         ["*.java"],
     ),
     provided_deps = [
+        "//deps:proguard_annotations",
         "//java/com/facebook/soloader:soloader",
         "//java/com/facebook/soloader/nativeloader:nativeloader",
     ],
@@ -17,6 +18,9 @@ fb_core_android_library(
 
 fb_core_android_library(
     name = "soloader",
+    provided_deps = [
+        "//deps:proguard_annotations",
+    ],
     required_for_source_only_abi = True,
     visibility = [
         "PUBLIC",

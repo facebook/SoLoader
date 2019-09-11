@@ -11,4 +11,4 @@
     target = android-26
     build_tools_version = 27.0.3
 [download]
-    maven_repo = https://repo1.maven.org/maven2
+    maven_repo = https://jcenter.bintray.com/

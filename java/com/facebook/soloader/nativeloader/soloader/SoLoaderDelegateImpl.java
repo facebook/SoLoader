@@ -16,11 +16,13 @@
 package com.facebook.soloader.nativeloader.soloader;
 
 import android.content.Context;
+import com.facebook.proguard.annotations.DoNotStrip;
 import com.facebook.soloader.SoLoader;
 import com.facebook.soloader.nativeloader.delegate.NativeLoaderDelegate;
 import java.io.IOException;
 
 /** Class which connects SoLoader to NativeLoader */
+@DoNotStrip
 public class SoLoaderDelegateImpl implements NativeLoaderDelegate {
 
   /**

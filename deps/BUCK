@@ -12,4 +12,16 @@ maven_library(
     ],
 )
 
+maven_library(
+    name = "proguard_annotations",
+    artifact = "proguard-annotations",
+    group = "com.facebook.yoga",
+    scope = "compile",
+    sha1 = "3d015bb821875657ac8e4b808a223aae339defb2",
+    version = "1.14.1",
+    visibility = [
+        "PUBLIC",
+    ],
+)
+
 define_list_deps_target()
