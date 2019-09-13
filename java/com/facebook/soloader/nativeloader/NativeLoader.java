@@ -75,8 +75,8 @@ public class NativeLoader {
   }
 
   /**
-   * Set value of the initialization status. You should use this method instead of calling {@link #init}
-   * in case your native loader is initialized outside of NativeLoader.
+   * Set value of the initialization status. You should use this method instead of calling {@link
+   * #init} in case your native loader is initialized outside of NativeLoader.
    *
    * @param value true if the native loader has been initialized.
    */
