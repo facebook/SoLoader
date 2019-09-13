@@ -22,6 +22,9 @@ def fb_java_library(**kwargs):
 def fb_core_android_library(**kwargs):
     android_library(**kwargs)
 
+def export_file(**kwargs):
+    native.export_file(**kwargs)
+
 DEPENDENCIES_INDEX = {}
 
 def _add_dependency_to_index(name, **dep):

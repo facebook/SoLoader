@@ -22,6 +22,7 @@ import android.os.Build;
 import android.os.StrictMode;
 import android.text.TextUtils;
 import android.util.Log;
+import com.facebook.soloader.nativeloader.NativeLoader;
 import dalvik.system.BaseDexClassLoader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -190,6 +191,9 @@ public class SoLoader {
       isSystemApp = checkIfSystemApp(context);
       initSoLoader(soFileLoader);
       initSoSources(context, flags, soFileLoader);
+      if (!NativeLoader.isInitialized()) {
+        NativeLoader.init(new NativeLoaderToSoLoaderDelegate());
+      }
     } finally {
       StrictMode.setThreadPolicy(oldPolicy);
     }

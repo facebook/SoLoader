@@ -15,72 +15,57 @@
  */
 package com.facebook.soloader.nativeloader;
 
-import android.content.Context;
-import com.facebook.soloader.nativeloader.delegate.NativeLoaderDelegate;
-import com.facebook.soloader.nativeloader.delegate.SystemDelegateImpl;
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-/** Fasade to load native libraries for android */
+/** Facade to load native libraries for android */
 public class NativeLoader {
 
-  /** Initialization status flag */
-  private static final AtomicBoolean sAlreadyInitialized = new AtomicBoolean(false);
-
   private static NativeLoaderDelegate sDelegate;
+
   /** Blocked default constructor */
   private NativeLoader() {}
-
-  /**
-   * Set which delegator will be used to load native libraries.
-   *
-   * @param delegate Delegator to use.
-   */
-  public static void set(NativeLoaderDelegate delegate) {
-    sAlreadyInitialized.set(false);
-    sDelegate = delegate;
-  }
 
   /**
    * Load a shared library, initializing any JNI binding it contains.
    *
    * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
-   * @return Whether the library was loaded as a result of this call (true), or loading wasn't
-   *     successful (false).
+   * @return Whether the library was loaded as a result of this call (true), or was already loaded
+   *     through a previous call (false).
    */
   public static boolean loadLibrary(String shortName) {
-    if (!sAlreadyInitialized.get()) {
-      throw new RuntimeException("NativeLoader.init() not yet called");
+    synchronized (NativeLoader.class) {
+      if (sDelegate == null) {
+        throw new IllegalStateException(
+            "NativeLoader has not been initialized.  " +
+                "To use standard native library loading, call " +
+                "NativeLoader.init(new SystemDelegate()).");
+      }
     }
 
     return sDelegate.loadLibrary(shortName);
   }
 
   /**
-   * Initializes native code loading for this app; this class's other static facilities cannot be
-   * used until this {@link #init} is called. This method is idempotent: calls after the first are
-   * ignored.
+   * Initializes native code loading for this app.  Should be called only once,
+   * before any calls to {@link #loadLibrary(String)}.
    *
-   * @param context application context.
+   * @param delegate Delegate to use for all {@code loadLibrary} calls.
    */
-  public static void init(Context context) throws IOException {
-    synchronized (sAlreadyInitialized) {
-      if (sDelegate == null) {
-        sDelegate = new SystemDelegateImpl();
-      }
-      if (sAlreadyInitialized.compareAndSet(false, true)) {
-        sDelegate.init(context);
-      }
+  public static synchronized void init(NativeLoaderDelegate delegate) {
+    if (sDelegate != null) {
+      throw new IllegalStateException("Cannot re-initialize NativeLoader.");
     }
+    sDelegate = delegate;
   }
 
   /**
-   * Set value of the initialization status. You should use this method instead of calling {@link
-   * #init} in case your native loader is initialized outside of NativeLoader.
+   * Determine whether {@code NativeLoader} has already been initialized.
+   * This method should not normally be used, because initialization should be performed
+   * only once during app startup.  However, libraries that want to provide a default
+   * initialization for {@code NativeLoader} to hide its existence from the app can
+   * use this method to avoid re-initializing.
    *
-   * @param value true if the native loader has been initialized.
+   * @return True iff {@link #init(NativeLoaderDelegate)} has been called.
    */
-  public static void setInitialized(boolean value) {
-    sAlreadyInitialized.set(value);
+  public static synchronized boolean isInitialized() {
+    return sDelegate != null;
   }
 }

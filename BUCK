@@ -1,27 +1,17 @@
-load("//tools/build_defs/oss:soloader_defs.bzl", "android_aar")
+load("//tools/build_defs/oss:soloader_defs.bzl", "android_aar", "export_file")
 
 android_aar(
     name = "soloader",
     manifest_skeleton = "AndroidManifestSkeleton.xml",
     deps = [
-        "//java/com/facebook/soloader:loader",
+        "//java/com/facebook/soloader:loader_for_aar",
     ],
 )
 
-android_aar(
+export_file(
     name = "nativeloader",
-    manifest_skeleton = "AndroidManifestSkeleton.xml",
-    deps = [
-        "//java/com/facebook/soloader/nativeloader:nativeloader",
-    ],
-)
-
-android_aar(
-    name = "soloaderdelegate",
-    manifest_skeleton = "AndroidManifestSkeleton.xml",
-    deps = [
-        "//java/com/facebook/soloader/nativeloader/soloader:soloader_aar",
-    ],
+    src = "//java/com/facebook/soloader/nativeloader:nativeloader",
+    out = "nativeloader.jar",
 )
 
 android_aar(
@@ -29,13 +19,5 @@ android_aar(
     manifest_skeleton = "AndroidManifestSkeleton.xml",
     deps = [
         "//java/com/facebook/soloader:annotation",
-    ],
-)
-
-android_aar(
-    name = "testloaderdelegate",
-    manifest_skeleton = "AndroidManifestSkeleton.xml",
-    deps = [
-        "//java/com/facebook/soloader/nativeloader/testloader:testloader_aar",
     ],
 )

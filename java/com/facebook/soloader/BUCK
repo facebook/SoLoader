@@ -16,30 +16,46 @@ fb_core_android_library(
     ],
 )
 
+LOADER_SRCS = glob(
+    ["*.java"],
+    exclude = [
+        "MergedSoMapping.java",
+        "DoNotOptimize.java",
+    ],
+)
+
 fb_core_android_library(
     name = "loader",
-    srcs = glob(
-        ["*.java"],
-        exclude = [
-            "MergedSoMapping.java",
-            "DoNotOptimize.java",
-        ],
-    ),
+    srcs = LOADER_SRCS,
     proguard_config = "soloader.pro",
+    required_for_source_only_abi = True,
     provided_deps = [
         ":annotation",
         "//deps:jsr_305",
     ],
-    required_for_source_only_abi = True,
-    visibility = [
-        "PUBLIC",
-    ],
     deps = [
         ":mapping-stub",
+        "//java/com/facebook/soloader/nativeloader:nativeloader",
         # Be very careful adding new dependencies here, because this code
         # has to run very early in the app startup process.
         # Definitely do *not* depend on guava.
     ],
+    visibility = ["PUBLIC"],
+)
+
+# For aar building, we want almost all deps to be provided.
+fb_core_android_library(
+    name = "loader_for_aar",
+    srcs = LOADER_SRCS,
+    provided_deps = [
+        ":annotation",
+        "//deps:jsr_305",
+        "//java/com/facebook/soloader/nativeloader:nativeloader",
+    ],
+    deps = [
+        ":mapping-stub",
+    ],
+    visibility = ["PUBLIC"],
 )
 
 fb_java_library(

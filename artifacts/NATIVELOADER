@@ -2,7 +2,8 @@ NAME = 'SoLoader'
 
 GROUP = 'com.facebook.soloader'
 ARTIFACT = 'nativeloader'
-VERSION='0.7.0'
+PACKAGING = 'jar'
+VERSION='0.8.0'
 
 DESCRIPTION = "Native code loading interface for Android"
 URL = 'https://github.com/facebook/soloader'
