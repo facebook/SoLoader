@@ -17,8 +17,6 @@ package com.facebook.soloader.nativeloader;
 
 /** Interface used to connect chosen loader of native libraries to NativeLoader */
 public interface NativeLoaderDelegate {
-  /**
-   * @see com.facebook.soloader.nativeloader.NativeLoader#loadLibrary(String)
-   */
+  /** @see com.facebook.soloader.nativeloader.NativeLoader#loadLibrary(String) */
   boolean loadLibrary(String shortName);
 }

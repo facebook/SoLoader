@@ -15,7 +15,6 @@
  */
 package com.facebook.soloader;
 
-import com.facebook.soloader.SoLoader;
 import com.facebook.soloader.nativeloader.NativeLoaderDelegate;
 
 /** Class that connects SoLoader to NativeLoader */
