@@ -22,7 +22,6 @@ import android.os.Build;
 import android.os.StrictMode;
 import android.text.TextUtils;
 import android.util.Log;
-import com.facebook.proguard.annotations.DoNotStrip;
 import com.facebook.soloader.nativeloader.NativeLoader;
 import dalvik.system.BaseDexClassLoader;
 import java.io.File;
@@ -68,7 +67,6 @@ import javax.annotation.concurrent.ThreadSafe;
  * SoLoader should do that by calling SoLoader.init early on app initialization path. The call must
  * happen before any class using SoLoader in its static initializer is loaded.
  */
-@DoNotStrip
 @ThreadSafe
 public class SoLoader {
 
@@ -173,7 +171,6 @@ public class SoLoader {
     SYSTRACE_LIBRARY_LOADING = shouldSystrace;
   }
 
-  @DoNotStrip
   public static void init(Context context, int flags) throws IOException {
     init(context, flags, null);
   }

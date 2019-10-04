@@ -5,7 +5,6 @@ fb_core_android_library(
     proguard_config = "soloader.pro",
     provided_deps = [
         "//deps:jsr_305",
-        "//deps:proguard_annotations",
     ],
     required_for_source_only_abi = True,
     visibility = [
@@ -32,7 +31,6 @@ fb_core_android_library(
     provided_deps = [
         ":annotation",
         "//deps:jsr_305",
-        "//deps:proguard_annotations",
     ],
     required_for_source_only_abi = True,
     visibility = ["PUBLIC"],
@@ -52,7 +50,6 @@ fb_core_android_library(
     provided_deps = [
         ":annotation",
         "//deps:jsr_305",
-        "//deps:proguard_annotations",
         "//java/com/facebook/soloader/nativeloader:nativeloader",
     ],
     visibility = ["PUBLIC"],
