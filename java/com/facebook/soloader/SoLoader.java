@@ -184,7 +184,7 @@ public class SoLoader {
    * @param flags Zero or more of the SOLOADER_* flags
    * @param soFileLoader
    */
-  private static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
+  public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
       throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
@@ -340,6 +340,10 @@ public class SoLoader {
   }
 
   private static synchronized void initSoLoader(@Nullable SoFileLoader soFileLoader) {
+    if (sSoFileLoader != null) {
+      return;
+    }
+
     if (soFileLoader != null) {
       sSoFileLoader = soFileLoader;
       return;
