@@ -98,6 +98,17 @@ public class DirectorySoSource extends SoSource {
     return null;
   }
 
+  @Nullable
+  @Override
+  public String[] getLibraryDependencies(String soName) throws IOException {
+    File soFile = new File(soDirectory, soName);
+    if (soFile.exists()) {
+      return getDependencies(soFile);
+    } else {
+      return null;
+    }
+  }
+
   private void loadDependencies(File soFile, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
     String dependencies[] = getDependencies(soFile);

@@ -89,10 +89,22 @@ public abstract class SoSource {
    *
    * @param soFileName the full file name of the library
    * @return the full path of a library if it is found on this SoSource, null otherwise.
-   * @throws IOException
+   * @throws IOException if there is an error calculating {@code soFileName}'s canonical path
    */
   @Nullable
   public String getLibraryPath(String soFileName) throws IOException {
+    return null;
+  }
+
+  /**
+   * Gets the dependencies of a library if it is found on this SoSource
+   *
+   * @param soName Name of library to inspect
+   * @return An array of library names upon which {@code soName} needs for linking
+   * @throws IOException if {@code soName} is found but there is an error reading it
+   */
+  @Nullable
+  public String[] getLibraryDependencies(String soName) throws IOException {
     return null;
   }
 

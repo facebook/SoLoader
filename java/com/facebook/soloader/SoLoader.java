@@ -504,11 +504,12 @@ public class SoLoader {
    *
    * @param libName the library file name, including the prefix and extension.
    * @return the full path of the library, or null if it is not found in none of the SoSources.
-   * @throws IOException
+   * @throws IOException if there is an error calculating the canonical path of libName
    */
   public static @Nullable String getLibraryPath(String libName) throws IOException {
-    sSoSourcesLock.readLock().lock();
     String libPath = null;
+
+    sSoSourcesLock.readLock().lock();
     try {
       if (sSoSources != null) {
         for (int i = 0; libPath == null && i < sSoSources.length; ++i) {
@@ -519,7 +520,33 @@ public class SoLoader {
     } finally {
       sSoSourcesLock.readLock().unlock();
     }
+
     return libPath;
+  }
+
+  /**
+   * Gets the dependencies of a library.
+   *
+   * @param libName the library file name, including the prefix and extension.
+   * @return An array naming the dependencies of the library, or null if it is not found in any SoSources
+   * @throws IOException if there is an error reading libName
+   */
+  public static @Nullable String[] getLibraryDependencies(String libName) throws IOException {
+    String[] deps = null;
+
+    sSoSourcesLock.readLock().lock();
+    try {
+      if (sSoSources != null) {
+        for (int i = 0; deps == null && i < sSoSources.length; ++i) {
+          SoSource currentSource = sSoSources[i];
+          deps = currentSource.getLibraryDependencies(libName);
+        }
+      }
+    } finally {
+      sSoSourcesLock.readLock().unlock();
+    }
+
+    return deps;
   }
 
   public static boolean loadLibrary(String shortName) {

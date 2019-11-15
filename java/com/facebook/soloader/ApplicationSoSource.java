@@ -90,6 +90,12 @@ public class ApplicationSoSource extends SoSource {
 
   @Nullable
   @Override
+  public String[] getLibraryDependencies(String soName) throws IOException {
+    return soSource.getLibraryDependencies(soName);
+  }
+
+  @Nullable
+  @Override
   public File unpackLibrary(String soName) throws IOException {
     return soSource.unpackLibrary(soName);
   }
