@@ -528,7 +528,8 @@ public class SoLoader {
    * Gets the dependencies of a library.
    *
    * @param libName the library file name, including the prefix and extension.
-   * @return An array naming the dependencies of the library, or null if it is not found in any SoSources
+   * @return An array naming the dependencies of the library, or null if it is not found in any
+   *     SoSources
    * @throws IOException if there is an error reading libName
    */
   public static @Nullable String[] getLibraryDependencies(String libName) throws IOException {
