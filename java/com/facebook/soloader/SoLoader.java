@@ -120,7 +120,7 @@ public class SoLoader {
   private static final Set<String> sLoadedAndMergedLibraries =
       Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
-  /** Wrapper for System.loadLlibrary. */
+  /** Wrapper for System.loadLibrary. */
   @Nullable private static SystemLoadLibraryWrapper sSystemLoadLibraryWrapper = null;
 
   /**
