@@ -91,7 +91,7 @@ public class SoLoader {
   @Nullable
   private static SoSource[] sSoSources = null;
 
-  private static int sSoSourcesVersion = 0;
+  private static volatile int sSoSourcesVersion = 0;
 
   /** A backup SoSources to try if a lib file is corrupted */
   @GuardedBy("sSoSourcesLock")
@@ -864,6 +864,10 @@ public class SoLoader {
     } finally {
       sSoSourcesLock.readLock().unlock();
     }
+  }
+
+  public static int getSoSourcesVersion() {
+    return sSoSourcesVersion;
   }
 
   /**
