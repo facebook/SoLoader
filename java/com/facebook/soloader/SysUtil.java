@@ -139,7 +139,11 @@ public final class SysUtil {
           priorAbis.add(MinElf.ISA.X86.toString());
         }
       } catch (ErrnoException e) {
-        Log.e(TAG, "Could not read /proc/self/exe. Falling back to default ABI list.", e);
+        Log.e(
+            TAG,
+            String.format(
+                "Could not read /proc/self/exe. Falling back to default ABI list. errno: %d Err msg: %s",
+                e.errno, e.getMessage()));
         return Build.SUPPORTED_ABIS;
       }
       final ArrayList<String> finalPriorAbis = priorAbis;
