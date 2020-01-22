@@ -36,6 +36,7 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -493,8 +494,12 @@ public class SoLoader {
   }
 
   public static final class WrongAbiError extends UnsatisfiedLinkError {
-    WrongAbiError(Throwable cause) {
-      super("APK was built for a different platform");
+    WrongAbiError(Throwable cause, String machine) {
+      super(
+          "APK was built for a different platform. Supported ABIs: "
+              + Arrays.toString(SysUtil.getSupportedAbis())
+              + " error: "
+              + machine);
       initCause(cause);
     }
   }
@@ -671,7 +676,8 @@ public class SoLoader {
           } catch (UnsatisfiedLinkError ex) {
             String message = ex.getMessage();
             if (message != null && message.contains("unexpected e_machine:")) {
-              throw new WrongAbiError(ex);
+              String machine_msg = message.substring(message.lastIndexOf("unexpected e_machine:"));
+              throw new WrongAbiError(ex, machine_msg);
             }
             throw ex;
           }
