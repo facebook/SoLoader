@@ -33,7 +33,7 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
+import java.util.TreeSet;
 
 public final class SysUtil {
 
@@ -127,42 +127,41 @@ public final class SysUtil {
     @DoNotOptimize
     public static String[] getSupportedAbis() {
       String[] supportedAbis = Build.SUPPORTED_ABIS;
-      ArrayList<String> priorAbis = new ArrayList<>();
+      TreeSet<String> allowedAbis = new TreeSet<>();
       try {
-        // SoLoader will give first rank to arm64-v8a & x86_64, if current process is app_process64.
-        // Otherwise(means current process is app_process32), give first rank to armeabi-v7a & x86.
+        // Some devices report both 64-bit and 32-bit ABIs but *actually* run
+        // the process in 32-bit mode.
+        //
+        // Determine the current process bitness and use that to filter
+        // out incompatible ABIs from SUPPORTED_ABIS.
         if (Os.readlink("/proc/self/exe").contains("64")) {
-          priorAbis.add(MinElf.ISA.AARCH64.toString());
-          priorAbis.add(MinElf.ISA.X86_64.toString());
+          allowedAbis.add(MinElf.ISA.AARCH64.toString());
+          allowedAbis.add(MinElf.ISA.X86_64.toString());
         } else {
-          priorAbis.add(MinElf.ISA.ARM.toString());
-          priorAbis.add(MinElf.ISA.X86.toString());
+          allowedAbis.add(MinElf.ISA.ARM.toString());
+          allowedAbis.add(MinElf.ISA.X86.toString());
         }
       } catch (ErrnoException e) {
         Log.e(
             TAG,
             String.format(
-                "Could not read /proc/self/exe. Falling back to default ABI list. errno: %d Err msg: %s",
-                e.errno, e.getMessage()));
+                "Could not read /proc/self/exe. Falling back to default ABI list: %s. errno: %d Err msg: %s",
+                Arrays.toString(supportedAbis), e.errno, e.getMessage()));
         return Build.SUPPORTED_ABIS;
       }
-      final ArrayList<String> finalPriorAbis = priorAbis;
-      // Reorder supported ABIs based on preferred ABIs for the current process.
-      Arrays.sort(
-          supportedAbis,
-          new Comparator<String>() {
-            @Override
-            public int compare(String o1, String o2) {
-              if (finalPriorAbis.contains(o1)) {
-                return -1;
-              } else if (finalPriorAbis.contains(o2)) {
-                return 1;
-              } else {
-                return 0;
-              }
-            }
-          });
-      return supportedAbis;
+      // Filter out the incompatible ABIs from the list of supported ABIs,
+      // retaining the original order.
+      ArrayList<String> compatibleSupportedAbis = new ArrayList<>();
+      for (String abi : supportedAbis) {
+        if (allowedAbis.contains(abi)) {
+          compatibleSupportedAbis.add(abi);
+        }
+      }
+
+      String[] finalAbis = new String[compatibleSupportedAbis.size()];
+      finalAbis = compatibleSupportedAbis.toArray(finalAbis);
+
+      return finalAbis;
     }
 
     @DoNotOptimize
