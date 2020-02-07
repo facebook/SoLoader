@@ -340,10 +340,6 @@ public class SoLoader {
   }
 
   private static synchronized void initSoLoader(@Nullable SoFileLoader soFileLoader) {
-    if (sSoFileLoader != null) {
-      return;
-    }
-
     if (soFileLoader != null) {
       sSoFileLoader = soFileLoader;
       return;
