@@ -186,7 +186,7 @@ public class SoLoader {
    * @param flags Zero or more of the SOLOADER_* flags
    * @param soFileLoader
    */
-  private static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
+  public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
       throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
