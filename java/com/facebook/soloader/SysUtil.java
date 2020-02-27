@@ -16,6 +16,7 @@
 
 package com.facebook.soloader;
 
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.pm.PackageInfo;
@@ -134,7 +135,7 @@ public final class SysUtil {
         //
         // Determine the current process bitness and use that to filter
         // out incompatible ABIs from SUPPORTED_ABIS.
-        if (Os.readlink("/proc/self/exe").contains("64")) {
+        if (is64Bit()) {
           allowedAbis.add(MinElf.ISA.AARCH64.toString());
           allowedAbis.add(MinElf.ISA.X86_64.toString());
         } else {
@@ -175,6 +176,20 @@ public final class SysUtil {
           throw new IOException(ex.toString(), ex);
         }
       }
+    }
+
+    @DoNotOptimize
+    public static boolean is64Bit() throws ErrnoException {
+      return Os.readlink("/proc/self/exe").contains("64");
+    }
+  }
+
+  @TargetApi(Build.VERSION_CODES.M)
+  @DoNotOptimize
+  private static final class MarshmallowSysdeps {
+    @DoNotOptimize
+    public static boolean is64Bit() {
+      return android.os.Process.is64Bit();
     }
   }
 
@@ -260,5 +275,20 @@ public final class SysUtil {
       }
     }
     return 0;
+  }
+
+  @SuppressLint("CatchGeneralException")
+  public static boolean is64Bit() {
+    boolean is64bit = false;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      is64bit = MarshmallowSysdeps.is64Bit();
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      try {
+        is64bit = LollipopSysdeps.is64Bit();
+      } catch (Exception e) {
+        Log.e(TAG, String.format("Could not read /proc/self/exe. Err msg: %s", e.getMessage()));
+      }
+    }
+    return is64bit;
   }
 }
