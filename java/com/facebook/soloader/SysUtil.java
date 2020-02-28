@@ -73,10 +73,12 @@ public final class SysUtil {
    * @return Ordered array of supported ABIs
    */
   public static String[] getSupportedAbis() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-      return new String[] {Build.CPU_ABI, Build.CPU_ABI2};
-    } else {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      return MarshmallowSysdeps.getSupportedAbis();
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
       return LollipopSysdeps.getSupportedAbis();
+    } else {
+      return new String[] {Build.CPU_ABI, Build.CPU_ABI2};
     }
   }
 
@@ -187,6 +189,37 @@ public final class SysUtil {
   @TargetApi(Build.VERSION_CODES.M)
   @DoNotOptimize
   private static final class MarshmallowSysdeps {
+    @DoNotOptimize
+    public static String[] getSupportedAbis() {
+      String[] supportedAbis = Build.SUPPORTED_ABIS;
+      TreeSet<String> allowedAbis = new TreeSet<>();
+      // Some devices report both 64-bit and 32-bit ABIs but *actually* run
+      // the process in 32-bit mode.
+      //
+      // Determine the current process bitness and use that to filter
+      // out incompatible ABIs from SUPPORTED_ABIS.
+      if (is64Bit()) {
+        allowedAbis.add(MinElf.ISA.AARCH64.toString());
+        allowedAbis.add(MinElf.ISA.X86_64.toString());
+      } else {
+        allowedAbis.add(MinElf.ISA.ARM.toString());
+        allowedAbis.add(MinElf.ISA.X86.toString());
+      }
+      // Filter out the incompatible ABIs from the list of supported ABIs,
+      // retaining the original order.
+      ArrayList<String> compatibleSupportedAbis = new ArrayList<>();
+      for (String abi : supportedAbis) {
+        if (allowedAbis.contains(abi)) {
+          compatibleSupportedAbis.add(abi);
+        }
+      }
+
+      String[] finalAbis = new String[compatibleSupportedAbis.size()];
+      finalAbis = compatibleSupportedAbis.toArray(finalAbis);
+
+      return finalAbis;
+    }
+
     @DoNotOptimize
     public static boolean is64Bit() {
       return android.os.Process.is64Bit();
