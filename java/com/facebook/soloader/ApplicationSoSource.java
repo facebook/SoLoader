@@ -53,27 +53,34 @@ public class ApplicationSoSource extends SoSource {
    * @return true if the nativeLibraryDir was updated
    */
   public boolean checkAndMaybeUpdate() throws IOException {
+    File nativeLibDir = soSource.soDirectory;
+    Context updatedContext = getUpdatedContext();
+    File updatedNativeLibDir = getNativeLibDirFromContext(updatedContext);
+    if (!nativeLibDir.equals(updatedNativeLibDir)) {
+      Log.d(
+          SoLoader.TAG,
+          "Native library directory updated from " + nativeLibDir + " to " + updatedNativeLibDir);
+      // update flags to resolve dependencies since the system does not properly resolve
+      // dependencies when the location has moved
+      flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
+      soSource = new DirectorySoSource(updatedNativeLibDir, flags);
+      soSource.prepare(flags);
+      applicationContext = updatedContext;
+      return true;
+    }
+    return false;
+  }
+
+  public Context getUpdatedContext() {
     try {
-      File nativeLibDir = soSource.soDirectory;
-      Context updatedContext =
-          applicationContext.createPackageContext(applicationContext.getPackageName(), 0);
-      File updatedNativeLibDir = new File(updatedContext.getApplicationInfo().nativeLibraryDir);
-      if (!nativeLibDir.equals(updatedNativeLibDir)) {
-        Log.d(
-            SoLoader.TAG,
-            "Native library directory updated from " + nativeLibDir + " to " + updatedNativeLibDir);
-        // update flags to resolve dependencies since the system does not properly resolve
-        // dependencies when the location has moved
-        flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
-        soSource = new DirectorySoSource(updatedNativeLibDir, flags);
-        soSource.prepare(flags);
-        applicationContext = updatedContext;
-        return true;
-      }
-      return false;
+      return applicationContext.createPackageContext(applicationContext.getPackageName(), 0);
     } catch (PackageManager.NameNotFoundException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public static File getNativeLibDirFromContext(Context context) {
+    return new File(context.getApplicationInfo().nativeLibraryDir);
   }
 
   @Override

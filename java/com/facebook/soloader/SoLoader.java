@@ -820,6 +820,20 @@ public class SoLoader {
           }
           message += " caused by: " + cause;
           error.printStackTrace();
+        } else {
+          // load failure wasn't caused by dependent libraries.
+          // Print the sources and current native library directory
+          sSoSourcesLock.readLock().lock();
+          for (int i = 0; i < sSoSources.length; ++i) {
+            message += "\n\tSoSource " + i + ": " + sSoSources[i].toString();
+          }
+          if (sApplicationSoSource != null) {
+            Context updatedContext = sApplicationSoSource.getUpdatedContext();
+            File updatedNativeLibDir =
+                ApplicationSoSource.getNativeLibDirFromContext(updatedContext);
+            message += "\n\tNative lib dir: " + updatedNativeLibDir.getAbsolutePath() + "\n";
+          }
+          sSoSourcesLock.readLock().unlock();
         }
         message += " result: " + result;
         Log.e(TAG, message);
