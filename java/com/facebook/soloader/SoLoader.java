@@ -92,6 +92,7 @@ public class SoLoader {
   @Nullable
   private static SoSource[] sSoSources = null;
 
+  @GuardedBy("sSoSourcesLock")
   private static volatile int sSoSourcesVersion = 0;
 
   /** A backup SoSources to try if a lib file is corrupted */
@@ -230,13 +231,12 @@ public class SoLoader {
               SysUtil.is64Bit() ? "/vendor/lib64:/system/lib64" : "/vendor/lib:/system/lib";
         }
 
-        String[] systemLibraryDirectories = LD_LIBRARY_PATH.split(":");
-        for (int i = 0; i < systemLibraryDirectories.length; ++i) {
+        for (String systemLibraryDirectory : LD_LIBRARY_PATH.split(":")) {
           // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
           // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
           // these libraries have on each other, so doing that ourselves would be a waste.
-          Log.d(TAG, "adding system library source: " + systemLibraryDirectories[i]);
-          File systemSoDirectory = new File(systemLibraryDirectories[i]);
+          Log.d(TAG, "adding system library source: " + systemLibraryDirectory);
+          File systemSoDirectory = new File(systemLibraryDirectory);
           soSources.add(
               new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
         }
@@ -760,7 +760,7 @@ public class SoLoader {
       do {
         retry = false;
         sSoSourcesLock.readLock().lock();
-        int currentSoSourcesVersion = sSoSourcesVersion;
+        final int currentSoSourcesVersion = sSoSourcesVersion;
         try {
           for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
             SoSource currentSource = sSoSources[i];
@@ -812,30 +812,33 @@ public class SoLoader {
       }
       if (result == SoSource.LOAD_RESULT_NOT_FOUND
           || result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE) {
-        String message = "couldn't find DSO to load: " + soName;
+        StringBuilder sb = new StringBuilder().append("couldn't find DSO to load: ").append(soName);
         if (error != null) {
           String cause = error.getMessage();
           if (cause == null) {
             cause = error.toString();
           }
-          message += " caused by: " + cause;
+          sb.append(" caused by: ").append(cause);
           error.printStackTrace();
         } else {
           // load failure wasn't caused by dependent libraries.
           // Print the sources and current native library directory
           sSoSourcesLock.readLock().lock();
           for (int i = 0; i < sSoSources.length; ++i) {
-            message += "\n\tSoSource " + i + ": " + sSoSources[i].toString();
+            sb.append("\n\tSoSource ").append(i).append(": ").append(sSoSources[i].toString());
           }
           if (sApplicationSoSource != null) {
             Context updatedContext = sApplicationSoSource.getUpdatedContext();
             File updatedNativeLibDir =
                 ApplicationSoSource.getNativeLibDirFromContext(updatedContext);
-            message += "\n\tNative lib dir: " + updatedNativeLibDir.getAbsolutePath() + "\n";
+            sb.append("\n\tNative lib dir: ")
+                .append(updatedNativeLibDir.getAbsolutePath())
+                .append("\n");
           }
           sSoSourcesLock.readLock().unlock();
         }
-        message += " result: " + result;
+        sb.append(" result: ").append(result);
+        final String message = sb.toString();
         Log.e(TAG, message);
         throw new UnsatisfiedLinkError(message);
       }
@@ -863,8 +866,8 @@ public class SoLoader {
   /* package */ static File unpackLibraryBySoName(String soName) throws IOException {
     sSoSourcesLock.readLock().lock();
     try {
-      for (int i = 0; i < sSoSources.length; ++i) {
-        File unpacked = sSoSources[i].unpackLibrary(soName);
+      for (SoSource soSource : sSoSources) {
+        File unpacked = soSource.unpackLibrary(soName);
         if (unpacked != null) {
           return unpacked;
         }
@@ -925,8 +928,10 @@ public class SoLoader {
       Log.d(TAG, "makeLdLibraryPath");
       ArrayList<String> pathElements = new ArrayList<>();
       SoSource[] soSources = sSoSources;
-      for (int i = 0; i < soSources.length; ++i) {
-        soSources[i].addToLdLibraryPath(pathElements);
+      if (soSources != null) {
+        for (SoSource soSource : soSources) {
+          soSource.addToLdLibraryPath(pathElements);
+        }
       }
       String joinedPaths = TextUtils.join(":", pathElements);
       Log.d(TAG, "makeLdLibraryPath final path: " + joinedPaths);
@@ -949,16 +954,16 @@ public class SoLoader {
         return false;
       }
 
-      String supportedAbis[] = SysUtil.getSupportedAbis();
-      for (int i = 0; i < sSoSources.length; ++i) {
-        String[] soSourceAbis = sSoSources[i].getSoSourceAbis();
-        for (int j = 0; j < soSourceAbis.length; ++j) {
+      String[] supportedAbis = SysUtil.getSupportedAbis();
+      for (SoSource soSource : sSoSources) {
+        String[] soSourceAbis = soSource.getSoSourceAbis();
+        for (String soSourceAbi : soSourceAbis) {
           boolean soSourceSupported = false;
           for (int k = 0; k < supportedAbis.length && !soSourceSupported; ++k) {
-            soSourceSupported = soSourceAbis[j].equals(supportedAbis[k]);
+            soSourceSupported = soSourceAbi.equals(supportedAbis[k]);
           }
           if (!soSourceSupported) {
-            Log.e(TAG, "abi not supported: " + soSourceAbis[j]);
+            Log.e(TAG, "abi not supported: " + soSourceAbi);
             return false;
           }
         }
@@ -976,7 +981,7 @@ public class SoLoader {
     public static String getClassLoaderLdLoadLibrary() {
       final ClassLoader classLoader = SoLoader.class.getClassLoader();
 
-      if (!(classLoader instanceof BaseDexClassLoader)) {
+      if (classLoader != null && !(classLoader instanceof BaseDexClassLoader)) {
         throw new IllegalStateException(
             "ClassLoader "
                 + classLoader.getClass().getName()
