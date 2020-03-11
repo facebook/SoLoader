@@ -730,6 +730,40 @@ public class SoLoader {
 
   private static void doLoadLibraryBySoName(
       String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) throws IOException {
+    // Load the library, and if fails - attempt a single retry to update ApplicationSoSource
+    try {
+      doLoadLibraryBySoNameImpl(soName, loadFlags, oldPolicy);
+    } catch (UnsatisfiedLinkError e) {
+      if (sApplicationSoSource != null) {
+        Log.e(TAG, "Failed to load library, attempting reload of ApplicationSoSource.");
+
+        boolean updated = false;
+        sSoSourcesLock.writeLock().lock();
+        try {
+          if (sApplicationSoSource.checkAndMaybeUpdate()) {
+            sSoSourcesVersion++;
+            updated = true;
+          }
+        } finally {
+          sSoSourcesLock.writeLock().unlock();
+        }
+        // If updated - attempt second reload
+        if (updated) {
+          Log.e(TAG, "ApplicationSoSource updated, attempting load again.");
+          doLoadLibraryBySoNameImpl(soName, loadFlags, oldPolicy);
+        } else {
+          // Propagate original error
+          throw e;
+        }
+      } else {
+        // Propagate original error
+        throw e;
+      }
+    }
+  }
+
+  private static void doLoadLibraryBySoNameImpl(
+      String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) throws IOException {
 
     int result = SoSource.LOAD_RESULT_NOT_FOUND;
     sSoSourcesLock.readLock().lock();
