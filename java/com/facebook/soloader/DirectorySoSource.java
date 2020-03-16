@@ -109,20 +109,17 @@ public class DirectorySoSource extends SoSource {
     }
   }
 
-  private void loadDependencies(File soFile, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
-      throws IOException {
-    String dependencies[] = getDependencies(soFile);
+  private static void loadDependencies(
+      File soFile, int loadFlags, StrictMode.ThreadPolicy threadPolicy) throws IOException {
+    String[] dependencies = getDependencies(soFile);
     Log.d(SoLoader.TAG, "Loading lib dependencies: " + Arrays.toString(dependencies));
-    for (int i = 0; i < dependencies.length; ++i) {
-      String dependency = dependencies[i];
+    for (String dependency : dependencies) {
       if (dependency.startsWith("/")) {
         continue;
       }
 
       SoLoader.loadLibraryBySoName(
-          dependency,
-          ((loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) & ~LOAD_FLAG_ALLOW_SOURCE_CHANGE),
-          threadPolicy);
+          dependency, loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, threadPolicy);
     }
   }
 

@@ -46,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -452,38 +453,47 @@ public class SoLoader {
 
   /** Turn shared-library loading into a no-op. Useful in special circumstances. */
   public static void setInTestMode() {
-    setSoSources(new SoSource[] {new NoopSoSource()});
+    TestOnlyUtils.setSoSources(new SoSource[] {new NoopSoSource()});
   }
 
   /** Make shared-library loading delegate to the system. Useful for tests. */
   public static void deinitForTest() {
-    setSoSources(null);
+    TestOnlyUtils.setSoSources(null);
   }
 
-  /** Set so sources. Useful for tests. */
-  /* package */ static void setSoSources(SoSource[] sources) {
-    sSoSourcesLock.writeLock().lock();
-    try {
-      sSoSources = sources;
-      sSoSourcesVersion++;
-    } finally {
-      sSoSourcesLock.writeLock().unlock();
+  @NotThreadSafe
+  static class TestOnlyUtils {
+    /* Set so sources. Useful for tests. */
+    /* package */ static void setSoSources(SoSource[] sources) {
+      sSoSourcesLock.writeLock().lock();
+      try {
+        sSoSources = sources;
+        sSoSourcesVersion++;
+      } finally {
+        sSoSourcesLock.writeLock().unlock();
+      }
     }
-  }
 
-  /** Set so file loader. Only for tests. */
-  /* package */ static void setSoFileLoader(SoFileLoader loader) {
-    sSoFileLoader = loader;
-  }
-
-  /** Reset internal status. Only for tests. */
-  /* package */ static void resetStatus() {
-    synchronized (SoLoader.class) {
-      sLoadedLibraries.clear();
-      sLoadingLibraries.clear();
-      sSoFileLoader = null;
+    /**
+     * Set so file loader. <br>
+     * N.B. <b>ONLY FOR TESTS</b>. It has read/write race with {@code
+     * SoLoader.sSoFileLoader.load(String, int)} in {@link DirectorySoSource#loadLibraryFrom}
+     *
+     * @param loader {@link SoFileLoader}
+     */
+    /* package */ static void setSoFileLoader(SoFileLoader loader) {
+      sSoFileLoader = loader;
     }
-    setSoSources(null);
+
+    /** Reset internal status. Only for tests. */
+    /* package */ static void resetStatus() {
+      synchronized (SoLoader.class) {
+        sLoadedLibraries.clear();
+        sLoadingLibraries.clear();
+        sSoFileLoader = null;
+      }
+      setSoSources(null);
+    }
   }
 
   /**
@@ -610,19 +620,53 @@ public class SoLoader {
     String soName = mergedLibName != null ? mergedLibName : shortName;
 
     return loadLibraryBySoName(
-        System.mapLibraryName(soName),
-        shortName,
-        mergedLibName,
-        loadFlags | SoSource.LOAD_FLAG_ALLOW_SOURCE_CHANGE,
-        null);
+        System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
   }
 
   /* package */ static void loadLibraryBySoName(
       String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) {
-    loadLibraryBySoName(soName, null, null, loadFlags, oldPolicy);
+    loadLibraryBySoNameImpl(soName, null, null, loadFlags, oldPolicy);
   }
 
   private static boolean loadLibraryBySoName(
+      String soName,
+      @Nullable String shortName,
+      @Nullable String mergedLibName,
+      int loadFlags,
+      @Nullable StrictMode.ThreadPolicy oldPolicy) {
+    boolean ret = false;
+    boolean retry;
+    do {
+      retry = false;
+      try {
+        ret = loadLibraryBySoNameImpl(soName, shortName, mergedLibName, loadFlags, oldPolicy);
+      } catch (UnsatisfiedLinkError e) {
+        final int currentVersion = sSoSourcesVersion;
+        sSoSourcesLock.writeLock().lock();
+        try {
+          if (sApplicationSoSource != null && sApplicationSoSource.checkAndMaybeUpdate()) {
+            Log.w(
+                TAG,
+                "sApplicationSoSource updated during load: " + soName + ", attempting load again.");
+            sSoSourcesVersion++;
+            retry = true;
+          }
+        } catch (IOException ex) {
+          throw new RuntimeException(ex);
+        } finally {
+          sSoSourcesLock.writeLock().unlock();
+        }
+
+        if (sSoSourcesVersion == currentVersion) {
+          // nothing changed in soSource, Propagate original error
+          throw e;
+        }
+      }
+    } while (retry);
+    return ret;
+  }
+
+  private static boolean loadLibraryBySoNameImpl(
       String soName,
       @Nullable String shortName,
       @Nullable String mergedLibName,
@@ -672,8 +716,6 @@ public class SoLoader {
           try {
             Log.d(TAG, "About to load: " + soName);
             doLoadLibraryBySoName(soName, loadFlags, oldPolicy);
-          } catch (IOException ex) {
-            throw new RuntimeException(ex);
           } catch (UnsatisfiedLinkError ex) {
             String message = ex.getMessage();
             if (message != null && message.contains("unexpected e_machine:")) {
@@ -754,41 +796,8 @@ public class SoLoader {
   }
 
   private static void doLoadLibraryBySoName(
-      String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) throws IOException {
-    // Load the library, and if fails - attempt a single retry to update ApplicationSoSource
-    try {
-      doLoadLibraryBySoNameImpl(soName, loadFlags, oldPolicy);
-    } catch (UnsatisfiedLinkError e) {
-      if (sApplicationSoSource != null) {
-        Log.e(TAG, "Failed to load library, attempting reload of ApplicationSoSource.");
-
-        boolean updated = false;
-        sSoSourcesLock.writeLock().lock();
-        try {
-          if (sApplicationSoSource.checkAndMaybeUpdate()) {
-            sSoSourcesVersion++;
-            updated = true;
-          }
-        } finally {
-          sSoSourcesLock.writeLock().unlock();
-        }
-        // If updated - attempt second reload
-        if (updated) {
-          Log.e(TAG, "ApplicationSoSource updated, attempting load again.");
-          doLoadLibraryBySoNameImpl(soName, loadFlags, oldPolicy);
-        } else {
-          // Propagate original error
-          throw e;
-        }
-      } else {
-        // Propagate original error
-        throw e;
-      }
-    }
-  }
-
-  private static void doLoadLibraryBySoNameImpl(
-      String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) throws IOException {
+      String soName, int loadFlags, @Nullable StrictMode.ThreadPolicy oldPolicy)
+      throws UnsatisfiedLinkError {
 
     int result = SoSource.LOAD_RESULT_NOT_FOUND;
     sSoSourcesLock.readLock().lock();
@@ -815,50 +824,28 @@ public class SoLoader {
 
     Throwable error = null;
     try {
-      boolean retry;
-      do {
-        retry = false;
-        sSoSourcesLock.readLock().lock();
-        final int currentSoSourcesVersion = sSoSourcesVersion;
-        try {
-          for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
-            SoSource currentSource = sSoSources[i];
-            result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
-            if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSources != null) {
-              // Let's try from the backup source
-              Log.d(TAG, "Trying backup SoSource for " + soName);
-              for (UnpackingSoSource backupSoSource : sBackupSoSources) {
-                backupSoSource.prepare(soName);
-                int resultFromBackup = backupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
-                if (resultFromBackup == SoSource.LOAD_RESULT_LOADED) {
-                  result = resultFromBackup;
-                  break;
-                }
+      sSoSourcesLock.readLock().lock();
+      try {
+        for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
+          SoSource currentSource = sSoSources[i];
+          result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
+          if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSources != null) {
+            // Let's try from the backup source
+            Log.d(TAG, "Trying backup SoSource for " + soName);
+            for (UnpackingSoSource backupSoSource : sBackupSoSources) {
+              backupSoSource.prepare(soName);
+              int resultFromBackup = backupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
+              if (resultFromBackup == SoSource.LOAD_RESULT_LOADED) {
+                result = resultFromBackup;
+                break;
               }
-              break;
             }
-          }
-        } finally {
-          sSoSourcesLock.readLock().unlock();
-        }
-        if ((loadFlags & SoSource.LOAD_FLAG_ALLOW_SOURCE_CHANGE)
-                == SoSource.LOAD_FLAG_ALLOW_SOURCE_CHANGE
-            && result == SoSource.LOAD_RESULT_NOT_FOUND) {
-          sSoSourcesLock.writeLock().lock();
-          try {
-            // TODO(T26270128): check and update sBackupSoSource as well
-            if (sApplicationSoSource != null && sApplicationSoSource.checkAndMaybeUpdate()) {
-              sSoSourcesVersion++;
-            }
-            if (sSoSourcesVersion != currentSoSourcesVersion) {
-              // our list was updated, let's retry
-              retry = true;
-            }
-          } finally {
-            sSoSourcesLock.writeLock().unlock();
+            break;
           }
         }
-      } while (retry);
+      } finally {
+        sSoSourcesLock.readLock().unlock();
+      }
     } catch (Throwable t) {
       error = t;
     } finally {

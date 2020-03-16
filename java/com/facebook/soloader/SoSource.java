@@ -44,13 +44,13 @@ public abstract class SoSource {
   public static final int LOAD_FLAG_ALLOW_IMPLICIT_PROVISION = 1;
 
   /** Allow loadLibrary to reparse the so sources directories. */
-  public static final int LOAD_FLAG_ALLOW_SOURCE_CHANGE = 1 << 1;
+  @Deprecated public static final int LOAD_FLAG_ALLOW_SOURCE_CHANGE = 1 << 1;
 
   /**
    * Min flag that can be used in customized {@link SoFileLoader#load(String, int)} implementation.
    * The custom flag value has to be greater than this.
    */
-  public static final int LOAD_FLAG_MIN_CUSTOM_FLAG = LOAD_FLAG_ALLOW_SOURCE_CHANGE << 1;
+  public static final int LOAD_FLAG_MIN_CUSTOM_FLAG = 1 << 2;
 
   /** Allow prepare to spawn threads to do background work. */
   public static final int PREPARE_FLAG_ALLOW_ASYNC_INIT = (1 << 0);
