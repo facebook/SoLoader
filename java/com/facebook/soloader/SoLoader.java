@@ -926,11 +926,15 @@ public class SoLoader {
   }
 
   private static void assertInitialized() {
+    if (!isInitialized()) {
+      throw new RuntimeException("SoLoader.init() not yet called");
+    }
+  }
+
+  public static boolean isInitialized() {
     sSoSourcesLock.readLock().lock();
     try {
-      if (sSoSources == null) {
-        throw new RuntimeException("SoLoader.init() not yet called");
-      }
+      return sSoSources != null;
     } finally {
       sSoSourcesLock.readLock().unlock();
     }
