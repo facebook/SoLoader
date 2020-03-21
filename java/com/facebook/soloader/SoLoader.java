@@ -159,6 +159,9 @@ public class SoLoader {
    */
   public static final int SOLOADER_SKIP_MERGED_JNI_ONLOAD = (1 << 4);
 
+  /** System Apps ignore PREFER_ANDROID_LIBS_DIRECTORY. Don't do that for this app. */
+  public static final int SOLOADER_DONT_TREAT_AS_SYSTEMAPP = (1 << 5);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -192,7 +195,7 @@ public class SoLoader {
       throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
-      isSystemApp = checkIfSystemApp(context);
+      isSystemApp = checkIfSystemApp(context, flags);
       initSoLoader(soFileLoader);
       initSoSources(context, flags, soFileLoader);
       if (!NativeLoader.isInitialized()) {
@@ -444,7 +447,11 @@ public class SoLoader {
     }
   }
 
-  private static boolean checkIfSystemApp(Context context) {
+  private static boolean checkIfSystemApp(Context context, int flags) {
+    if ((flags & SOLOADER_DONT_TREAT_AS_SYSTEMAPP) != 0) {
+      return false;
+    }
+
     return (context != null)
         && (context.getApplicationInfo().flags
                 & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP))
