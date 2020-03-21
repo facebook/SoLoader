@@ -25,4 +25,14 @@ public class SystemDelegate implements NativeLoaderDelegate {
     // so let's just always assume it was.
     return true;
   }
+
+  @Override
+  public String getLibraryPath(String libName) {
+    return null;
+  }
+
+  @Override
+  public int getSoSourcesVersion() {
+    return 0;
+  }
 }

@@ -17,11 +17,22 @@
 package com.facebook.soloader;
 
 import com.facebook.soloader.nativeloader.NativeLoaderDelegate;
+import java.io.IOException;
 
 /** Class that connects SoLoader to NativeLoader */
 public class NativeLoaderToSoLoaderDelegate implements NativeLoaderDelegate {
   @Override
   public boolean loadLibrary(final String shortName) {
     return SoLoader.loadLibrary(shortName);
+  }
+
+  @Override
+  public String getLibraryPath(String libName) throws IOException {
+    return SoLoader.getLibraryPath(libName);
+  }
+
+  @Override
+  public int getSoSourcesVersion() {
+    return SoLoader.getSoSourcesVersion();
   }
 }

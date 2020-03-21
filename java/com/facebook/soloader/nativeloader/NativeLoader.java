@@ -16,6 +16,8 @@
 
 package com.facebook.soloader.nativeloader;
 
+import java.io.IOException;
+
 /** Facade to load native libraries for android */
 public class NativeLoader {
 
@@ -42,6 +44,43 @@ public class NativeLoader {
     }
 
     return sDelegate.loadLibrary(shortName);
+  }
+
+  /**
+   * Get the path of a loaded shared library.
+   *
+   * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
+   * @return The path for the loaded library, null otherwise.
+   */
+  public static String getLibraryPath(String shortName) throws IOException {
+    synchronized (NativeLoader.class) {
+      if (sDelegate == null) {
+        throw new IllegalStateException(
+            "NativeLoader has not been initialized.  "
+                + "To use standard native library loading, call "
+                + "NativeLoader.init(new SystemDelegate()).");
+      }
+    }
+
+    return sDelegate.getLibraryPath(shortName);
+  }
+
+  /**
+   * Get the version of the loader used.
+   *
+   * @return The version number for the loader.
+   */
+  public static int getSoSourcesVersion() {
+    synchronized (NativeLoader.class) {
+      if (sDelegate == null) {
+        throw new IllegalStateException(
+            "NativeLoader has not been initialized.  "
+                + "To use standard native library loading, call "
+                + "NativeLoader.init(new SystemDelegate()).");
+      }
+    }
+
+    return sDelegate.getSoSourcesVersion();
   }
 
   /**

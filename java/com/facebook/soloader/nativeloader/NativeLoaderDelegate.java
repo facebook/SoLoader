@@ -16,8 +16,14 @@
 
 package com.facebook.soloader.nativeloader;
 
+import java.io.IOException;
+
 /** Interface used to connect chosen loader of native libraries to NativeLoader */
 public interface NativeLoaderDelegate {
   /** @see com.facebook.soloader.nativeloader.NativeLoader#loadLibrary(String) */
   boolean loadLibrary(String shortName);
+  /** @see com.facebook.soloader.nativeloader.NativeLoader#getLibraryPath(String) */
+  String getLibraryPath(String libName) throws IOException;
+  /** @see com.facebook.soloader.nativeloader.NativeLoader#getSoSourcesVersion() */
+  int getSoSourcesVersion();
 }
