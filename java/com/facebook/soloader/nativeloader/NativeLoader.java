@@ -26,14 +26,20 @@ public class NativeLoader {
   /** Blocked default constructor */
   private NativeLoader() {}
 
+  public static boolean loadLibrary(String shortName) {
+    return loadLibrary(shortName, 0);
+  }
+
   /**
-   * Load a shared library, initializing any JNI binding it contains.
+   * Load a shared library, initializing any JNI binding it contains. Depending upon underlying
+   * loader, behavior can be customized based on passed in flag
    *
    * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
+   * @param flags 0 for default behavior, otherwise NativeLoaderDelegate defines other behaviors.
    * @return Whether the library was loaded as a result of this call (true), or was already loaded
    *     through a previous call (false).
    */
-  public static boolean loadLibrary(String shortName) {
+  public static boolean loadLibrary(String shortName, int flags) {
     synchronized (NativeLoader.class) {
       if (sDelegate == null) {
         throw new IllegalStateException(
@@ -42,8 +48,7 @@ public class NativeLoader {
                 + "NativeLoader.init(new SystemDelegate()).");
       }
     }
-
-    return sDelegate.loadLibrary(shortName);
+    return sDelegate.loadLibrary(shortName, flags);
   }
 
   /**

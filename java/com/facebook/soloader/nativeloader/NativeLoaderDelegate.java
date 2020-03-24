@@ -20,8 +20,15 @@ import java.io.IOException;
 
 /** Interface used to connect chosen loader of native libraries to NativeLoader */
 public interface NativeLoaderDelegate {
-  /** @see com.facebook.soloader.nativeloader.NativeLoader#loadLibrary(String) */
-  boolean loadLibrary(String shortName);
+  /**
+   * Skip calling JNI_OnLoad if the library is merged. This is necessary for libraries that don't
+   * define JNI_OnLoad and are only loaded for their side effects (like static constructors
+   * registering callbacks). DO NOT use this to allow implicit JNI registration (by naming your
+   * methods Java_com_facebook_whatever) because that is buggy on Android.
+   */
+  int SKIP_MERGED_JNI_ONLOAD = 1;
+  /** @see com.facebook.soloader.nativeloader.NativeLoader#loadLibrary(String, int) */
+  boolean loadLibrary(String shortName, int flags);
   /** @see com.facebook.soloader.nativeloader.NativeLoader#getLibraryPath(String) */
   String getLibraryPath(String libName) throws IOException;
   /** @see com.facebook.soloader.nativeloader.NativeLoader#getSoSourcesVersion() */

@@ -22,8 +22,11 @@ import java.io.IOException;
 /** Class that connects SoLoader to NativeLoader */
 public class NativeLoaderToSoLoaderDelegate implements NativeLoaderDelegate {
   @Override
-  public boolean loadLibrary(final String shortName) {
-    return SoLoader.loadLibrary(shortName);
+  public boolean loadLibrary(String shortName, int flags) {
+    int soLoaderFlags = 0;
+    soLoaderFlags |=
+        ((flags & SKIP_MERGED_JNI_ONLOAD) != 0) ? SoLoader.SOLOADER_SKIP_MERGED_JNI_ONLOAD : 0;
+    return SoLoader.loadLibrary(shortName, soLoaderFlags);
   }
 
   @Override

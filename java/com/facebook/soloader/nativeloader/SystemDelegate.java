@@ -19,7 +19,8 @@ package com.facebook.soloader.nativeloader;
 /** Class which connects system's native library loader to NativeLoader */
 public class SystemDelegate implements NativeLoaderDelegate {
   @Override
-  public boolean loadLibrary(final String shortName) {
+  public boolean loadLibrary(String shortName, int flags) {
+    // System.loadLibrary don't support flags so ignore them.
     System.loadLibrary(shortName);
     // System.loadLibrary doesn't indicate whether this was a first-time load,
     // so let's just always assume it was.
