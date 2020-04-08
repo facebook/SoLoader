@@ -14,7 +14,7 @@ export_file(
     out = "nativeloader.jar",
 )
 
-fb_java_library(
+java_library(
     name = "annotation",
     deps = [
         "//java/com/facebook/soloader:annotation",
