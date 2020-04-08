@@ -14,9 +14,8 @@ export_file(
     out = "nativeloader.jar",
 )
 
-android_aar(
+fb_java_library(
     name = "annotation",
-    manifest_skeleton = "AndroidManifestSkeleton.xml",
     deps = [
         "//java/com/facebook/soloader:annotation",
     ],
