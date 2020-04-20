@@ -893,7 +893,11 @@ public class SoLoader {
         sb.append(" result: ").append(result);
         final String message = sb.toString();
         Log.e(TAG, message);
-        throw new UnsatisfiedLinkError(message);
+        UnsatisfiedLinkError err = new UnsatisfiedLinkError(message);
+        if (error != null) {
+          err.initCause(error);
+        }
+        throw err;
       }
     }
   }
