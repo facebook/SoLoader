@@ -16,11 +16,13 @@
 
 package com.facebook.soloader;
 
+import android.util.Log;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.FileChannel;
 
 /**
@@ -31,6 +33,8 @@ import java.nio.channels.FileChannel;
  * able to verify the operation of the functions below without having read the ELF specification.
  */
 public final class MinElf {
+
+  private static final String TAG = "MinElf";
 
   public static enum ISA {
     NOT_SO("not_so"),
@@ -65,10 +69,18 @@ public final class MinElf {
 
   public static String[] extract_DT_NEEDED(File elfFile) throws IOException {
     FileInputStream is = new FileInputStream(elfFile);
-    try {
-      return extract_DT_NEEDED(is.getChannel());
-    } finally {
-      is.close(); // Won't throw
+    while (true) {
+      try {
+        return extract_DT_NEEDED(is.getChannel());
+      } catch (ClosedByInterruptException e) {
+        // Some other thread interrupted us. We need to try again. This is
+        // especially important since this is often used within the context of
+        // a static initializer. A failure here will get memoized resulting in
+        // all future attempts to load the same class to fail.
+        Log.e(TAG, "retrying extract_DT_NEEDED due to ClosedByInterruptException", e);
+      } finally {
+        is.close(); // Won't throw
+      }
     }
   }
 
