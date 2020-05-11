@@ -68,8 +68,8 @@ public final class MinElf {
   public static final int PN_XNUM = 0xFFFF;
 
   public static String[] extract_DT_NEEDED(File elfFile) throws IOException {
-    FileInputStream is = new FileInputStream(elfFile);
     while (true) {
+      FileInputStream is = new FileInputStream(elfFile);
       try {
         return extract_DT_NEEDED(is.getChannel());
       } catch (ClosedByInterruptException e) {
