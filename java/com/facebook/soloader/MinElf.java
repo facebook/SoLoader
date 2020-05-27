@@ -68,15 +68,23 @@ public final class MinElf {
   public static final int PN_XNUM = 0xFFFF;
 
   public static String[] extract_DT_NEEDED(File elfFile) throws IOException {
+    int failureCount = 0;
     while (true) {
       FileInputStream is = new FileInputStream(elfFile);
       try {
         return extract_DT_NEEDED(is.getChannel());
       } catch (ClosedByInterruptException e) {
-        // Some other thread interrupted us. We need to try again. This is
+        // Make sure we don't loop infinitely
+        if (++failureCount > 3) {
+          throw e;
+        }
+
+        // Some other thread interrupted us. We need to clear the interrupt
+        // flag (via calling Thread.interrupted()) and try again. This is
         // especially important since this is often used within the context of
         // a static initializer. A failure here will get memoized resulting in
         // all future attempts to load the same class to fail.
+        Thread.interrupted();
         Log.e(TAG, "retrying extract_DT_NEEDED due to ClosedByInterruptException", e);
       } finally {
         is.close(); // Won't throw
