@@ -938,7 +938,7 @@ public class SoLoader {
 
   private static void assertInitialized() {
     if (!isInitialized()) {
-      throw new RuntimeException("SoLoader.init() not yet called");
+      throw new IllegalStateException("SoLoader.init() not yet called");
     }
   }
 
