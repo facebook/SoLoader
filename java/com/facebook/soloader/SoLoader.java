@@ -737,47 +737,47 @@ public class SoLoader {
           }
         }
       }
+    }
 
-      if ((loadFlags & SOLOADER_SKIP_MERGED_JNI_ONLOAD) == 0) {
-        boolean isAlreadyMerged =
-            !TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName);
-        if (mergedLibName != null && !isAlreadyMerged) {
+    if ((loadFlags & SOLOADER_SKIP_MERGED_JNI_ONLOAD) == 0) {
+      boolean isAlreadyMerged =
+          !TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName);
+      if (mergedLibName != null && !isAlreadyMerged) {
+        if (SYSTRACE_LIBRARY_LOADING) {
+          Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[", shortName, "]");
+        }
+        try {
+          Log.d(TAG, "About to merge: " + shortName + " / " + soName);
+          MergedSoMapping.invokeJniOnload(shortName);
+          sLoadedAndMergedLibraries.add(shortName);
+        } catch (UnsatisfiedLinkError e) {
+          // If you are seeing this exception, first make sure your library sets
+          // allow_jni_merging=True.  Trying to merge a library without that
+          // will trigger this error.  If that's already in place, you're probably
+          // not defining JNI_OnLoad.  Calling SoLoader.loadLibrary on a library
+          // that doesn't define JNI_OnLoad is a no-op when that library is not merged.
+          // Once you enable merging, it throws an UnsatisfiedLinkError.
+          // There are three main reasons a library might not define JNI_OnLoad,
+          // and the solution depends on which case you have.
+          // - You might be using implicit registration (native methods defined like
+          //   `Java_com_facebook_Foo_bar(JNIEnv* env)`).  This is not safe on Android
+          //   https://fb.workplace.com/groups/442333009148653/permalink/651212928260659/
+          //   and is not compatible with FBJNI.  Stop doing it.  Use FBJNI registerNatives.
+          // - You might have a C++-only library with no JNI bindings and no static
+          //   initializers with side-effects.  You can just delete the loadLibrary call.
+          // - You might have a C++-only library that needs to be loaded explicitly because
+          //   it has static initializers whose side-effects are needed.  In that case,
+          //   pass the SOLOADER_SKIP_MERGED_JNI_ONLOAD flag to loadLibrary.
+          throw new RuntimeException(
+              "Failed to call JNI_OnLoad from '"
+                  + shortName
+                  + "', which has been merged into '"
+                  + soName
+                  + "'.  See comment for details.",
+              e);
+        } finally {
           if (SYSTRACE_LIBRARY_LOADING) {
-            Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[", shortName, "]");
-          }
-          try {
-            Log.d(TAG, "About to merge: " + shortName + " / " + soName);
-            MergedSoMapping.invokeJniOnload(shortName);
-            sLoadedAndMergedLibraries.add(shortName);
-          } catch (UnsatisfiedLinkError e) {
-            // If you are seeing this exception, first make sure your library sets
-            // allow_jni_merging=True.  Trying to merge a library without that
-            // will trigger this error.  If that's already in place, you're probably
-            // not defining JNI_OnLoad.  Calling SoLoader.loadLibrary on a library
-            // that doesn't define JNI_OnLoad is a no-op when that library is not merged.
-            // Once you enable merging, it throws an UnsatisfiedLinkError.
-            // There are three main reasons a library might not define JNI_OnLoad,
-            // and the solution depends on which case you have.
-            // - You might be using implicit registration (native methods defined like
-            //   `Java_com_facebook_Foo_bar(JNIEnv* env)`).  This is not safe on Android
-            //   https://fb.workplace.com/groups/442333009148653/permalink/651212928260659/
-            //   and is not compatible with FBJNI.  Stop doing it.  Use FBJNI registerNatives.
-            // - You might have a C++-only library with no JNI bindings and no static
-            //   initializers with side-effects.  You can just delete the loadLibrary call.
-            // - You might have a C++-only library that needs to be loaded explicitly because
-            //   it has static initializers whose side-effects are needed.  In that case,
-            //   pass the SOLOADER_SKIP_MERGED_JNI_ONLOAD flag to loadLibrary.
-            throw new RuntimeException(
-                "Failed to call JNI_OnLoad from '"
-                    + shortName
-                    + "', which has been merged into '"
-                    + soName
-                    + "'.  See comment for details.",
-                e);
-          } finally {
-            if (SYSTRACE_LIBRARY_LOADING) {
-              Api18TraceUtils.endSection();
-            }
+            Api18TraceUtils.endSection();
           }
         }
       }
