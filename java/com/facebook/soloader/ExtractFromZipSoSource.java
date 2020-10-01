@@ -38,7 +38,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
   protected final String mZipSearchPattern;
 
   /**
-   * @param context Application contextg
+   * @param context Application context
    * @param name Name of the DSO store
    * @param zipFileName Name of the zip file from which we extract; opened only on demand
    * @param zipSearchPattern Regular expression string matching DSOs in the zip file; subgroup 1

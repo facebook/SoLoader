@@ -379,9 +379,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   /**
    * Return an opaque blob of bytes that represents all the dependencies of this SoSource; if this
    * block differs from one we've previously saved, we go through the heavyweight refresh process
-   * that involves calling {@link #getDsoManifest} and {@link #openDsoIterator}.
+   * that involves calling {@link Unpacker#getDsoManifest} and {@link Unpacker#openDsoIterator}.
    *
-   * <p>Subclasses should override this method if {@link #getDsoManifest} is expensive.
+   * <p>Subclasses should override this method if {@link Unpacker#getDsoManifest} is expensive.
    *
    * @return dependency block
    */
