@@ -211,19 +211,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   private void extractDso(InputDso iDso, byte[] ioBuffer) throws IOException {
     Log.i(TAG, "extracting DSO " + iDso.dso.name);
-    try {
-      if (!soDirectory.setWritable(true)) {
-        throw new IOException("cannot make directory writable for us: " + soDirectory);
-      }
-      extractDsoImpl(iDso, ioBuffer);
-    } finally {
-      if (!soDirectory.setWritable(false)) {
-        Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
-      }
+    if (!soDirectory.setWritable(true /* can write */, true /* owner only */)) {
+      throw new IOException("cannot make directory writable for us: " + soDirectory);
     }
-  }
-
-  private void extractDsoImpl(InputDso iDso, byte[] ioBuffer) throws IOException {
     File dsoFileName = new File(soDirectory, iDso.dso.name);
     RandomAccessFile dsoFile = null;
     try {
@@ -249,9 +239,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       SysUtil.dumbDeleteRecursive(dsoFileName);
       throw e;
     } finally {
-      if (!dsoFileName.setWritable(false)) {
-        Log.w(TAG, "error removing " + dsoFileName + " write permission");
-      }
       dsoFile.close();
     }
   }
