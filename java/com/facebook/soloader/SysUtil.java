@@ -60,11 +60,8 @@ public final class SysUtil {
   }
 
   public static void deleteOrThrow(File file) throws IOException {
-    if (file.setWritable(true)) {
-      Log.e(TAG, "Enable write permission failed: " + file);
-    }
-    if (!file.delete() && file.exists()) {
-      throw new IOException("could not delete file: " + file);
+    if (!file.delete()) {
+      throw new IOException("could not delete file " + file);
     }
   }
 
@@ -118,7 +115,9 @@ public final class SysUtil {
       }
     }
 
-    deleteOrThrow(file);
+    if (!file.delete() && file.exists()) {
+      throw new IOException("could not delete: " + file);
+    }
   }
 
   /**
