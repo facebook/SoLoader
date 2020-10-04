@@ -60,8 +60,10 @@ public final class SysUtil {
   }
 
   public static void deleteOrThrow(File file) throws IOException {
-    if (!file.delete()) {
-      throw new IOException("could not delete file " + file);
+    if (!file.delete() && file.exists()) {
+      Log.e(TAG, "could not delete: " + file);
+      // TODO(T76964421): this is short workaround for an UBN
+      file.deleteOnExit();
     }
   }
 
@@ -115,9 +117,7 @@ public final class SysUtil {
       }
     }
 
-    if (!file.delete() && file.exists()) {
-      throw new IOException("could not delete: " + file);
-    }
+    deleteOrThrow(file);
   }
 
   /**
