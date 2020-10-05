@@ -116,6 +116,8 @@ public class SoLoader {
   /**
    * Libraries that are in the process of being loaded, and lock objects to synchronize on and wait
    * for the loading to end.
+   *
+   * <p>To prevent potential deadlock, always acquire sSoSourcesLock before these locks!
    */
   @GuardedBy("SoLoader.class")
   private static final Map<String, Object> sLoadingLibraries = new HashMap<>();
@@ -714,85 +716,95 @@ public class SoLoader {
 
     // Note that both doLoadLibraryBySoName and invokeJniOnload (below) may re-enter loadLibrary
     // (or loadLibraryBySoNameImpl), recursively acquiring additional library and soSource locks.
-    synchronized (loadingLibLock) {
-      if (!loaded) {
-        synchronized (SoLoader.class) {
-          if (sLoadedLibraries.contains(soName)) {
-            // Library was successfully loaded by other thread while we waited
-            if (mergedLibName == null) {
-              // Not a merged lib, no need to init
-              return false;
-            }
-            loaded = true;
-          }
-          // Else, load was not successful on other thread. We will try in this one.
-        }
-
+    //
+    // To avoid bi-directional lock usage (threadA takes loadingLibLock then sSoSourcesLock, threadB
+    // takes sSoSourcesLock then loadingLibLock) and potential deadlock as this method recursively
+    // calls loadLibrary, we must acquire sSoSourcesLock first.
+    sSoSourcesLock.readLock().lock();
+    try {
+      synchronized (loadingLibLock) {
         if (!loaded) {
-          try {
-            Log.d(TAG, "About to load: " + soName);
-            doLoadLibraryBySoName(soName, loadFlags, oldPolicy);
-          } catch (UnsatisfiedLinkError ex) {
-            String message = ex.getMessage();
-            if (message != null && message.contains("unexpected e_machine:")) {
-              String machine_msg = message.substring(message.lastIndexOf("unexpected e_machine:"));
-              throw new WrongAbiError(ex, machine_msg);
-            }
-            throw ex;
-          }
           synchronized (SoLoader.class) {
-            Log.d(TAG, "Loaded: " + soName);
-            sLoadedLibraries.add(soName);
+            if (sLoadedLibraries.contains(soName)) {
+              // Library was successfully loaded by other thread while we waited
+              if (mergedLibName == null) {
+                // Not a merged lib, no need to init
+                return false;
+              }
+              loaded = true;
+            }
+            // Else, load was not successful on other thread. We will try in this one.
+          }
+
+          if (!loaded) {
+            try {
+              Log.d(TAG, "About to load: " + soName);
+              doLoadLibraryBySoName(soName, loadFlags, oldPolicy);
+            } catch (UnsatisfiedLinkError ex) {
+              String message = ex.getMessage();
+              if (message != null && message.contains("unexpected e_machine:")) {
+                String machine_msg =
+                    message.substring(message.lastIndexOf("unexpected e_machine:"));
+                throw new WrongAbiError(ex, machine_msg);
+              }
+              throw ex;
+            }
+            synchronized (SoLoader.class) {
+              Log.d(TAG, "Loaded: " + soName);
+              sLoadedLibraries.add(soName);
+            }
           }
         }
-      }
 
-      if ((loadFlags & SOLOADER_SKIP_MERGED_JNI_ONLOAD) == 0) {
-        // MergedSoMapping#invokeJniOnload does not necessarily handle concurrent nor redundant
-        // invocation. sLoadedAndMergedLibraries is used in conjunction with loadingLibLock to
-        // ensure one invocation per library.
-        boolean isAlreadyMerged =
-            !TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName);
-        if (mergedLibName != null && !isAlreadyMerged) {
-          if (SYSTRACE_LIBRARY_LOADING) {
-            Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[", shortName, "]");
-          }
-          try {
-            Log.d(TAG, "About to merge: " + shortName + " / " + soName);
-            MergedSoMapping.invokeJniOnload(shortName);
-            sLoadedAndMergedLibraries.add(shortName);
-          } catch (UnsatisfiedLinkError e) {
-            // If you are seeing this exception, first make sure your library sets
-            // allow_jni_merging=True.  Trying to merge a library without that
-            // will trigger this error.  If that's already in place, you're probably
-            // not defining JNI_OnLoad.  Calling SoLoader.loadLibrary on a library
-            // that doesn't define JNI_OnLoad is a no-op when that library is not merged.
-            // Once you enable merging, it throws an UnsatisfiedLinkError.
-            // There are three main reasons a library might not define JNI_OnLoad,
-            // and the solution depends on which case you have.
-            // - You might be using implicit registration (native methods defined like
-            //   `Java_com_facebook_Foo_bar(JNIEnv* env)`).  This is not safe on Android
-            //   https://fb.workplace.com/groups/442333009148653/permalink/651212928260659/
-            //   and is not compatible with FBJNI.  Stop doing it.  Use FBJNI registerNatives.
-            // - You might have a C++-only library with no JNI bindings and no static
-            //   initializers with side-effects.  You can just delete the loadLibrary call.
-            // - You might have a C++-only library that needs to be loaded explicitly because
-            //   it has static initializers whose side-effects are needed.  In that case,
-            //   pass the SOLOADER_SKIP_MERGED_JNI_ONLOAD flag to loadLibrary.
-            throw new RuntimeException(
-                "Failed to call JNI_OnLoad from '"
-                    + shortName
-                    + "', which has been merged into '"
-                    + soName
-                    + "'.  See comment for details.",
-                e);
-          } finally {
+        if ((loadFlags & SOLOADER_SKIP_MERGED_JNI_ONLOAD) == 0) {
+          // MergedSoMapping#invokeJniOnload does not necessarily handle concurrent nor redundant
+          // invocation. sLoadedAndMergedLibraries is used in conjunction with loadingLibLock to
+          // ensure one invocation per library.
+          boolean isAlreadyMerged =
+              !TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName);
+          if (mergedLibName != null && !isAlreadyMerged) {
             if (SYSTRACE_LIBRARY_LOADING) {
-              Api18TraceUtils.endSection();
+              Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[", shortName, "]");
+            }
+            try {
+              Log.d(TAG, "About to merge: " + shortName + " / " + soName);
+              MergedSoMapping.invokeJniOnload(shortName);
+              sLoadedAndMergedLibraries.add(shortName);
+            } catch (UnsatisfiedLinkError e) {
+              // If you are seeing this exception, first make sure your library sets
+              // allow_jni_merging=True.  Trying to merge a library without that
+              // will trigger this error.  If that's already in place, you're probably
+              // not defining JNI_OnLoad.  Calling SoLoader.loadLibrary on a library
+              // that doesn't define JNI_OnLoad is a no-op when that library is not merged.
+              // Once you enable merging, it throws an UnsatisfiedLinkError.
+              // There are three main reasons a library might not define JNI_OnLoad,
+              // and the solution depends on which case you have.
+              // - You might be using implicit registration (native methods defined like
+              //   `Java_com_facebook_Foo_bar(JNIEnv* env)`).  This is not safe on Android
+              //   https://fb.workplace.com/groups/442333009148653/permalink/651212928260659/
+              //   and is not compatible with FBJNI.  Stop doing it.  Use FBJNI registerNatives.
+              // - You might have a C++-only library with no JNI bindings and no static
+              //   initializers with side-effects.  You can just delete the loadLibrary call.
+              // - You might have a C++-only library that needs to be loaded explicitly because
+              //   it has static initializers whose side-effects are needed.  In that case,
+              //   pass the SOLOADER_SKIP_MERGED_JNI_ONLOAD flag to loadLibrary.
+              throw new RuntimeException(
+                  "Failed to call JNI_OnLoad from '"
+                      + shortName
+                      + "', which has been merged into '"
+                      + soName
+                      + "'.  See comment for details.",
+                  e);
+            } finally {
+              if (SYSTRACE_LIBRARY_LOADING) {
+                Api18TraceUtils.endSection();
+              }
             }
           }
         }
       }
+    } finally {
+      sSoSourcesLock.readLock().unlock();
     }
     return !loaded;
   }
