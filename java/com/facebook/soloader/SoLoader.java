@@ -120,6 +120,11 @@ public class SoLoader {
   @GuardedBy("SoLoader.class")
   private static final Map<String, Object> sLoadingLibraries = new HashMap<>();
 
+  /**
+   * Libraries that have loaded and completed their JniOnLoad. Reads and writes are guarded by the
+   * corresponding lock in sLoadingLibraries. However, as we only add to this set (and never
+   * remove), it is safe to perform un-guarded reads as an optional optimization prior to locking.
+   */
   private static final Set<String> sLoadedAndMergedLibraries =
       Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
@@ -679,14 +684,16 @@ public class SoLoader {
       @Nullable String mergedLibName,
       int loadFlags,
       @Nullable StrictMode.ThreadPolicy oldPolicy) {
-    // While we trust the JNI merging code (`invokeJniOnload(..)` below) to prevent us from invoking
-    // JNI_OnLoad more than once and acknowledge it's more memory-efficient than tracking in Java,
-    // by tracking loaded and merged libs in Java we can avoid undue synchronization and blocking
-    // waits (which may occur on the UI thread and thus trigger ANRs).
+    // As an optimization, avoid taking locks if the library has already loaded. Without locks this
+    // does not provide 100% coverage (e.g. another thread may currently be loading or initializing
+    // the library), so we'll need to check again with locks held, below.
     if (!TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName)) {
       return false;
     }
 
+    // LoadingLibLock is used to ensure that doLoadLibraryBySoName and its corresponding JniOnload
+    // are only executed once per library. It also guarantees that concurrent calls to loadLibrary
+    // for the same library do not return until both its load and JniOnLoad have completed.
     Object loadingLibLock;
     boolean loaded = false;
     synchronized (SoLoader.class) {
@@ -705,6 +712,8 @@ public class SoLoader {
       }
     }
 
+    // Note that both doLoadLibraryBySoName and invokeJniOnload (below) may re-enter loadLibrary
+    // (or loadLibraryBySoNameImpl), recursively acquiring additional library and soSource locks.
     synchronized (loadingLibLock) {
       if (!loaded) {
         synchronized (SoLoader.class) {
@@ -739,6 +748,9 @@ public class SoLoader {
       }
 
       if ((loadFlags & SOLOADER_SKIP_MERGED_JNI_ONLOAD) == 0) {
+        // MergedSoMapping#invokeJniOnload does not necessarily handle concurrent nor redundant
+        // invocation. sLoadedAndMergedLibraries is used in conjunction with loadingLibLock to
+        // ensure one invocation per library.
         boolean isAlreadyMerged =
             !TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName);
         if (mergedLibName != null && !isAlreadyMerged) {
