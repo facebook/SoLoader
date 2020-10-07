@@ -60,10 +60,14 @@ public final class SysUtil {
   }
 
   public static void deleteOrThrow(File file) throws IOException {
+    final File folder = file.getParentFile();
+    // We need write permission on parent folder to delete the file
+    if (folder != null && !folder.canWrite() && !folder.setWritable(true)) {
+      Log.e(TAG, "Enable write permission failed: " + folder);
+    }
+
     if (!file.delete() && file.exists()) {
-      Log.e(TAG, "could not delete: " + file);
-      // TODO(T76964421): this is short workaround for an UBN
-      file.deleteOnExit();
+      throw new IOException("Could not delete file " + file);
     }
   }
 
