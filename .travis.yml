@@ -1,4 +1,6 @@
 os: linux
+arch: amd64
+dist: trusty
 sudo: true
 language: android
 android:
@@ -6,8 +8,13 @@ android:
     - build-tools-27.0.3
     - android-26
 
+before_install:
+  - sudo apt-get -y install ant
+  - sudo apt-get -y install python3-pip
+  - sudo pip3 install typing-extensions
+
 before_script:
-  - sudo apt-get install ant
+  - sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
   - git clone https://github.com/facebook/buck.git --branch master --depth=1 $HOME/buck
   - cd $HOME/buck && ant
   - $HOME/buck/bin/buck --version
