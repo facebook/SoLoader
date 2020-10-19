@@ -225,16 +225,20 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   private void extractDsoImpl(InputDso iDso, byte[] ioBuffer) throws IOException {
     File dsoFileName = new File(soDirectory, iDso.dso.name);
-    RandomAccessFile dsoFile;
+    RandomAccessFile dsoFile = null;
     try {
-      dsoFile = new RandomAccessFile(dsoFileName, "rw");
-    } catch (IOException ex) {
-      Log.w(TAG, "error overwriting " + dsoFileName + " trying to delete and start over", ex);
-      SysUtil.dumbDeleteRecursive(dsoFileName); // Throws on error; not existing is okay
-      dsoFile = new RandomAccessFile(dsoFileName, "rw");
-    }
+      if (!dsoFileName.setWritable(true)) {
+        Log.w(TAG, "error adding write permission to: " + dsoFileName);
+      }
 
-    try {
+      try {
+        dsoFile = new RandomAccessFile(dsoFileName, "rw");
+      } catch (IOException ex) {
+        Log.w(TAG, "error overwriting " + dsoFileName + " trying to delete and start over", ex);
+        SysUtil.dumbDeleteRecursive(dsoFileName); // Throws on error; not existing is okay
+        dsoFile = new RandomAccessFile(dsoFileName, "rw");
+      }
+
       InputStream dsoContent = iDso.content;
       int sizeHint = dsoContent.available();
       if (sizeHint > 1) {
@@ -252,7 +256,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       if (!dsoFileName.setWritable(false)) {
         Log.w(TAG, "error removing " + dsoFileName + " write permission");
       }
-      dsoFile.close();
+      if (dsoFile != null) {
+        dsoFile.close();
+      }
     }
   }
 
