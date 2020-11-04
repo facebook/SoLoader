@@ -110,8 +110,9 @@ public final class MinElf {
     // Read ELF header.
 
     bb.order(ByteOrder.LITTLE_ENDIAN);
-    if (getu32(fc, bb, Elf32_Ehdr.e_ident) != ELF_MAGIC) {
-      throw new ElfError("file is not ELF");
+    long magic = getu32(fc, bb, Elf32_Ehdr.e_ident);
+    if (magic != ELF_MAGIC) {
+      throw new ElfError("file is not ELF: 0x" + Long.toHexString(magic));
     }
 
     boolean is32 = (getu8(fc, bb, Elf32_Ehdr.e_ident + 0x4) == 1);
