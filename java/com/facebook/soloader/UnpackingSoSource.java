@@ -227,7 +227,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     File dsoFileName = new File(soDirectory, iDso.dso.name);
     RandomAccessFile dsoFile = null;
     try {
-      if (!dsoFileName.setWritable(true)) {
+      if (dsoFileName.exists() && !dsoFileName.setWritable(true)) {
         Log.w(TAG, "error adding write permission to: " + dsoFileName);
       }
 
