@@ -112,4 +112,16 @@ public class NativeLoader {
   public static synchronized boolean isInitialized() {
     return sDelegate != null;
   }
+
+  /**
+   * Perform an initialization only if {@code NativeLoader} has not already been initialized.
+   * This protects against race conditions where isInitialized and init are called by multiple
+   * threads and both threads end up trying to perform an initialization
+   */
+
+  public static synchronized void initIfUninitialized(NativeLoaderDelegate delegate) {
+    if(!isInitialized()) {
+      init(delegate);
+    }
+  }
 }
