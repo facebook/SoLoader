@@ -205,9 +205,7 @@ public class SoLoader {
       isSystemApp = checkIfSystemApp(context, flags);
       initSoLoader(soFileLoader);
       initSoSources(context, flags, soFileLoader);
-      if (!NativeLoader.isInitialized()) {
-        NativeLoader.init(new NativeLoaderToSoLoaderDelegate());
-      }
+      NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
     } finally {
       StrictMode.setThreadPolicy(oldPolicy);
     }
