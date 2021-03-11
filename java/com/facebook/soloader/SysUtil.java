@@ -27,6 +27,7 @@ import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 import android.util.Log;
+import java.io.DataOutput;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -236,7 +237,7 @@ public final class SysUtil {
    *
    * @param dir Directory to create. All parents created as well.
    */
-  static void mkdirOrThrow(File dir) throws IOException {
+  public static void mkdirOrThrow(File dir) throws IOException {
     if (!dir.mkdirs() && !dir.isDirectory()) {
       throw new IOException("cannot mkdir: " + dir);
     }
@@ -251,7 +252,7 @@ public final class SysUtil {
    * @param buffer IO buffer to use
    * @return Number of bytes actually copied
    */
-  static int copyBytes(RandomAccessFile os, InputStream is, int byteLimit, byte[] buffer)
+  static int copyBytes(DataOutput os, InputStream is, int byteLimit, byte[] buffer)
       throws IOException {
     // Yes, this method is exactly the same as the above, just with a different type for `os'.
     int bytesCopied = 0;

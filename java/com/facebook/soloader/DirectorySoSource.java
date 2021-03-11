@@ -19,6 +19,7 @@ package com.facebook.soloader;
 import android.os.StrictMode;
 import android.util.Log;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,8 +55,12 @@ public class DirectorySoSource extends SoSource {
   protected int loadLibraryFrom(
       String soName, int loadFlags, File libDir, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
-    File soFile = new File(libDir, soName);
-    if (!soFile.exists()) {
+    if (SoLoader.sSoFileLoader == null) {
+      throw new IllegalStateException("SoLoader.init() not yet called");
+    }
+
+    File soFile = getSoFileByName(soName);
+    if (soFile == null) {
       Log.d(SoLoader.TAG, soName + " not found on " + libDir.getCanonicalPath());
       return LOAD_RESULT_NOT_FOUND;
     } else {
@@ -67,51 +72,70 @@ public class DirectorySoSource extends SoSource {
       return LOAD_RESULT_IMPLICITLY_PROVIDED;
     }
 
-    if ((flags & RESOLVE_DEPENDENCIES) != 0) {
-      loadDependencies(soFile, loadFlags, threadPolicy);
-    } else {
-      Log.d(SoLoader.TAG, "Not resolving dependencies for " + soName);
-    }
-
-    try {
-      SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
-    } catch (UnsatisfiedLinkError e) {
-      if (e.getMessage().contains("bad ELF magic")) {
-        Log.d(SoLoader.TAG, "Corrupted lib file detected");
-        // Swallow exception. Higher layers will try again from a backup source
-        return LOAD_RESULT_CORRUPTED_LIB_FILE;
+    try (ElfByteChannel bc = getChannel(soFile)) {
+      if ((flags & RESOLVE_DEPENDENCIES) != 0) {
+        loadDependencies(soName, bc, loadFlags, threadPolicy);
       } else {
-        throw e;
+        Log.d(SoLoader.TAG, "Not resolving dependencies for " + soName);
+      }
+
+      try {
+        if (soFile.getName().equals(soName)) {
+          SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
+        } else {
+          // The shared object does not exist in the file system, only in memory
+          SoLoader.sSoFileLoader.loadBytes(soFile.getAbsolutePath(), bc, loadFlags);
+        }
+      } catch (UnsatisfiedLinkError e) {
+        if (e.getMessage().contains("bad ELF magic")) {
+          Log.d(SoLoader.TAG, "Corrupted lib file detected");
+          // Swallow exception. Higher layers will try again from a backup source
+          return LOAD_RESULT_CORRUPTED_LIB_FILE;
+        } else {
+          throw e;
+        }
       }
     }
 
     return LOAD_RESULT_LOADED;
   }
 
+  @Nullable
+  protected File getSoFileByName(String soName) throws IOException {
+    File soFile = new File(soDirectory, soName);
+    if (soFile.exists()) {
+      return soFile;
+    }
+    return null;
+  }
+
   @Override
   @Nullable
   public String getLibraryPath(String soName) throws IOException {
-    File soFile = new File(soDirectory, soName);
-    if (soFile.exists()) {
-      return soFile.getCanonicalPath();
+    File soFile = getSoFileByName(soName);
+    if (soFile == null) {
+      return null;
     }
-    return null;
+    return soFile.getCanonicalPath();
   }
 
   @Nullable
   @Override
   public String[] getLibraryDependencies(String soName) throws IOException {
-    File soFile = new File(soDirectory, soName);
-    if (soFile.exists()) {
-      return getDependencies(soFile);
-    } else {
+    File soFile = getSoFileByName(soName);
+    if (soFile == null) {
       return null;
     }
+
+    final FileInputStream is = new FileInputStream(soFile);
+    ElfByteChannel bc = MinElf.wrapFileChannel(is.getChannel());
+    return getDependencies(soName, bc);
   }
 
-  private static void loadDependencies(
-      File soFile, int loadFlags, StrictMode.ThreadPolicy threadPolicy) throws IOException {
-    String[] dependencies = getDependencies(soFile);
+  private void loadDependencies(
+      String soName, ElfByteChannel bc, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
+      throws IOException {
+    String[] dependencies = getDependencies(soName, bc);
     Log.d(SoLoader.TAG, "Loading lib dependencies: " + Arrays.toString(dependencies));
     for (String dependency : dependencies) {
       if (dependency.startsWith("/")) {
@@ -123,12 +147,17 @@ public class DirectorySoSource extends SoSource {
     }
   }
 
-  private static String[] getDependencies(File soFile) throws IOException {
+  protected ElfByteChannel getChannel(File soFile) throws IOException {
+    FileInputStream is = new FileInputStream(soFile);
+    return MinElf.wrapFileChannel(is.getChannel());
+  }
+
+  protected String[] getDependencies(String soName, ElfByteChannel bc) throws IOException {
     if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
-      Api18TraceUtils.beginTraceSection("SoLoader.getElfDependencies[", soFile.getName(), "]");
+      Api18TraceUtils.beginTraceSection("SoLoader.getElfDependencies[", soName, "]");
     }
     try {
-      return MinElf.extract_DT_NEEDED(soFile);
+      return MinElf.extract_DT_NEEDED(bc);
     } finally {
       if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
         Api18TraceUtils.endSection();
@@ -139,12 +168,7 @@ public class DirectorySoSource extends SoSource {
   @Override
   @Nullable
   public File unpackLibrary(String soName) throws IOException {
-    File soFile = new File(soDirectory, soName);
-    if (soFile.exists()) {
-      return soFile;
-    }
-
-    return null;
+    return getSoFileByName(soName);
   }
 
   @Override

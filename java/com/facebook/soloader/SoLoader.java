@@ -352,6 +352,9 @@ public class SoLoader {
   }
 
   private static synchronized void initSoLoader(@Nullable SoFileLoader soFileLoader) {
+    if (soFileLoader == null && sSoFileLoader != null) {
+      return;
+    }
     if (soFileLoader != null) {
       sSoFileLoader = soFileLoader;
       return;
@@ -368,6 +371,11 @@ public class SoLoader {
 
     sSoFileLoader =
         new SoFileLoader() {
+          @Override
+          public void loadBytes(String pathName, ElfByteChannel bytes, int loadFlags) {
+            throw new UnsupportedOperationException();
+          }
+
           @Override
           public void load(final String pathToSoFile, final int loadFlags) {
             String error = null;

@@ -131,13 +131,51 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     }
   }
 
-  protected static final class InputDso implements Closeable {
-    public final Dso dso;
-    public final InputStream content;
+  protected static interface InputDso extends Closeable {
 
-    public InputDso(Dso dso, InputStream content) {
+    public void write(DataOutput out, byte[] ioBuffer) throws IOException;
+
+    public Dso getDso();
+
+    public String getFileName();
+
+    public int available() throws IOException;
+
+    public InputStream getStream();
+  };
+
+  public static class InputDsoStream implements InputDso {
+    private final Dso dso;
+    private final InputStream content;
+
+    public InputDsoStream(Dso dso, InputStream content) {
       this.dso = dso;
       this.content = content;
+    }
+
+    @Override
+    public void write(DataOutput out, byte[] ioBuffer) throws IOException {
+      SysUtil.copyBytes(out, content, Integer.MAX_VALUE, ioBuffer);
+    }
+
+    @Override
+    public Dso getDso() {
+      return dso;
+    }
+
+    @Override
+    public String getFileName() {
+      return dso.name;
+    }
+
+    @Override
+    public int available() throws IOException {
+      return content.available();
+    }
+
+    @Override
+    public InputStream getStream() {
+      return content;
     }
 
     @Override
@@ -150,7 +188,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
     public abstract boolean hasNext();
 
-    public abstract InputDso next() throws IOException;
+    public abstract @Nullable InputDso next() throws IOException;
 
     @Override
     public void close() throws IOException {
@@ -178,6 +216,10 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     }
   }
 
+  protected String getSoNameFromFileName(String fileName) {
+    return fileName;
+  }
+
   /** Delete files not mentioned in the given DSO list. */
   private void deleteUnmentionedFiles(Dso[] dsos) throws IOException {
     String[] existingFiles = soDirectory.list();
@@ -196,7 +238,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
       boolean found = false;
       for (int j = 0; !found && j < dsos.length; ++j) {
-        if (dsos[j].name.equals(fileName)) {
+        if ((dsos[j].name).equals(getSoNameFromFileName(fileName))) {
           found = true;
         }
       }
@@ -210,7 +252,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   }
 
   private void extractDso(InputDso iDso, byte[] ioBuffer) throws IOException {
-    Log.i(TAG, "extracting DSO " + iDso.dso.name);
+    Log.i(TAG, "extracting DSO " + iDso.getDso().name);
     try {
       if (!soDirectory.setWritable(true)) {
         throw new IOException("cannot make directory writable for us: " + soDirectory);
@@ -224,7 +266,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   }
 
   private void extractDsoImpl(InputDso iDso, byte[] ioBuffer) throws IOException {
-    File dsoFileName = new File(soDirectory, iDso.dso.name);
+    File dsoFileName = new File(soDirectory, iDso.getFileName());
     RandomAccessFile dsoFile = null;
     try {
       if (dsoFileName.exists() && !dsoFileName.setWritable(true)) {
@@ -239,12 +281,11 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         dsoFile = new RandomAccessFile(dsoFileName, "rw");
       }
 
-      InputStream dsoContent = iDso.content;
-      int sizeHint = dsoContent.available();
+      int sizeHint = iDso.available();
       if (sizeHint > 1) {
         SysUtil.fallocateIfSupported(dsoFile.getFD(), sizeHint);
       }
-      SysUtil.copyBytes(dsoFile, iDso.content, Integer.MAX_VALUE, ioBuffer);
+      iDso.write(dsoFile, ioBuffer);
       dsoFile.setLength(dsoFile.getFilePointer()); // In case we shortened file
       if (!dsoFileName.setExecutable(true /* allow exec... */, false /* ...for everyone */)) {
         throw new IOException("cannot make file executable: " + dsoFileName);
@@ -286,10 +327,16 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         try (InputDso iDso = dsoIterator.next()) {
           boolean obsolete = true;
           for (int i = 0; obsolete && i < existingManifest.dsos.length; ++i) {
-            if (existingManifest.dsos[i].name.equals(iDso.dso.name)
-                && existingManifest.dsos[i].hash.equals(iDso.dso.hash)) {
+            String iDsoName = iDso.getDso().name;
+            if (existingManifest.dsos[i].name.equals(iDsoName)
+                && existingManifest.dsos[i].hash.equals(iDso.getDso().hash)) {
               obsolete = false;
             }
+          }
+          File dsoFile = new File(soDirectory, iDso.getFileName());
+          if (!dsoFile.exists()) {
+            // so file exists, but file name changed
+            obsolete = true;
           }
           if (obsolete) {
             extractDso(iDso, ioBuffer);
@@ -454,6 +501,16 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       }
       return lock;
     }
+  }
+
+  @Override
+  @Nullable
+  public String getLibraryPath(String soName) throws IOException {
+    File soFile = getSoFileByName(soName);
+    if (soFile == null) {
+      return null;
+    }
+    return soFile.getCanonicalPath();
   }
 
   /** Prepare this SoSource extracting a corrupted library. */
