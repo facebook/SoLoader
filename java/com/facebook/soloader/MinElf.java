@@ -72,11 +72,22 @@ public final class MinElf {
   }
 
   public static String[] extract_DT_NEEDED(File elfFile) throws IOException {
+    try (FileInputStream is = new FileInputStream(elfFile)) {
+      return extract_DT_NEEDED(wrapFileChannel(is.getChannel()));
+    }
+  }
+
+  /**
+   * Treating {@code bb} as an ELF file, extract all the DT_NEEDED entries from its dynamic section.
+   *
+   * @param bc ElfByteChannel referring to ELF file
+   * @return Array of strings, one for each DT_NEEDED entry, in file order
+   */
+  public static String[] extract_DT_NEEDED(ElfByteChannel bc) throws IOException {
     int failureCount = 0;
     while (true) {
-      FileInputStream is = new FileInputStream(elfFile);
       try {
-        return extract_DT_NEEDED(wrapFileChannel(is.getChannel()));
+        return extract_DT_NEEDED_no_retries(bc);
       } catch (ClosedByInterruptException e) {
         // Make sure we don't loop infinitely
         if (++failureCount > 3) {
@@ -90,20 +101,11 @@ public final class MinElf {
         // all future attempts to load the same class to fail.
         Thread.interrupted();
         Log.e(TAG, "retrying extract_DT_NEEDED due to ClosedByInterruptException", e);
-      } finally {
-        is.close(); // Won't throw
       }
     }
   }
 
-  /**
-   * Treating {@code bb} as an ELF file, extract all the DT_NEEDED entries from its dynamic section.
-   *
-   * @param bc ElfByteChannel referring to ELF file
-   * @return Array of strings, one for each DT_NEEDED entry, in file order
-   */
-  public static String[] extract_DT_NEEDED(ElfByteChannel bc) throws IOException {
-
+  private static String[] extract_DT_NEEDED_no_retries(ElfByteChannel bc) throws IOException {
     //
     // All constants below are fixed by the ELF specification and are the offsets of fields within
     // the elf.h data structures.
@@ -289,8 +291,7 @@ public final class MinElf {
     bb.limit(sz);
 
     while (bb.remaining() > 0) {
-      bc.position(offset);
-      int numBytesRead = bc.read(bb);
+      int numBytesRead = bc.read(bb, offset);
       if (numBytesRead == -1) {
         break; // Reached end of channel
       }

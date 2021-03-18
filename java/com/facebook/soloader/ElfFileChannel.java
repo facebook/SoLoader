@@ -48,6 +48,11 @@ public class ElfFileChannel implements ElfByteChannel {
   }
 
   @Override
+  public int read(ByteBuffer dst, long position) throws IOException {
+    return mFc.read(dst, position);
+  }
+
+  @Override
   public long size() throws IOException {
     return mFc.size();
   }

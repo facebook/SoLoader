@@ -72,20 +72,28 @@ public class DirectorySoSource extends SoSource {
       return LOAD_RESULT_IMPLICITLY_PROVIDED;
     }
 
-    try (ElfByteChannel bc = getChannel(soFile)) {
-      if ((flags & RESOLVE_DEPENDENCIES) != 0) {
+    ElfByteChannel bc = null;
+    boolean shouldLoadDependencies = (flags & RESOLVE_DEPENDENCIES) != 0;
+    boolean shouldLoadFromFile = soFile.getName().equals(soName);
+    try {
+      if (shouldLoadDependencies || !shouldLoadFromFile) {
+        bc = getChannel(soFile);
+      }
+
+      if (shouldLoadDependencies) {
         loadDependencies(soName, bc, loadFlags, threadPolicy);
       } else {
         Log.d(SoLoader.TAG, "Not resolving dependencies for " + soName);
       }
 
       try {
-        if (soFile.getName().equals(soName)) {
+        if (shouldLoadFromFile) {
           SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
         } else {
           // The shared object does not exist in the file system, only in memory
           SoLoader.sSoFileLoader.loadBytes(soFile.getAbsolutePath(), bc, loadFlags);
         }
+
       } catch (UnsatisfiedLinkError e) {
         if (e.getMessage().contains("bad ELF magic")) {
           Log.d(SoLoader.TAG, "Corrupted lib file detected");
@@ -94,6 +102,10 @@ public class DirectorySoSource extends SoSource {
         } else {
           throw e;
         }
+      }
+    } finally {
+      if (bc != null) {
+        bc.close();
       }
     }
 

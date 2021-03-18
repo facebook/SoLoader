@@ -27,6 +27,8 @@ public interface ElfByteChannel extends java.nio.channels.ByteChannel {
 
   int read(ByteBuffer dst) throws IOException;
 
+  int read(ByteBuffer dst, long position) throws IOException;
+
   long size() throws IOException;
 
   ElfByteChannel truncate(long size) throws IOException;
