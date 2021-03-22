@@ -16,19 +16,26 @@
 
 package com.facebook.soloader;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 public class ElfFileChannel implements ElfByteChannel {
 
+  private File mFile;
+  private FileInputStream mIs;
   private FileChannel mFc;
 
-  public ElfFileChannel(FileChannel fc) {
-    if (fc == null) {
-      throw new IllegalArgumentException("FileChannel cannot be null");
-    }
-    mFc = fc;
+  public ElfFileChannel(File file) throws IOException {
+    mFile = file;
+    openChannel();
+  }
+
+  public void openChannel() throws IOException {
+    mIs = new FileInputStream(mFile);
+    mFc = mIs.getChannel();
   }
 
   @Override
@@ -70,7 +77,7 @@ public class ElfFileChannel implements ElfByteChannel {
 
   @Override
   public void close() throws IOException {
-    mFc.close();
+    mIs.close();
   }
 
   @Override

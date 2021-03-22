@@ -19,7 +19,6 @@ package com.facebook.soloader;
 import android.os.StrictMode;
 import android.util.Log;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -139,9 +138,9 @@ public class DirectorySoSource extends SoSource {
       return null;
     }
 
-    final FileInputStream is = new FileInputStream(soFile);
-    ElfByteChannel bc = MinElf.wrapFileChannel(is.getChannel());
-    return getDependencies(soName, bc);
+    try (ElfByteChannel bc = new ElfFileChannel(soFile)) {
+      return getDependencies(soName, bc);
+    }
   }
 
   private void loadDependencies(
@@ -160,8 +159,7 @@ public class DirectorySoSource extends SoSource {
   }
 
   protected ElfByteChannel getChannel(File soFile) throws IOException {
-    FileInputStream is = new FileInputStream(soFile);
-    return MinElf.wrapFileChannel(is.getChannel());
+    return new ElfFileChannel(soFile);
   }
 
   protected String[] getDependencies(String soName, ElfByteChannel bc) throws IOException {

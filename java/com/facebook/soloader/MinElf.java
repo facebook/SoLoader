@@ -18,12 +18,10 @@ package com.facebook.soloader;
 
 import android.util.Log;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedByInterruptException;
-import java.nio.channels.FileChannel;
 
 /**
  * Extract SoLoader bootstrap information from an ELF file. This is not a general purpose ELF
@@ -67,27 +65,25 @@ public final class MinElf {
 
   public static final int PN_XNUM = 0xFFFF;
 
-  public static ElfByteChannel wrapFileChannel(final FileChannel fc) {
-    return new ElfFileChannel(fc);
-  }
-
   public static String[] extract_DT_NEEDED(File elfFile) throws IOException {
-    try (FileInputStream is = new FileInputStream(elfFile)) {
-      return extract_DT_NEEDED(wrapFileChannel(is.getChannel()));
+    try (ElfFileChannel fc = new ElfFileChannel(elfFile)) {
+      return extract_DT_NEEDED(fc);
     }
   }
 
   /**
-   * Treating {@code bb} as an ELF file, extract all the DT_NEEDED entries from its dynamic section.
+   * Treating {@code fc} as an ELF file, extract all the DT_NEEDED entries from its dynamic section.
    *
-   * @param bc ElfByteChannel referring to ELF file
+   * @param fc ElfFileChannel referring to ELF file
    * @return Array of strings, one for each DT_NEEDED entry, in file order
    */
-  public static String[] extract_DT_NEEDED(ElfByteChannel bc) throws IOException {
+  public static String[] extract_DT_NEEDED(ElfFileChannel fc) throws IOException {
+    // An ElfFileChannel can be interrupted since it uses a FileChannel.
+    // If it's interrupted, we will retry, we just need to reopen the FileChannel
     int failureCount = 0;
     while (true) {
       try {
-        return extract_DT_NEEDED_no_retries(bc);
+        return extract_DT_NEEDED_no_retries(fc);
       } catch (ClosedByInterruptException e) {
         // Make sure we don't loop infinitely
         if (++failureCount > 3) {
@@ -101,8 +97,21 @@ public final class MinElf {
         // all future attempts to load the same class to fail.
         Thread.interrupted();
         Log.e(TAG, "retrying extract_DT_NEEDED due to ClosedByInterruptException", e);
+        // FileChannel gets closed after an interruption, we need to reopen the
+        // channel.
+        fc.openChannel();
       }
     }
+  }
+
+  /**
+   * Treating {@code bc} as an ELF file, extract all the DT_NEEDED entries from its dynamic section.
+   *
+   * @param bc ElfByteChannel referring to ELF file
+   * @return Array of strings, one for each DT_NEEDED entry, in file order
+   */
+  public static String[] extract_DT_NEEDED(ElfByteChannel bc) throws IOException {
+    return extract_DT_NEEDED_no_retries(bc);
   }
 
   private static String[] extract_DT_NEEDED_no_retries(ElfByteChannel bc) throws IOException {
