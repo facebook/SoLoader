@@ -600,32 +600,9 @@ public class SoLoader {
    *     through a previous call to SoLoader (false).
    */
   public static boolean loadLibrary(String shortName, int loadFlags) throws UnsatisfiedLinkError {
-    sSoSourcesLock.readLock().lock();
-    try {
-      if (sSoSources == null) {
-        // This should never happen during normal operation,
-        // but if we're running in a non-Android environment,
-        // fall back to System.loadLibrary.
-        if ("http://www.android.com/".equals(System.getProperty("java.vendor.url"))) {
-          // This will throw.
-          assertInitialized();
-        } else {
-          // Not on an Android system.  Ask the JVM to load for us.
-          synchronized (SoLoader.class) {
-            boolean needsLoad = !sLoadedLibraries.contains(shortName);
-            if (needsLoad) {
-              if (sSystemLoadLibraryWrapper != null) {
-                sSystemLoadLibraryWrapper.loadLibrary(shortName);
-              } else {
-                System.loadLibrary(shortName);
-              }
-            }
-            return needsLoad;
-          }
-        }
-      }
-    } finally {
-      sSoSourcesLock.readLock().unlock();
+    Boolean needsLoad = loadLibraryOnNonAndroid(shortName);
+    if (needsLoad != null) {
+      return needsLoad;
     }
 
     // This is to account for the fact that we want to load .so files from the apk itself when it is
@@ -641,6 +618,39 @@ public class SoLoader {
 
     return loadLibraryBySoName(
         System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
+  }
+
+  private static @Nullable Boolean loadLibraryOnNonAndroid(String shortName) {
+    if (sSoSources == null) {
+      sSoSourcesLock.readLock().lock();
+      try {
+        if (sSoSources == null) {
+          // This should never happen during normal operation,
+          // but if we're running in a non-Android environment,
+          // fall back to System.loadLibrary.
+          if ("http://www.android.com/".equals(System.getProperty("java.vendor.url"))) {
+            // This will throw.
+            assertInitialized();
+          } else {
+            // Not on an Android system.  Ask the JVM to load for us.
+            synchronized (SoLoader.class) {
+              boolean needsLoad = !sLoadedLibraries.contains(shortName);
+              if (needsLoad) {
+                if (sSystemLoadLibraryWrapper != null) {
+                  sSystemLoadLibraryWrapper.loadLibrary(shortName);
+                } else {
+                  System.loadLibrary(shortName);
+                }
+              }
+              return needsLoad;
+            }
+          }
+        }
+      } finally {
+        sSoSourcesLock.readLock().unlock();
+      }
+    }
+    return null;
   }
 
   /* package */ static void loadLibraryBySoName(
