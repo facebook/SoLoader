@@ -77,7 +77,7 @@ public final class MinElf {
    * @param fc ElfFileChannel referring to ELF file
    * @return Array of strings, one for each DT_NEEDED entry, in file order
    */
-  public static String[] extract_DT_NEEDED(ElfFileChannel fc) throws IOException {
+  private static String[] extract_DT_NEEDED_with_retries(ElfFileChannel fc) throws IOException {
     // An ElfFileChannel can be interrupted since it uses a FileChannel.
     // If it's interrupted, we will retry, we just need to reopen the FileChannel
     int failureCount = 0;
@@ -86,7 +86,7 @@ public final class MinElf {
         return extract_DT_NEEDED_no_retries(fc);
       } catch (ClosedByInterruptException e) {
         // Make sure we don't loop infinitely
-        if (++failureCount > 3) {
+        if (++failureCount > 4) {
           throw e;
         }
 
@@ -111,6 +111,9 @@ public final class MinElf {
    * @return Array of strings, one for each DT_NEEDED entry, in file order
    */
   public static String[] extract_DT_NEEDED(ElfByteChannel bc) throws IOException {
+    if (bc instanceof ElfFileChannel) {
+      return extract_DT_NEEDED_with_retries((ElfFileChannel) bc);
+    }
     return extract_DT_NEEDED_no_retries(bc);
   }
 
