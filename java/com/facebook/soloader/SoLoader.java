@@ -229,26 +229,7 @@ public class SoLoader {
         sFlags = flags;
 
         ArrayList<SoSource> soSources = new ArrayList<>();
-
-        //
-        // Add SoSource objects for each of the system library directories.
-        //
-
-        String LD_LIBRARY_PATH = System.getenv("LD_LIBRARY_PATH");
-        if (LD_LIBRARY_PATH == null) {
-          LD_LIBRARY_PATH =
-              SysUtil.is64Bit() ? "/vendor/lib64:/system/lib64" : "/vendor/lib:/system/lib";
-        }
-
-        for (String systemLibraryDirectory : LD_LIBRARY_PATH.split(":")) {
-          // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
-          // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
-          // these libraries have on each other, so doing that ourselves would be a waste.
-          Log.d(TAG, "adding system library source: " + systemLibraryDirectory);
-          File systemSoDirectory = new File(systemLibraryDirectory);
-          soSources.add(
-              new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
-        }
+        AddSystemLibSoSource(soSources);
 
         //
         // We can only proceed forward if we have a Context. The prominent case
@@ -271,52 +252,10 @@ public class SoLoader {
               apkSoSourceFlags = 0;
             } else {
               apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
-              int ourSoSourceFlags = 0;
-
-              // On old versions of Android, Bionic doesn't add our library directory to its
-              // internal search path, and the system doesn't resolve dependencies between
-              // modules we ship. On these systems, we resolve dependencies ourselves. On other
-              // systems, Bionic's built-in resolver suffices.
-
-              if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-                ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
-              }
-
-              sApplicationSoSource = new ApplicationSoSource(context, ourSoSourceFlags);
-              Log.d(TAG, "adding application source: " + sApplicationSoSource.toString());
-              soSources.add(0, sApplicationSoSource);
+              addApplicationSoSource(context, soSources);
             }
 
-            if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
-              sBackupSoSources = null;
-            } else {
-
-              final File mainApkDir = new File(context.getApplicationInfo().sourceDir);
-              ArrayList<UnpackingSoSource> backupSources = new ArrayList<>();
-              ApkSoSource mainApkSource =
-                  new ApkSoSource(context, mainApkDir, SO_STORE_NAME_MAIN, apkSoSourceFlags);
-              backupSources.add(mainApkSource);
-              Log.d(TAG, "adding backup source from : " + mainApkSource.toString());
-
-              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
-                  && context.getApplicationInfo().splitSourceDirs != null) {
-                Log.d(TAG, "adding backup sources from split apks");
-                int splitIndex = 0;
-                for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
-                  ApkSoSource splitApkSource =
-                      new ApkSoSource(
-                          context,
-                          new File(splitApkDir),
-                          SO_STORE_NAME_SPLIT + (splitIndex++),
-                          apkSoSourceFlags);
-                  Log.d(TAG, "adding backup source: " + splitApkSource.toString());
-                  backupSources.add(splitApkSource);
-                }
-              }
-
-              sBackupSoSources = backupSources.toArray(new UnpackingSoSource[backupSources.size()]);
-              soSources.addAll(0, backupSources);
-            }
+            AddBackupSoSource(context, soSources, apkSoSourceFlags);
           }
         }
 
@@ -333,6 +272,77 @@ public class SoLoader {
     } finally {
       Log.d(TAG, "init exiting");
       sSoSourcesLock.writeLock().unlock();
+    }
+  }
+
+  /** Add a DirectorySoSource for the application's nativeLibraryDir . */
+  private static void addApplicationSoSource(Context context, ArrayList<SoSource> soSources) {
+    int ourSoSourceFlags = 0;
+
+    // On old versions of Android, Bionic doesn't add our library directory to its
+    // internal search path, and the system doesn't resolve dependencies between
+    // modules we ship. On these systems, we resolve dependencies ourselves. On other
+    // systems, Bionic's built-in resolver suffices.
+
+    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+      ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
+    }
+
+    sApplicationSoSource = new ApplicationSoSource(context, ourSoSourceFlags);
+    Log.d(TAG, "adding application source: " + sApplicationSoSource.toString());
+    soSources.add(0, sApplicationSoSource);
+  }
+
+  /** Add a SoSource for recovering the dso if the file is corrupted or missed */
+  private static void AddBackupSoSource(
+      Context context, ArrayList<SoSource> soSources, int apkSoSourceFlags) {
+    if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
+      sBackupSoSources = null;
+      return;
+    }
+
+    final File mainApkDir = new File(context.getApplicationInfo().sourceDir);
+    ArrayList<UnpackingSoSource> backupSources = new ArrayList<>();
+    ApkSoSource mainApkSource =
+        new ApkSoSource(context, mainApkDir, SO_STORE_NAME_MAIN, apkSoSourceFlags);
+    backupSources.add(mainApkSource);
+    Log.d(TAG, "adding backup source from : " + mainApkSource.toString());
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+        && context.getApplicationInfo().splitSourceDirs != null) {
+      Log.d(TAG, "adding backup sources from split apks");
+      int splitIndex = 0;
+      for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
+        ApkSoSource splitApkSource =
+            new ApkSoSource(
+                context,
+                new File(splitApkDir),
+                SO_STORE_NAME_SPLIT + (splitIndex++),
+                apkSoSourceFlags);
+        Log.d(TAG, "adding backup source: " + splitApkSource.toString());
+        backupSources.add(splitApkSource);
+      }
+    }
+
+    sBackupSoSources = backupSources.toArray(new UnpackingSoSource[backupSources.size()]);
+    soSources.addAll(0, backupSources);
+  }
+
+  /** Add SoSource objects for each of the system library directories. */
+  private static void AddSystemLibSoSource(ArrayList<SoSource> soSources) {
+    String LD_LIBRARY_PATH = System.getenv("LD_LIBRARY_PATH");
+    if (LD_LIBRARY_PATH == null) {
+      LD_LIBRARY_PATH =
+          SysUtil.is64Bit() ? "/vendor/lib64:/system/lib64" : "/vendor/lib:/system/lib";
+    }
+
+    for (String systemLibraryDirectory : LD_LIBRARY_PATH.split(":")) {
+      // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
+      // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
+      // these libraries have on each other, so doing that ourselves would be a waste.
+      Log.d(TAG, "adding system library source: " + systemLibraryDirectory);
+      File systemSoDirectory = new File(systemLibraryDirectory);
+      soSources.add(new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
     }
   }
 
@@ -447,11 +457,9 @@ public class SoLoader {
     }
 
     try {
-      final Method method;
-      method =
+      final Method method =
           Runtime.class.getDeclaredMethod(
               "nativeLoad", String.class, ClassLoader.class, String.class);
-
       method.setAccessible(true);
       return method;
     } catch (final NoSuchMethodException | SecurityException e) {
@@ -461,14 +469,14 @@ public class SoLoader {
   }
 
   private static boolean checkIfSystemApp(Context context, int flags) {
-    if ((flags & SOLOADER_DONT_TREAT_AS_SYSTEMAPP) != 0) {
+    if ((flags & SOLOADER_DONT_TREAT_AS_SYSTEMAPP) != 0 || context == null) {
       return false;
     }
 
-    return (context != null)
-        && (context.getApplicationInfo().flags
-                & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP))
-            != 0;
+    final ApplicationInfo appInfo = context.getApplicationInfo();
+    Log.d(TAG, "ApplicationInfo.flags is: " + appInfo.flags);
+    return (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0
+        || (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
   }
 
   /** Turn shared-library loading into a no-op. Useful in special circumstances. */
