@@ -172,7 +172,21 @@ public class SoLoader {
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
-  private static boolean isSystemApp;
+  interface AppType {
+    /** Normal user installed APP */
+    public static final int THIRD_PARTY_APP = 1;
+
+    /** The APP is installed in the device's system image. {@link ApplicationInfo#FLAG_SYSTEM} */
+    public static final int SYSTEM_APP = 2;
+
+    /**
+     * The APP has been installed as an update to a built-in system application. {@link
+     * ApplicationInfo#FLAG_UPDATED_SYSTEM_APP}
+     */
+    public static final int UPDATED_SYSTEM_APP = 3;
+  }
+
+  private static int sAppType;
 
   static {
     boolean shouldSystrace = false;
@@ -202,7 +216,7 @@ public class SoLoader {
       throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
-      isSystemApp = checkIfSystemApp(context, flags);
+      sAppType = getAppType(context, flags);
       initSoLoader(soFileLoader);
       initSoSources(context, flags, soFileLoader);
       NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
@@ -248,11 +262,20 @@ public class SoLoader {
             soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
           } else {
             int apkSoSourceFlags;
-            if (isSystemApp) {
-              apkSoSourceFlags = 0;
-            } else {
-              apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
-              addApplicationSoSource(context, soSources);
+            switch (sAppType) {
+              case AppType.THIRD_PARTY_APP:
+              case AppType.UPDATED_SYSTEM_APP:
+                apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
+                addApplicationSoSource(context, soSources);
+                break;
+              case AppType.SYSTEM_APP:
+                apkSoSourceFlags = 0;
+                break;
+              default:
+                /** fallback to {@link AppType.THIRD_PARTY_APP} */
+                apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
+                addApplicationSoSource(context, soSources);
+                Log.e(TAG, "Unrecognized app type: " + sAppType);
             }
 
             AddBackupSoSource(context, soSources, apkSoSourceFlags);
@@ -468,15 +491,21 @@ public class SoLoader {
     }
   }
 
-  private static boolean checkIfSystemApp(Context context, int flags) {
+  private static int getAppType(Context context, int flags) {
     if ((flags & SOLOADER_DONT_TREAT_AS_SYSTEMAPP) != 0 || context == null) {
-      return false;
+      return AppType.THIRD_PARTY_APP;
     }
 
     final ApplicationInfo appInfo = context.getApplicationInfo();
     Log.d(TAG, "ApplicationInfo.flags is: " + appInfo.flags);
-    return (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0
-        || (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+
+    if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+      return AppType.THIRD_PARTY_APP;
+    } else if ((appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0) {
+      return AppType.UPDATED_SYSTEM_APP;
+    } else {
+      return AppType.SYSTEM_APP;
+    }
   }
 
   /** Turn shared-library loading into a no-op. Useful in special circumstances. */
@@ -615,7 +644,8 @@ public class SoLoader {
 
     // This is to account for the fact that we want to load .so files from the apk itself when it is
     // a system app.
-    if (isSystemApp && sSystemLoadLibraryWrapper != null) {
+    if ((sAppType == AppType.SYSTEM_APP || sAppType == AppType.UPDATED_SYSTEM_APP)
+        && sSystemLoadLibraryWrapper != null) {
       sSystemLoadLibraryWrapper.loadLibrary(shortName);
       return true;
     }
