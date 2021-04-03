@@ -461,11 +461,7 @@ public class SoLoader {
                 }
                 digestStr = String.format("%32x", new BigInteger(1, digest.digest()));
               }
-            } catch (IOException e) {
-              digestStr = e.toString();
-            } catch (SecurityException e) {
-              digestStr = e.toString();
-            } catch (NoSuchAlgorithmException e) {
+            } catch (IOException | SecurityException | NoSuchAlgorithmException e) {
               digestStr = e.toString();
             }
             return digestStr;
