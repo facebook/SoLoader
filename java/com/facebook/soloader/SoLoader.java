@@ -264,11 +264,11 @@ public class SoLoader {
             int apkSoSourceFlags;
             switch (sAppType) {
               case AppType.THIRD_PARTY_APP:
-              case AppType.UPDATED_SYSTEM_APP:
                 apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
                 addApplicationSoSource(context, soSources);
                 break;
               case AppType.SYSTEM_APP:
+              case AppType.UPDATED_SYSTEM_APP:
                 apkSoSourceFlags = 0;
                 break;
               default:
