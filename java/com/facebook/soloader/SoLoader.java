@@ -43,6 +43,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -94,7 +95,7 @@ public class SoLoader {
   private static SoSource[] sSoSources = null;
 
   @GuardedBy("sSoSourcesLock")
-  private static volatile int sSoSourcesVersion = 0;
+  private static final AtomicInteger sSoSourcesVersion = new AtomicInteger(0);
 
   /** A backup SoSources to try if a lib file is corrupted */
   @GuardedBy("sSoSourcesLock")
@@ -173,6 +174,8 @@ public class SoLoader {
   private static int sFlags;
 
   interface AppType {
+    public static final int UNSET = 0;
+
     /** Normal user installed APP */
     public static final int THIRD_PARTY_APP = 1;
 
@@ -186,7 +189,7 @@ public class SoLoader {
     public static final int UPDATED_SYSTEM_APP = 3;
   }
 
-  private static int sAppType;
+  private static int sAppType = AppType.UNSET;
 
   static {
     boolean shouldSystrace = false;
@@ -236,62 +239,64 @@ public class SoLoader {
 
   private static void initSoSources(Context context, int flags, @Nullable SoFileLoader soFileLoader)
       throws IOException {
+    if (sSoSources != null) {
+      return;
+    }
+
     sSoSourcesLock.writeLock().lock();
     try {
-      if (sSoSources == null) {
-        Log.d(TAG, "init start");
-        sFlags = flags;
+      Log.d(TAG, "init start");
+      sFlags = flags;
 
-        ArrayList<SoSource> soSources = new ArrayList<>();
-        AddSystemLibSoSource(soSources);
+      ArrayList<SoSource> soSources = new ArrayList<>();
+      AddSystemLibSoSource(soSources);
 
+      //
+      // We can only proceed forward if we have a Context. The prominent case
+      // where we don't have a Context is barebones dalvikvm instantiations. In
+      // that case, the caller is responsible for providing a correct LD_LIBRARY_PATH.
+      //
+
+      if (context != null) {
         //
-        // We can only proceed forward if we have a Context. The prominent case
-        // where we don't have a Context is barebones dalvikvm instantiations. In
-        // that case, the caller is responsible for providing a correct LD_LIBRARY_PATH.
+        // Prepend our own SoSource for our own DSOs.
         //
 
-        if (context != null) {
-          //
-          // Prepend our own SoSource for our own DSOs.
-          //
-
-          if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
-            sBackupSoSources = null;
-            Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
-            soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
-          } else {
-            int apkSoSourceFlags;
-            switch (sAppType) {
-              case AppType.THIRD_PARTY_APP:
-                apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
-                addApplicationSoSource(context, soSources);
-                break;
-              case AppType.SYSTEM_APP:
-              case AppType.UPDATED_SYSTEM_APP:
-                apkSoSourceFlags = 0;
-                break;
-              default:
-                /** fallback to {@link AppType.THIRD_PARTY_APP} */
-                apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
-                addApplicationSoSource(context, soSources);
-                Log.e(TAG, "Unrecognized app type: " + sAppType);
-            }
-
-            AddBackupSoSource(context, soSources, apkSoSourceFlags);
+        if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
+          sBackupSoSources = null;
+          Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
+          soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
+        } else {
+          int apkSoSourceFlags;
+          switch (sAppType) {
+            case AppType.THIRD_PARTY_APP:
+              apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
+              addApplicationSoSource(context, soSources);
+              break;
+            case AppType.SYSTEM_APP:
+            case AppType.UPDATED_SYSTEM_APP:
+              apkSoSourceFlags = 0;
+              break;
+            default:
+              /** fallback to {@link AppType.THIRD_PARTY_APP} */
+              apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
+              addApplicationSoSource(context, soSources);
+              Log.e(TAG, "Unrecognized app type: " + sAppType);
           }
-        }
 
-        SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
-        int prepareFlags = makePrepareFlags();
-        for (int i = finalSoSources.length; i-- > 0; ) {
-          Log.d(TAG, "Preparing SO source: " + finalSoSources[i]);
-          finalSoSources[i].prepare(prepareFlags);
+          AddBackupSoSource(context, soSources, apkSoSourceFlags);
         }
-        sSoSources = finalSoSources;
-        sSoSourcesVersion++;
-        Log.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
       }
+
+      SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
+      int prepareFlags = makePrepareFlags();
+      for (int i = finalSoSources.length; i-- > 0; ) {
+        Log.d(TAG, "Preparing SO source: " + finalSoSources[i]);
+        finalSoSources[i].prepare(prepareFlags);
+      }
+      sSoSources = finalSoSources;
+      sSoSourcesVersion.getAndIncrement();
+      Log.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
     } finally {
       Log.d(TAG, "init exiting");
       sSoSourcesLock.writeLock().unlock();
@@ -488,20 +493,25 @@ public class SoLoader {
   }
 
   private static int getAppType(Context context, int flags) {
+    if (sAppType != AppType.UNSET) {
+      return sAppType;
+    }
     if ((flags & SOLOADER_DONT_TREAT_AS_SYSTEMAPP) != 0 || context == null) {
       return AppType.THIRD_PARTY_APP;
     }
 
+    final int type;
     final ApplicationInfo appInfo = context.getApplicationInfo();
-    Log.d(TAG, "ApplicationInfo.flags is: " + appInfo.flags);
 
     if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
-      return AppType.THIRD_PARTY_APP;
+      type = AppType.THIRD_PARTY_APP;
     } else if ((appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0) {
-      return AppType.UPDATED_SYSTEM_APP;
+      type = AppType.UPDATED_SYSTEM_APP;
     } else {
-      return AppType.SYSTEM_APP;
+      type = AppType.SYSTEM_APP;
     }
+    Log.d(TAG, "ApplicationInfo.flags is: " + appInfo.flags + " appType is: " + type);
+    return type;
   }
 
   /** Turn shared-library loading into a no-op. Useful in special circumstances. */
@@ -521,7 +531,7 @@ public class SoLoader {
       sSoSourcesLock.writeLock().lock();
       try {
         sSoSources = sources;
-        sSoSourcesVersion++;
+        sSoSourcesVersion.getAndIncrement();
       } finally {
         sSoSourcesLock.writeLock().unlock();
       }
@@ -705,14 +715,14 @@ public class SoLoader {
       try {
         ret = loadLibraryBySoNameImpl(soName, shortName, mergedLibName, loadFlags, oldPolicy);
       } catch (UnsatisfiedLinkError e) {
-        final int currentVersion = sSoSourcesVersion;
+        final int currentVersion = sSoSourcesVersion.get();
         sSoSourcesLock.writeLock().lock();
         try {
           if (sApplicationSoSource != null && sApplicationSoSource.checkAndMaybeUpdate()) {
             Log.w(
                 TAG,
                 "sApplicationSoSource updated during load: " + soName + ", attempting load again.");
-            sSoSourcesVersion++;
+            sSoSourcesVersion.getAndIncrement();
             retry = true;
           }
         } catch (IOException ex) {
@@ -721,7 +731,7 @@ public class SoLoader {
           sSoSourcesLock.writeLock().unlock();
         }
 
-        if (sSoSourcesVersion == currentVersion) {
+        if (sSoSourcesVersion.get() == currentVersion) {
           // nothing changed in soSource, Propagate original error
           throw e;
         }
@@ -1026,7 +1036,7 @@ public class SoLoader {
   }
 
   public static int getSoSourcesVersion() {
-    return sSoSourcesVersion;
+    return sSoSourcesVersion.get();
   }
 
   /**
@@ -1045,7 +1055,7 @@ public class SoLoader {
       newSoSources[0] = extraSoSource;
       System.arraycopy(sSoSources, 0, newSoSources, 1, sSoSources.length);
       sSoSources = newSoSources;
-      sSoSourcesVersion++;
+      sSoSourcesVersion.getAndIncrement();
       Log.d(TAG, "Prepended to SO sources: " + extraSoSource);
     } finally {
       sSoSourcesLock.writeLock().unlock();
