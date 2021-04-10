@@ -197,7 +197,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   }
 
   protected abstract static class Unpacker implements Closeable {
-    protected abstract DsoManifest getDsoManifest() throws IOException;
+    public abstract DsoManifest getDsoManifest() throws IOException;
 
     protected abstract InputDsoIterator openDsoIterator() throws IOException;
 
@@ -347,6 +347,10 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     Log.v(TAG, "Finished regenerating DSO store " + getClass().getName());
   }
 
+  protected boolean depsChanged(final byte[] existingDeps, final byte[] deps) {
+    return !Arrays.equals(existingDeps, deps);
+  }
+
   private boolean refreshLocked(final FileLocker lock, final int flags, final byte[] deps)
       throws IOException {
     final File stateFileName = new File(soDirectory, STATE_FILE_NAME);
@@ -372,7 +376,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         state = STATE_DIRTY;
       }
 
-      if (!Arrays.equals(existingDeps, deps)) {
+      if (depsChanged(existingDeps, deps)) {
         Log.v(TAG, "deps mismatch on deps store: regenerating");
         state = STATE_DIRTY;
       }

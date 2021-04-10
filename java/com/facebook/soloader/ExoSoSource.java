@@ -107,7 +107,7 @@ public final class ExoSoSource extends UnpackingSoSource {
     }
 
     @Override
-    protected DsoManifest getDsoManifest() throws IOException {
+    public DsoManifest getDsoManifest() throws IOException {
       return new DsoManifest(mDsos);
     }
 

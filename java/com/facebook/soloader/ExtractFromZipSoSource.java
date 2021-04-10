@@ -133,7 +133,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     }
 
     @Override
-    protected final DsoManifest getDsoManifest() throws IOException {
+    public final DsoManifest getDsoManifest() throws IOException {
       return new DsoManifest(ensureDsos());
     }
 
