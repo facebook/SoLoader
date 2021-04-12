@@ -271,19 +271,21 @@ public class SoLoader {
           switch (sAppType) {
             case AppType.THIRD_PARTY_APP:
               apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
-              addApplicationSoSource(context, soSources);
+              addApplicationSoSource(context, soSources, 0);
               break;
             case AppType.SYSTEM_APP:
-            case AppType.UPDATED_SYSTEM_APP:
               apkSoSourceFlags = 0;
               break;
-            default:
-              /** fallback to {@link AppType.THIRD_PARTY_APP} */
+            case AppType.UPDATED_SYSTEM_APP:
               apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
-              addApplicationSoSource(context, soSources);
-              Log.e(TAG, "Unrecognized app type: " + sAppType);
+              // Some system app uses dso compression. Bionic's dynamic linker doesn't add the
+              // our uncompressed library directories into the internal search path. we have to
+              // resolve dependencies by ourselves.
+              addApplicationSoSource(context, soSources, DirectorySoSource.RESOLVE_DEPENDENCIES);
+              break;
+            default:
+              throw new RuntimeException("Unsupported app type, we should not reach here");
           }
-
           AddBackupSoSource(context, soSources, apkSoSourceFlags);
         }
       }
@@ -304,8 +306,8 @@ public class SoLoader {
   }
 
   /** Add a DirectorySoSource for the application's nativeLibraryDir . */
-  private static void addApplicationSoSource(Context context, ArrayList<SoSource> soSources) {
-    int ourSoSourceFlags = 0;
+  private static void addApplicationSoSource(
+      Context context, ArrayList<SoSource> soSources, int flags) {
 
     // On old versions of Android, Bionic doesn't add our library directory to its
     // internal search path, and the system doesn't resolve dependencies between
@@ -313,10 +315,10 @@ public class SoLoader {
     // systems, Bionic's built-in resolver suffices.
 
     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-      ourSoSourceFlags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
+      flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
     }
 
-    sApplicationSoSource = new ApplicationSoSource(context, ourSoSourceFlags);
+    sApplicationSoSource = new ApplicationSoSource(context, flags);
     Log.d(TAG, "adding application source: " + sApplicationSoSource.toString());
     soSources.add(0, sApplicationSoSource);
   }
