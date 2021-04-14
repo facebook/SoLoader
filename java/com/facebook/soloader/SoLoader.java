@@ -267,17 +267,16 @@ public class SoLoader {
           Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
         } else {
-          int apkSoSourceFlags;
           switch (sAppType) {
             case AppType.THIRD_PARTY_APP:
-              apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
               addApplicationSoSource(context, soSources, 0);
               break;
             case AppType.SYSTEM_APP:
-              apkSoSourceFlags = 0;
+              SoSource directApkSoSource = new DirectApkSoSource(context);
+              Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
+              soSources.add(0, directApkSoSource);
               break;
             case AppType.UPDATED_SYSTEM_APP:
-              apkSoSourceFlags = ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY;
               // Some system app uses dso compression. Bionic's dynamic linker doesn't add the
               // our uncompressed library directories into the internal search path. we have to
               // resolve dependencies by ourselves.
@@ -286,7 +285,7 @@ public class SoLoader {
             default:
               throw new RuntimeException("Unsupported app type, we should not reach here");
           }
-          AddBackupSoSource(context, soSources, apkSoSourceFlags);
+          AddBackupSoSource(context, soSources, ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
         }
       }
 
@@ -476,8 +475,7 @@ public class SoLoader {
         };
   }
 
-  @Nullable
-  private static Method getNativeLoadRuntimeMethod() {
+  private static @Nullable Method getNativeLoadRuntimeMethod() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Build.VERSION.SDK_INT > 27) {
       return null;
     }
@@ -1124,7 +1122,7 @@ public class SoLoader {
 
   @DoNotOptimize
   @TargetApi(14)
-  private static class Api14Utils {
+  /* package */ static class Api14Utils {
     public static String getClassLoaderLdLoadLibrary() {
       final ClassLoader classLoader = SoLoader.class.getClassLoader();
 
