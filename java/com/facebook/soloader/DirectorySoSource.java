@@ -138,7 +138,7 @@ public class DirectorySoSource extends SoSource {
       return null;
     }
 
-    try (ElfByteChannel bc = new ElfFileChannel(soFile)) {
+    try (ElfByteChannel bc = getChannel(soFile)) {
       return getDependencies(soName, bc);
     }
   }
