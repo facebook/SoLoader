@@ -156,7 +156,8 @@ public class DirectApkSoSource extends SoSource {
         ZipEntry entry = entries.nextElement();
         if (entry != null
             && entry.getName().startsWith(subDir)
-            && entry.getName().endsWith(".so")) {
+            && entry.getName().endsWith(".so")
+            && entry.getMethod() == ZipEntry.STORED) {
           final String soName = entry.getName().substring(subDir.length() + 1);
           sLibsInApk.add(soName);
         }

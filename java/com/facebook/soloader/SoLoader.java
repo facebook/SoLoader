@@ -272,9 +272,13 @@ public class SoLoader {
               addApplicationSoSource(context, soSources, 0);
               break;
             case AppType.SYSTEM_APP:
-              SoSource directApkSoSource = new DirectApkSoSource(context);
-              Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
-              soSources.add(0, directApkSoSource);
+              if (SysUtil.isApkUncompressedDso(context)) {
+                SoSource directApkSoSource = new DirectApkSoSource(context);
+                Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
+                soSources.add(0, directApkSoSource);
+              } else {
+                addApplicationSoSource(context, soSources, DirectorySoSource.RESOLVE_DEPENDENCIES);
+              }
               break;
             case AppType.UPDATED_SYSTEM_APP:
               // Some system app uses dso compression. Bionic's dynamic linker doesn't add the

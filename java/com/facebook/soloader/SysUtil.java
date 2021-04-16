@@ -35,7 +35,10 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.TreeSet;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 public final class SysUtil {
 
@@ -328,5 +331,20 @@ public final class SysUtil {
       }
     }
     return is64bit;
+  }
+
+  public static boolean isApkUncompressedDso(Context context) throws IOException {
+    File apkFile = new File(context.getApplicationInfo().sourceDir);
+    try (ZipFile mZipFile = new ZipFile(apkFile)) {
+      Enumeration<? extends ZipEntry> entries = mZipFile.entries();
+      while (entries.hasMoreElements()) {
+        ZipEntry entry = entries.nextElement();
+        if (entry != null && entry.getName().endsWith(".so") && entry.getName().contains("/lib")) {
+          // Checking one dso item is good enough.
+          return entry.getMethod() == ZipEntry.STORED;
+        }
+      }
+    }
+    return false;
   }
 }
