@@ -272,7 +272,7 @@ public class SoLoader {
               addApplicationSoSource(context, soSources, 0);
               break;
             case AppType.SYSTEM_APP:
-              if (SysUtil.isApkUncompressedDso(context)) {
+              if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
                 SoSource directApkSoSource = new DirectApkSoSource(context);
                 Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
                 soSources.add(0, directApkSoSource);

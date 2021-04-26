@@ -19,6 +19,7 @@ package com.facebook.soloader;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -232,6 +233,34 @@ public final class SysUtil {
     public static boolean is64Bit() {
       return android.os.Process.is64Bit();
     }
+
+    public static boolean isSupportedDirectLoad(Context context, int appType) throws IOException {
+      if (appType == SoLoader.AppType.SYSTEM_APP) {
+        // Ideally, system_app permanently stores dso files uncompressed and page-aligned, even with
+        // FLAG_EXTRACT_NATIVE_LIBS flag. But to support a specific Oculus's sideload method, we
+        // need this extra checking. ref: D27831042
+        return isApkUncompressedDso(context);
+      } else {
+        return (context.getApplicationInfo().flags & ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS) == 0;
+      }
+    }
+
+    private static boolean isApkUncompressedDso(Context context) throws IOException {
+      File apkFile = new File(context.getApplicationInfo().sourceDir);
+      try (ZipFile mZipFile = new ZipFile(apkFile)) {
+        Enumeration<? extends ZipEntry> entries = mZipFile.entries();
+        while (entries.hasMoreElements()) {
+          ZipEntry entry = entries.nextElement();
+          if (entry != null
+              && entry.getName().endsWith(".so")
+              && entry.getName().contains("/lib")) {
+            // Checking one dso item is good enough.
+            return entry.getMethod() == ZipEntry.STORED;
+          }
+        }
+      }
+      return false;
+    }
   }
 
   /**
@@ -333,18 +362,13 @@ public final class SysUtil {
     return is64bit;
   }
 
-  public static boolean isApkUncompressedDso(Context context) throws IOException {
-    File apkFile = new File(context.getApplicationInfo().sourceDir);
-    try (ZipFile mZipFile = new ZipFile(apkFile)) {
-      Enumeration<? extends ZipEntry> entries = mZipFile.entries();
-      while (entries.hasMoreElements()) {
-        ZipEntry entry = entries.nextElement();
-        if (entry != null && entry.getName().endsWith(".so") && entry.getName().contains("/lib")) {
-          // Checking one dso item is good enough.
-          return entry.getMethod() == ZipEntry.STORED;
-        }
-      }
+  public static boolean isSupportedDirectLoad(Context context, int appType) throws IOException {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+      // Android starts to support directly loading from API 23.
+      // https://android.googlesource.com/platform/bionic/+/master/android-changes-for-ndk-developers.md#opening-shared-libraries-directly-from-an-apk
+      return false;
     }
-    return false;
+
+    return MarshmallowSysdeps.isSupportedDirectLoad(context, appType);
   }
 }
