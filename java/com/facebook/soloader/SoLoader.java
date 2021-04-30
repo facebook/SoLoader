@@ -267,27 +267,13 @@ public class SoLoader {
           Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
         } else {
-          switch (sAppType) {
-            case AppType.THIRD_PARTY_APP:
-              addApplicationSoSource(context, soSources, 0);
-              break;
-            case AppType.SYSTEM_APP:
-              if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
-                SoSource directApkSoSource = new DirectApkSoSource(context);
-                Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
-                soSources.add(0, directApkSoSource);
-              } else {
-                addApplicationSoSource(context, soSources, DirectorySoSource.RESOLVE_DEPENDENCIES);
-              }
-              break;
-            case AppType.UPDATED_SYSTEM_APP:
-              // Some system app uses dso compression. Bionic's dynamic linker doesn't add the
-              // our uncompressed library directories into the internal search path. we have to
-              // resolve dependencies by ourselves.
-              addApplicationSoSource(context, soSources, DirectorySoSource.RESOLVE_DEPENDENCIES);
-              break;
-            default:
-              throw new RuntimeException("Unsupported app type, we should not reach here");
+          if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
+            SoSource directApkSoSource = new DirectApkSoSource(context);
+            Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
+            soSources.add(0, directApkSoSource);
+          } else {
+            addApplicationSoSource(
+                context, soSources, getApplicationSoSourceFlags(context, sAppType));
           }
           AddBackupSoSource(context, soSources, ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
         }
@@ -305,6 +291,18 @@ public class SoLoader {
     } finally {
       Log.d(TAG, "init exiting");
       sSoSourcesLock.writeLock().unlock();
+    }
+  }
+
+  private static int getApplicationSoSourceFlags(Context context, int appType) {
+    switch (sAppType) {
+      case AppType.THIRD_PARTY_APP:
+        return 0;
+      case AppType.SYSTEM_APP:
+      case AppType.UPDATED_SYSTEM_APP:
+        return DirectorySoSource.RESOLVE_DEPENDENCIES;
+      default:
+        throw new RuntimeException("Unsupported app type, we should not reach here");
     }
   }
 
