@@ -326,19 +326,20 @@ public class SoLoader {
 
   /** Add a SoSource for recovering the dso if the file is corrupted or missed */
   private static void AddBackupSoSource(
-      Context context, ArrayList<SoSource> soSources, int apkSoSourceFlags) {
-    final File mainApkDir = new File(context.getApplicationInfo().sourceDir);
+      Context context, ArrayList<SoSource> soSources, int apkSoSourceFlags) throws IOException {
     if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
       sBackupSoSources = null;
       // Clean up backups
+      final File backupDir = UnpackingSoSource.getSoStorePath(context, SO_STORE_NAME_MAIN);
       try {
-        SysUtil.dumbDeleteRecursive(new File(mainApkDir, SO_STORE_NAME_MAIN));
+        SysUtil.dumbDeleteRecursive(backupDir);
       } catch (IOException e) {
-        Log.w(TAG, "Failed to delete " + SO_STORE_NAME_MAIN, e);
+        Log.w(TAG, "Failed to delete " + backupDir.getCanonicalPath(), e);
       }
       return;
     }
 
+    final File mainApkDir = new File(context.getApplicationInfo().sourceDir);
     ArrayList<UnpackingSoSource> backupSources = new ArrayList<>();
     ApkSoSource mainApkSource =
         new ApkSoSource(context, mainApkDir, SO_STORE_NAME_MAIN, apkSoSourceFlags);
