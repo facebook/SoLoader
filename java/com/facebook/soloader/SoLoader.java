@@ -245,7 +245,7 @@ public class SoLoader {
 
     sSoSourcesLock.writeLock().lock();
     try {
-      Log.d(TAG, "init start");
+      Log.i(TAG, "init start: " + flags);
       sFlags = flags;
 
       ArrayList<SoSource> soSources = new ArrayList<>();
