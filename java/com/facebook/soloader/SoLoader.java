@@ -271,10 +271,9 @@ public class SoLoader {
             SoSource directApkSoSource = new DirectApkSoSource(context);
             Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
             soSources.add(0, directApkSoSource);
-          } else {
-            addApplicationSoSource(
-                context, soSources, getApplicationSoSourceFlags(context, sAppType));
           }
+          addApplicationSoSource(
+              context, soSources, getApplicationSoSourceFlags(context, sAppType));
           AddBackupSoSource(context, soSources, ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
         }
       }
