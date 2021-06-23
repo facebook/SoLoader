@@ -1,7 +1,10 @@
 load("//tools/build_defs/oss:soloader_defs.bzl", "define_list_deps_target", "maven_library")
 
+DEPENDENCIES_INDEX = {}
+
 maven_library(
     name = "jsr_305",
+    DEPENDENCIES_INDEX = DEPENDENCIES_INDEX,
     artifact = "jsr305",
     group = "com.google.code.findbugs",
     scope = "provided",
@@ -14,6 +17,7 @@ maven_library(
 
 maven_library(
     name = "proguard_annotations",
+    DEPENDENCIES_INDEX = DEPENDENCIES_INDEX,
     artifact = "proguard-annotations",
     group = "com.facebook.yoga",
     scope = "compile",
@@ -24,4 +28,4 @@ maven_library(
     ],
 )
 
-define_list_deps_target()
+define_list_deps_target(DEPENDENCIES_INDEX = DEPENDENCIES_INDEX)
