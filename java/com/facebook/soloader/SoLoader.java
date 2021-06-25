@@ -271,9 +271,6 @@ public class SoLoader {
             SoSource directApkSoSource = new DirectApkSoSource(context);
             Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
             soSources.add(0, directApkSoSource);
-
-            Log.i(TAG, "disabling backup soSource due to APK supports the direct load");
-            sFlags |= SOLOADER_DISABLE_BACKUP_SOSOURCE;
           }
           addApplicationSoSource(
               context, soSources, getApplicationSoSourceFlags(context, sAppType));
