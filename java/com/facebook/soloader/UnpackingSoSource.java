@@ -351,7 +351,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     return !Arrays.equals(existingDeps, deps);
   }
 
-  private boolean refreshLocked(final FileLocker lock, final int flags, final byte[] deps)
+  protected boolean refreshLocked(final FileLocker lock, final int flags, final byte[] deps)
       throws IOException {
     final File stateFileName = new File(soDirectory, STATE_FILE_NAME);
     byte state;
