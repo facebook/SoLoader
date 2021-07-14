@@ -322,11 +322,16 @@ public final class SysUtil {
     }
   }
 
+  private static long getParcelPadSize(long len) {
+    return len + (4 - (len % 4)) % 4;
+  }
+
   public static long getApkDepBlockLength(File apkFile) throws IOException {
     apkFile = apkFile.getCanonicalFile();
     // Parcel encodes strings starting with the length (4 bytes), then
     // 2 bytes for every character, and a null terminating character at the end
-    return 2 * (apkFile.getPath().length() + 1) + APK_DEP_BLOCK_METADATA_LENGTH;
+    long apkFileLen = getParcelPadSize(2 * (apkFile.getPath().length() + 1));
+    return apkFileLen + APK_DEP_BLOCK_METADATA_LENGTH;
   }
 
   public static byte[] makeApkDepBlock(File apkFile, Context context) throws IOException {
