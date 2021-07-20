@@ -38,7 +38,7 @@ public final class ExoSoSource extends UnpackingSoSource {
   }
 
   @Override
-  protected Unpacker makeUnpacker() throws IOException {
+  protected Unpacker makeUnpacker(byte state) throws IOException {
     return new ExoUnpacker(this);
   }
 

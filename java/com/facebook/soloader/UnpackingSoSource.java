@@ -43,8 +43,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   private static final String DEPS_FILE_NAME = "dso_deps";
   private static final String MANIFEST_FILE_NAME = "dso_manifest";
 
-  private static final byte STATE_DIRTY = 0;
-  private static final byte STATE_CLEAN = 1;
+  protected static final byte STATE_DIRTY = 0;
+  protected static final byte STATE_CLEAN = 1;
 
   private static final byte MANIFEST_VERSION = 1;
 
@@ -69,7 +69,15 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     return new File(context.getApplicationInfo().dataDir + "/" + name);
   }
 
-  protected abstract Unpacker makeUnpacker() throws IOException;
+  // The state can be either STATE_DIRTY or STATE_CLEAN.
+  // If state is STATE_DIRTY, it means that either last unpacking did not finish
+  // successfully, or dependencies changed. Either way, we have to wipe everything
+  // and unpack again.
+  // If state is STATE_CLEAN, last unpacking finished successfully, so we have
+  // a valid dso store, but PREPARE_FLAG_FORCE_REFRESH flag was passed, so we
+  // might want to regenerate the store for some other reason, such as a
+  // corrupted lib or to change the compression of the libraries in the store.
+  protected abstract Unpacker makeUnpacker(byte state) throws IOException;
 
   @Override
   public String[] getSoSourceAbis() {
@@ -385,7 +393,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         Log.v(TAG, "so store dirty: regenerating");
         writeState(stateFileName, STATE_DIRTY);
 
-        try (Unpacker u = makeUnpacker()) {
+        try (Unpacker u = makeUnpacker(state)) {
           desiredManifest = u.getDsoManifest();
           try (InputDsoIterator idi = u.openDsoIterator()) {
             regenerate(state, desiredManifest, idi);
@@ -459,7 +467,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     // Parcel is fine: we never parse the parceled bytes, so it's okay if the byte representation
     // changes beneath us.
     Parcel parcel = Parcel.obtain();
-    try (Unpacker u = makeUnpacker()) {
+    try (Unpacker u = makeUnpacker(STATE_CLEAN)) {
       Dso[] dsos = u.getDsoManifest().dsos;
       parcel.writeByte(MANIFEST_VERSION);
       parcel.writeInt(dsos.length);
