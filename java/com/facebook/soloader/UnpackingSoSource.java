@@ -25,6 +25,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -40,6 +41,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   private static final String STATE_FILE_NAME = "dso_state";
   private static final String LOCK_FILE_NAME = "dso_lock";
+  private static final String INSTANCE_LOCK_FILE_NAME = "dso_instance_lock";
   private static final String DEPS_FILE_NAME = "dso_deps";
   private static final String MANIFEST_FILE_NAME = "dso_manifest";
 
@@ -50,6 +52,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   protected final Context mContext;
   @Nullable protected String mCorruptedLib;
+  protected @Nullable FileLocker mInstanceLock;
 
   @Nullable private String[] mAbis;
 
@@ -239,6 +242,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       String fileName = existingFiles[i];
       if (fileName.equals(STATE_FILE_NAME)
           || fileName.equals(LOCK_FILE_NAME)
+          || fileName.equals(INSTANCE_LOCK_FILE_NAME)
           || fileName.equals(DEPS_FILE_NAME)
           || fileName.equals(MANIFEST_FILE_NAME)) {
         continue;
@@ -481,12 +485,51 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     return depsBlock;
   }
 
+  protected @Nullable FileLocker getOrCreateLock(File lockFileName, boolean blocking)
+      throws IOException {
+    boolean notWritable = false;
+    try {
+      if (blocking) {
+        return FileLocker.lock(lockFileName);
+      } else {
+        return FileLocker.tryLock(lockFileName);
+      }
+    } catch (FileNotFoundException e) {
+      notWritable = true;
+      if (!soDirectory.setWritable(true)) {
+        throw e;
+      }
+      if (blocking) {
+        return FileLocker.lock(lockFileName);
+      } else {
+        return FileLocker.tryLock(lockFileName);
+      }
+    } finally {
+      if (notWritable && !soDirectory.setWritable(false)) {
+        Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
+      }
+    }
+  }
+
   /** Verify or refresh the state of the shared library store. */
   @Override
   protected void prepare(int flags) throws IOException {
     SysUtil.mkdirOrThrow(soDirectory);
+
+    // LOCK_FILE_NAME is used to synchronize changes in the dso store.
     File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
-    FileLocker lock = FileLocker.lock(lockFileName);
+    FileLocker lock = getOrCreateLock(lockFileName, true);
+
+    // INSTANCE_LOCK_FILE_NAME is used to signal to other processes/threads that
+    // there is an initialized SoSource from which DSOs might be getting loaded.
+    // This lock is held for the entire lifetime of the process.
+    // This prevents from doing changes to DSOs which might prevent previously
+    // initialized SoSources from loading libraries.
+    if (mInstanceLock == null) {
+      File instanceLockFileName = new File(soDirectory, INSTANCE_LOCK_FILE_NAME);
+      mInstanceLock = getOrCreateLock(instanceLockFileName, false);
+    }
+
     try {
       Log.v(TAG, "locked dso store " + soDirectory);
       if (refreshLocked(lock, flags, getDepsBlock())) {
