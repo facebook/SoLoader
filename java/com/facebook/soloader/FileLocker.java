@@ -46,7 +46,12 @@ public final class FileLocker implements Closeable {
     FileLock lock = null;
     try {
       if (tryLock) {
-        lock = mLockFileOutputStream.getChannel().tryLock();
+        try {
+          lock = mLockFileOutputStream.getChannel().tryLock();
+        } catch (IOException e) {
+          // Try lock can throw an IOException (EAGAIN) while lock doesn't.
+          lock = null;
+        }
       } else {
         lock = mLockFileOutputStream.getChannel().lock();
       }
