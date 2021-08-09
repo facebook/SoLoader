@@ -637,6 +637,37 @@ public class SoLoader {
     return deps;
   }
 
+  /**
+   * Returns the so file for the specified library. Returns null if the library does not exist or if
+   * it's not backed by a file.
+   */
+  public static @Nullable File getSoFile(String shortName) {
+    String mergedLibName = MergedSoMapping.mapLibName(shortName);
+    String soName = mergedLibName != null ? mergedLibName : shortName;
+    String mappedName = System.mapLibraryName(soName);
+
+    sSoSourcesLock.readLock().lock();
+    try {
+      if (sSoSources != null) {
+        for (int i = 0; i < sSoSources.length; ++i) {
+          SoSource currentSource = sSoSources[i];
+          try {
+            File soFile = currentSource.getSoFileByName(mappedName);
+            if (soFile != null) {
+              return soFile;
+            }
+          } catch (IOException e) {
+            // Failed to get the file, let's skip this so source.
+          }
+        }
+      }
+    } finally {
+      sSoSourcesLock.readLock().unlock();
+    }
+
+    return null;
+  }
+
   public static boolean loadLibrary(String shortName) {
     return loadLibrary(shortName, 0);
   }

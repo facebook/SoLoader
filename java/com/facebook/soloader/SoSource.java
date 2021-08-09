@@ -85,6 +85,15 @@ public abstract class SoSource {
   public abstract File unpackLibrary(String soName) throws IOException;
 
   /**
+   * Returns the so file for the specified library. Returns null if the library does not exist or if
+   * it's not backed by a file.
+   */
+  @Nullable
+  protected File getSoFileByName(String soName) throws IOException {
+    return null;
+  }
+
+  /**
    * Gets the full path of a library if it is found on this SoSource.
    *
    * @param soFileName the full file name of the library

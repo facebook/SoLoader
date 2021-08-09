@@ -111,6 +111,7 @@ public class DirectorySoSource extends SoSource {
     return LOAD_RESULT_LOADED;
   }
 
+  @Override
   @Nullable
   protected File getSoFileByName(String soName) throws IOException {
     File soFile = new File(soDirectory, soName);
