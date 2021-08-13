@@ -5,7 +5,7 @@ possible.
 ## Pull Requests
 We actively welcome your pull requests.
 
-1. Fork the repo and create your branch from `master`.
+1. Fork the repo and create your branch from `main`.
 2. If you've added code that should be tested, add tests.
 3. If you've changed APIs, update the documentation.
 4. Ensure the test suite passes.
@@ -43,4 +43,4 @@ outlined on that page and do not file a public issue.
 
 ## License
 By contributing to SoLoader, you agree that your contributions will be licensed
-under its [Apache 2](https://github.com/facebook/soloader/blob/master/LICENSE).
+under its [Apache 2](https://github.com/facebook/soloader/blob/main/LICENSE).

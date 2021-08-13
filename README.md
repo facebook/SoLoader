@@ -1,4 +1,4 @@
-# SoLoader [![Build Status](https://travis-ci.com/facebook/SoLoader.svg?branch=master)](https://travis-ci.com/facebook/SoLoader)
+# SoLoader [![Build Status](https://travis-ci.com/facebook/SoLoader.svg?branch=main)](https://travis-ci.com/facebook/SoLoader)
 SoLoader is a native code loader for Android. It takes care of unpacking your native libraries
 and recursively loads dependencies on platforms that don't support that out of the box.
 
@@ -25,8 +25,8 @@ The build command generates `buck-out/gen/soloader.aar` file.
 
 ## Join our community
 Please use our [issues page](https://github.com/facebook/soloader/issues) to let us know of any problems.
-See the [CONTRIBUTING](https://github.com/facebook/soloader/blob/master/CONTRIBUTING.md) file for how to
+See the [CONTRIBUTING](https://github.com/facebook/soloader/blob/main/CONTRIBUTING.md) file for how to
 help out.
 
 ## License
-SoLoader is [Apache-2.0-licensed](https://github.com/facebook/soloader/blob/master/LICENSE).
+SoLoader is [Apache-2.0-licensed](https://github.com/facebook/soloader/blob/main/LICENSE).
