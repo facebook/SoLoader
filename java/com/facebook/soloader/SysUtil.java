@@ -19,6 +19,7 @@ package com.facebook.soloader;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -27,6 +28,7 @@ import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 import android.util.Log;
+import java.io.DataOutput;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -34,13 +36,22 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.TreeSet;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 public final class SysUtil {
 
   private static final String TAG = "SysUtil";
 
   private static final byte APK_SIGNATURE_VERSION = 1;
+
+  private static final long APK_DEP_BLOCK_METADATA_LENGTH =
+      4 + // APK_SIGNATURE_VERSION
+          8 + // Apk file last modified time stamp
+          4 + // App version code
+          4; // Apk file length
 
   /**
    * Determine how preferred a given ABI is on this system.
@@ -228,6 +239,34 @@ public final class SysUtil {
     public static boolean is64Bit() {
       return android.os.Process.is64Bit();
     }
+
+    public static boolean isSupportedDirectLoad(Context context, int appType) throws IOException {
+      if (appType == SoLoader.AppType.SYSTEM_APP) {
+        // Ideally, system_app permanently stores dso files uncompressed and page-aligned, even with
+        // FLAG_EXTRACT_NATIVE_LIBS flag. But to support a specific Oculus's sideload method, we
+        // need this extra checking. ref: D27831042
+        return isApkUncompressedDso(context);
+      } else {
+        return (context.getApplicationInfo().flags & ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS) == 0;
+      }
+    }
+
+    private static boolean isApkUncompressedDso(Context context) throws IOException {
+      File apkFile = new File(context.getApplicationInfo().sourceDir);
+      try (ZipFile mZipFile = new ZipFile(apkFile)) {
+        Enumeration<? extends ZipEntry> entries = mZipFile.entries();
+        while (entries.hasMoreElements()) {
+          ZipEntry entry = entries.nextElement();
+          if (entry != null
+              && entry.getName().endsWith(".so")
+              && entry.getName().contains("/lib")) {
+            // Checking one dso item is good enough.
+            return entry.getMethod() == ZipEntry.STORED;
+          }
+        }
+      }
+      return false;
+    }
   }
 
   /**
@@ -236,7 +275,7 @@ public final class SysUtil {
    *
    * @param dir Directory to create. All parents created as well.
    */
-  static void mkdirOrThrow(File dir) throws IOException {
+  public static void mkdirOrThrow(File dir) throws IOException {
     if (!dir.mkdirs() && !dir.isDirectory()) {
       throw new IOException("cannot mkdir: " + dir);
     }
@@ -251,7 +290,7 @@ public final class SysUtil {
    * @param buffer IO buffer to use
    * @return Number of bytes actually copied
    */
-  static int copyBytes(RandomAccessFile os, InputStream is, int byteLimit, byte[] buffer)
+  static int copyBytes(DataOutput os, InputStream is, int byteLimit, byte[] buffer)
       throws IOException {
     // Yes, this method is exactly the same as the above, just with a different type for `os'.
     int bytesCopied = 0;
@@ -281,6 +320,18 @@ public final class SysUtil {
         file.getFD().sync();
       }
     }
+  }
+
+  private static long getParcelPadSize(long len) {
+    return len + (4 - (len % 4)) % 4;
+  }
+
+  public static long getApkDepBlockLength(File apkFile) throws IOException {
+    apkFile = apkFile.getCanonicalFile();
+    // Parcel encodes strings starting with the length (4 bytes), then
+    // 2 bytes for every character, and a null terminating character at the end
+    long apkFileLen = getParcelPadSize(2 * (apkFile.getPath().length() + 1));
+    return apkFileLen + APK_DEP_BLOCK_METADATA_LENGTH;
   }
 
   public static byte[] makeApkDepBlock(File apkFile, Context context) throws IOException {
@@ -327,5 +378,15 @@ public final class SysUtil {
       }
     }
     return is64bit;
+  }
+
+  public static boolean isSupportedDirectLoad(Context context, int appType) throws IOException {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+      // Android starts to support directly loading from API 23.
+      // https://android.googlesource.com/platform/bionic/+/master/android-changes-for-ndk-developers.md#opening-shared-libraries-directly-from-an-apk
+      return false;
+    }
+
+    return MarshmallowSysdeps.isSupportedDirectLoad(context, appType);
   }
 }

@@ -38,7 +38,7 @@ public final class ExoSoSource extends UnpackingSoSource {
   }
 
   @Override
-  protected Unpacker makeUnpacker() throws IOException {
+  protected Unpacker makeUnpacker(byte state) throws IOException {
     return new ExoUnpacker(this);
   }
 
@@ -107,7 +107,7 @@ public final class ExoSoSource extends UnpackingSoSource {
     }
 
     @Override
-    protected DsoManifest getDsoManifest() throws IOException {
+    public DsoManifest getDsoManifest() throws IOException {
       return new DsoManifest(mDsos);
     }
 
@@ -129,7 +129,7 @@ public final class ExoSoSource extends UnpackingSoSource {
         FileDso fileDso = mDsos[mCurrentDso++];
         FileInputStream dsoFile = new FileInputStream(fileDso.backingFile);
         try {
-          InputDso ret = new InputDso(fileDso, dsoFile);
+          InputDso ret = new InputDsoStream(fileDso, dsoFile);
           dsoFile = null; // Ownership transferred
           return ret;
         } finally {

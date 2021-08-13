@@ -37,7 +37,9 @@ public class ApplicationSoSource extends SoSource {
     if (applicationContext == null) {
       Log.w(
           SoLoader.TAG,
-          "context.getApplicationContext returned null, holding reference to original context.");
+          "context.getApplicationContext returned null, holding reference to original context."
+              + "ApplicationSoSource fallbacks to: "
+              + context.getApplicationInfo().nativeLibraryDir);
       applicationContext = context;
     }
     this.flags = flags;

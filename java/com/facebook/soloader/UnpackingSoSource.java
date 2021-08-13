@@ -25,6 +25,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -40,16 +41,18 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   private static final String STATE_FILE_NAME = "dso_state";
   private static final String LOCK_FILE_NAME = "dso_lock";
+  private static final String INSTANCE_LOCK_FILE_NAME = "dso_instance_lock";
   private static final String DEPS_FILE_NAME = "dso_deps";
   private static final String MANIFEST_FILE_NAME = "dso_manifest";
 
-  private static final byte STATE_DIRTY = 0;
-  private static final byte STATE_CLEAN = 1;
+  protected static final byte STATE_DIRTY = 0;
+  protected static final byte STATE_CLEAN = 1;
 
   private static final byte MANIFEST_VERSION = 1;
 
   protected final Context mContext;
   @Nullable protected String mCorruptedLib;
+  protected @Nullable FileLocker mInstanceLock;
 
   @Nullable private String[] mAbis;
 
@@ -69,7 +72,15 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     return new File(context.getApplicationInfo().dataDir + "/" + name);
   }
 
-  protected abstract Unpacker makeUnpacker() throws IOException;
+  // The state can be either STATE_DIRTY or STATE_CLEAN.
+  // If state is STATE_DIRTY, it means that either last unpacking did not finish
+  // successfully, or dependencies changed. Either way, we have to wipe everything
+  // and unpack again.
+  // If state is STATE_CLEAN, last unpacking finished successfully, so we have
+  // a valid dso store, but PREPARE_FLAG_FORCE_REFRESH flag was passed, so we
+  // might want to regenerate the store for some other reason, such as a
+  // corrupted lib or to change the compression of the libraries in the store.
+  protected abstract Unpacker makeUnpacker(byte state) throws IOException;
 
   @Override
   public String[] getSoSourceAbis() {
@@ -131,13 +142,51 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     }
   }
 
-  protected static final class InputDso implements Closeable {
-    public final Dso dso;
-    public final InputStream content;
+  protected static interface InputDso extends Closeable {
 
-    public InputDso(Dso dso, InputStream content) {
+    public void write(DataOutput out, byte[] ioBuffer) throws IOException;
+
+    public Dso getDso();
+
+    public String getFileName();
+
+    public int available() throws IOException;
+
+    public InputStream getStream();
+  };
+
+  public static class InputDsoStream implements InputDso {
+    private final Dso dso;
+    private final InputStream content;
+
+    public InputDsoStream(Dso dso, InputStream content) {
       this.dso = dso;
       this.content = content;
+    }
+
+    @Override
+    public void write(DataOutput out, byte[] ioBuffer) throws IOException {
+      SysUtil.copyBytes(out, content, Integer.MAX_VALUE, ioBuffer);
+    }
+
+    @Override
+    public Dso getDso() {
+      return dso;
+    }
+
+    @Override
+    public String getFileName() {
+      return dso.name;
+    }
+
+    @Override
+    public int available() throws IOException {
+      return content.available();
+    }
+
+    @Override
+    public InputStream getStream() {
+      return content;
     }
 
     @Override
@@ -150,7 +199,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
     public abstract boolean hasNext();
 
-    public abstract InputDso next() throws IOException;
+    public abstract @Nullable InputDso next() throws IOException;
 
     @Override
     public void close() throws IOException {
@@ -159,7 +208,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   }
 
   protected abstract static class Unpacker implements Closeable {
-    protected abstract DsoManifest getDsoManifest() throws IOException;
+    public abstract DsoManifest getDsoManifest() throws IOException;
 
     protected abstract InputDsoIterator openDsoIterator() throws IOException;
 
@@ -178,6 +227,10 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     }
   }
 
+  protected String getSoNameFromFileName(String fileName) {
+    return fileName;
+  }
+
   /** Delete files not mentioned in the given DSO list. */
   private void deleteUnmentionedFiles(Dso[] dsos) throws IOException {
     String[] existingFiles = soDirectory.list();
@@ -189,6 +242,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       String fileName = existingFiles[i];
       if (fileName.equals(STATE_FILE_NAME)
           || fileName.equals(LOCK_FILE_NAME)
+          || fileName.equals(INSTANCE_LOCK_FILE_NAME)
           || fileName.equals(DEPS_FILE_NAME)
           || fileName.equals(MANIFEST_FILE_NAME)) {
         continue;
@@ -196,7 +250,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
       boolean found = false;
       for (int j = 0; !found && j < dsos.length; ++j) {
-        if (dsos[j].name.equals(fileName)) {
+        if ((dsos[j].name).equals(getSoNameFromFileName(fileName))) {
           found = true;
         }
       }
@@ -210,7 +264,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   }
 
   private void extractDso(InputDso iDso, byte[] ioBuffer) throws IOException {
-    Log.i(TAG, "extracting DSO " + iDso.dso.name);
+    Log.i(TAG, "extracting DSO " + iDso.getDso().name);
     try {
       if (!soDirectory.setWritable(true)) {
         throw new IOException("cannot make directory writable for us: " + soDirectory);
@@ -224,7 +278,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   }
 
   private void extractDsoImpl(InputDso iDso, byte[] ioBuffer) throws IOException {
-    File dsoFileName = new File(soDirectory, iDso.dso.name);
+    File dsoFileName = new File(soDirectory, iDso.getFileName());
     RandomAccessFile dsoFile = null;
     try {
       if (dsoFileName.exists() && !dsoFileName.setWritable(true)) {
@@ -239,12 +293,11 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         dsoFile = new RandomAccessFile(dsoFileName, "rw");
       }
 
-      InputStream dsoContent = iDso.content;
-      int sizeHint = dsoContent.available();
+      int sizeHint = iDso.available();
       if (sizeHint > 1) {
         SysUtil.fallocateIfSupported(dsoFile.getFD(), sizeHint);
       }
-      SysUtil.copyBytes(dsoFile, iDso.content, Integer.MAX_VALUE, ioBuffer);
+      iDso.write(dsoFile, ioBuffer);
       dsoFile.setLength(dsoFile.getFilePointer()); // In case we shortened file
       if (!dsoFileName.setExecutable(true /* allow exec... */, false /* ...for everyone */)) {
         throw new IOException("cannot make file executable: " + dsoFileName);
@@ -286,10 +339,16 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         try (InputDso iDso = dsoIterator.next()) {
           boolean obsolete = true;
           for (int i = 0; obsolete && i < existingManifest.dsos.length; ++i) {
-            if (existingManifest.dsos[i].name.equals(iDso.dso.name)
-                && existingManifest.dsos[i].hash.equals(iDso.dso.hash)) {
+            String iDsoName = iDso.getDso().name;
+            if (existingManifest.dsos[i].name.equals(iDsoName)
+                && existingManifest.dsos[i].hash.equals(iDso.getDso().hash)) {
               obsolete = false;
             }
+          }
+          File dsoFile = new File(soDirectory, iDso.getFileName());
+          if (!dsoFile.exists()) {
+            // so file exists, but file name changed
+            obsolete = true;
           }
           if (obsolete) {
             extractDso(iDso, ioBuffer);
@@ -300,7 +359,11 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     Log.v(TAG, "Finished regenerating DSO store " + getClass().getName());
   }
 
-  private boolean refreshLocked(final FileLocker lock, final int flags, final byte[] deps)
+  protected boolean depsChanged(final byte[] existingDeps, final byte[] deps) {
+    return !Arrays.equals(existingDeps, deps);
+  }
+
+  protected boolean refreshLocked(final FileLocker lock, final int flags, final byte[] deps)
       throws IOException {
     final File stateFileName = new File(soDirectory, STATE_FILE_NAME);
     byte state;
@@ -325,7 +388,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         state = STATE_DIRTY;
       }
 
-      if (!Arrays.equals(existingDeps, deps)) {
+      if (depsChanged(existingDeps, deps)) {
         Log.v(TAG, "deps mismatch on deps store: regenerating");
         state = STATE_DIRTY;
       }
@@ -334,7 +397,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         Log.v(TAG, "so store dirty: regenerating");
         writeState(stateFileName, STATE_DIRTY);
 
-        try (Unpacker u = makeUnpacker()) {
+        try (Unpacker u = makeUnpacker(state)) {
           desiredManifest = u.getDsoManifest();
           try (InputDsoIterator idi = u.openDsoIterator()) {
             regenerate(state, desiredManifest, idi);
@@ -408,7 +471,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     // Parcel is fine: we never parse the parceled bytes, so it's okay if the byte representation
     // changes beneath us.
     Parcel parcel = Parcel.obtain();
-    try (Unpacker u = makeUnpacker()) {
+    try (Unpacker u = makeUnpacker(STATE_CLEAN)) {
       Dso[] dsos = u.getDsoManifest().dsos;
       parcel.writeByte(MANIFEST_VERSION);
       parcel.writeInt(dsos.length);
@@ -422,12 +485,51 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     return depsBlock;
   }
 
+  protected @Nullable FileLocker getOrCreateLock(File lockFileName, boolean blocking)
+      throws IOException {
+    boolean notWritable = false;
+    try {
+      if (blocking) {
+        return FileLocker.lock(lockFileName);
+      } else {
+        return FileLocker.tryLock(lockFileName);
+      }
+    } catch (FileNotFoundException e) {
+      notWritable = true;
+      if (!soDirectory.setWritable(true)) {
+        throw e;
+      }
+      if (blocking) {
+        return FileLocker.lock(lockFileName);
+      } else {
+        return FileLocker.tryLock(lockFileName);
+      }
+    } finally {
+      if (notWritable && !soDirectory.setWritable(false)) {
+        Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
+      }
+    }
+  }
+
   /** Verify or refresh the state of the shared library store. */
   @Override
   protected void prepare(int flags) throws IOException {
     SysUtil.mkdirOrThrow(soDirectory);
+
+    // LOCK_FILE_NAME is used to synchronize changes in the dso store.
     File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
-    FileLocker lock = FileLocker.lock(lockFileName);
+    FileLocker lock = getOrCreateLock(lockFileName, true);
+
+    // INSTANCE_LOCK_FILE_NAME is used to signal to other processes/threads that
+    // there is an initialized SoSource from which DSOs might be getting loaded.
+    // This lock is held for the entire lifetime of the process.
+    // This prevents from doing changes to DSOs which might prevent previously
+    // initialized SoSources from loading libraries.
+    if (mInstanceLock == null) {
+      File instanceLockFileName = new File(soDirectory, INSTANCE_LOCK_FILE_NAME);
+      mInstanceLock = getOrCreateLock(instanceLockFileName, false);
+    }
+
     try {
       Log.v(TAG, "locked dso store " + soDirectory);
       if (refreshLocked(lock, flags, getDepsBlock())) {
@@ -454,6 +556,16 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       }
       return lock;
     }
+  }
+
+  @Override
+  @Nullable
+  public String getLibraryPath(String soName) throws IOException {
+    File soFile = getSoFileByName(soName);
+    if (soFile == null) {
+      return null;
+    }
+    return soFile.getCanonicalPath();
   }
 
   /** Prepare this SoSource extracting a corrupted library. */

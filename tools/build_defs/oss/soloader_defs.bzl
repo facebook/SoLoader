@@ -25,13 +25,12 @@ def fb_core_android_library(**kwargs):
 def export_file(**kwargs):
     native.export_file(**kwargs)
 
-DEPENDENCIES_INDEX = {}
-
-def _add_dependency_to_index(name, **dep):
+def _add_dependency_to_index(name, DEPENDENCIES_INDEX, **dep):
     DEPENDENCIES_INDEX[name] = dep
 
 def maven_library(
         name,
+        DEPENDENCIES_INDEX,
         group,
         artifact,
         version,
@@ -44,6 +43,7 @@ def maven_library(
     """
     _add_dependency_to_index(
         name = name,
+        DEPENDENCIES_INDEX = DEPENDENCIES_INDEX,
         artifact = artifact,
         group = group,
         packaging = packaging,
@@ -73,7 +73,7 @@ def maven_library(
             visibility = visibility,
         )
 
-def define_list_deps_target():
+def define_list_deps_target(DEPENDENCIES_INDEX):
     """
     Generates rule that dumps all maven_libraries defined in given
     BUCK file in json format.

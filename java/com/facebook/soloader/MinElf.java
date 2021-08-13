@@ -18,15 +18,13 @@ package com.facebook.soloader;
 
 import android.util.Log;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedByInterruptException;
-import java.nio.channels.FileChannel;
 
 /**
- * Extract SoLoader boottsrap information from an ELF file. This is not a general purpose ELF
+ * Extract SoLoader bootstrap information from an ELF file. This is not a general purpose ELF
  * library.
  *
  * <p>See specification at http://www.sco.com/developers/gabi/latest/contents.html. You will not be
@@ -68,14 +66,27 @@ public final class MinElf {
   public static final int PN_XNUM = 0xFFFF;
 
   public static String[] extract_DT_NEEDED(File elfFile) throws IOException {
+    try (ElfFileChannel fc = new ElfFileChannel(elfFile)) {
+      return extract_DT_NEEDED(fc);
+    }
+  }
+
+  /**
+   * Treating {@code fc} as an ELF file, extract all the DT_NEEDED entries from its dynamic section.
+   *
+   * @param fc ElfFileChannel referring to ELF file
+   * @return Array of strings, one for each DT_NEEDED entry, in file order
+   */
+  private static String[] extract_DT_NEEDED_with_retries(ElfFileChannel fc) throws IOException {
+    // An ElfFileChannel can be interrupted since it uses a FileChannel.
+    // If it's interrupted, we will retry, we just need to reopen the FileChannel
     int failureCount = 0;
     while (true) {
-      FileInputStream is = new FileInputStream(elfFile);
       try {
-        return extract_DT_NEEDED(is.getChannel());
+        return extract_DT_NEEDED_no_retries(fc);
       } catch (ClosedByInterruptException e) {
         // Make sure we don't loop infinitely
-        if (++failureCount > 3) {
+        if (++failureCount > 4) {
           throw e;
         }
 
@@ -86,20 +97,27 @@ public final class MinElf {
         // all future attempts to load the same class to fail.
         Thread.interrupted();
         Log.e(TAG, "retrying extract_DT_NEEDED due to ClosedByInterruptException", e);
-      } finally {
-        is.close(); // Won't throw
+        // FileChannel gets closed after an interruption, we need to reopen the
+        // channel.
+        fc.openChannel();
       }
     }
   }
 
   /**
-   * Treating {@code bb} as an ELF file, extract all the DT_NEEDED entries from its dynamic section.
+   * Treating {@code bc} as an ELF file, extract all the DT_NEEDED entries from its dynamic section.
    *
-   * @param fc FileChannel referring to ELF file
+   * @param bc ElfByteChannel referring to ELF file
    * @return Array of strings, one for each DT_NEEDED entry, in file order
    */
-  public static String[] extract_DT_NEEDED(FileChannel fc) throws IOException {
+  public static String[] extract_DT_NEEDED(ElfByteChannel bc) throws IOException {
+    if (bc instanceof ElfFileChannel) {
+      return extract_DT_NEEDED_with_retries((ElfFileChannel) bc);
+    }
+    return extract_DT_NEEDED_no_retries(bc);
+  }
 
+  private static String[] extract_DT_NEEDED_no_retries(ElfByteChannel bc) throws IOException {
     //
     // All constants below are fixed by the ELF specification and are the offsets of fields within
     // the elf.h data structures.
@@ -110,13 +128,13 @@ public final class MinElf {
     // Read ELF header.
 
     bb.order(ByteOrder.LITTLE_ENDIAN);
-    long magic = getu32(fc, bb, Elf32_Ehdr.e_ident);
+    long magic = getu32(bc, bb, Elf32_Ehdr.e_ident);
     if (magic != ELF_MAGIC) {
       throw new ElfError("file is not ELF: 0x" + Long.toHexString(magic));
     }
 
-    boolean is32 = (getu8(fc, bb, Elf32_Ehdr.e_ident + 0x4) == 1);
-    if (getu8(fc, bb, Elf32_Ehdr.e_ident + 0x5) == 2) {
+    boolean is32 = (getu8(bc, bb, Elf32_Ehdr.e_ident + 0x4) == 1);
+    if (getu8(bc, bb, Elf32_Ehdr.e_ident + 0x5) == 2) {
       bb.order(ByteOrder.BIG_ENDIAN);
     }
 
@@ -124,21 +142,21 @@ public final class MinElf {
 
     // Find the offset of the dynamic linking information.
 
-    long e_phoff = is32 ? getu32(fc, bb, Elf32_Ehdr.e_phoff) : get64(fc, bb, Elf64_Ehdr.e_phoff);
+    long e_phoff = is32 ? getu32(bc, bb, Elf32_Ehdr.e_phoff) : get64(bc, bb, Elf64_Ehdr.e_phoff);
 
-    long e_phnum = is32 ? getu16(fc, bb, Elf32_Ehdr.e_phnum) : getu16(fc, bb, Elf64_Ehdr.e_phnum);
+    long e_phnum = is32 ? getu16(bc, bb, Elf32_Ehdr.e_phnum) : getu16(bc, bb, Elf64_Ehdr.e_phnum);
 
     int e_phentsize =
-        is32 ? getu16(fc, bb, Elf32_Ehdr.e_phentsize) : getu16(fc, bb, Elf64_Ehdr.e_phentsize);
+        is32 ? getu16(bc, bb, Elf32_Ehdr.e_phentsize) : getu16(bc, bb, Elf64_Ehdr.e_phentsize);
 
     if (e_phnum == PN_XNUM) { // Overflowed into section[0].sh_info
 
-      long e_shoff = is32 ? getu32(fc, bb, Elf32_Ehdr.e_shoff) : get64(fc, bb, Elf64_Ehdr.e_shoff);
+      long e_shoff = is32 ? getu32(bc, bb, Elf32_Ehdr.e_shoff) : get64(bc, bb, Elf64_Ehdr.e_shoff);
 
       long sh_info =
           is32
-              ? getu32(fc, bb, e_shoff + Elf32_Shdr.sh_info)
-              : getu32(fc, bb, e_shoff + Elf64_Shdr.sh_info);
+              ? getu32(bc, bb, e_shoff + Elf32_Shdr.sh_info)
+              : getu32(bc, bb, e_shoff + Elf64_Shdr.sh_info);
 
       e_phnum = sh_info;
     }
@@ -149,14 +167,14 @@ public final class MinElf {
     for (long i = 0; i < e_phnum; ++i) {
       long p_type =
           is32
-              ? getu32(fc, bb, phdr + Elf32_Phdr.p_type)
-              : getu32(fc, bb, phdr + Elf64_Phdr.p_type);
+              ? getu32(bc, bb, phdr + Elf32_Phdr.p_type)
+              : getu32(bc, bb, phdr + Elf64_Phdr.p_type);
 
       if (p_type == PT_DYNAMIC) {
         long p_offset =
             is32
-                ? getu32(fc, bb, phdr + Elf32_Phdr.p_offset)
-                : get64(fc, bb, phdr + Elf64_Phdr.p_offset);
+                ? getu32(bc, bb, phdr + Elf32_Phdr.p_offset)
+                : get64(bc, bb, phdr + Elf64_Phdr.p_offset);
 
         dynStart = p_offset;
         break;
@@ -179,7 +197,7 @@ public final class MinElf {
     long ptr_DT_STRTAB = 0;
 
     do {
-      d_tag = is32 ? getu32(fc, bb, dyn + Elf32_Dyn.d_tag) : get64(fc, bb, dyn + Elf64_Dyn.d_tag);
+      d_tag = is32 ? getu32(bc, bb, dyn + Elf32_Dyn.d_tag) : get64(bc, bb, dyn + Elf64_Dyn.d_tag);
 
       if (d_tag == DT_NEEDED) {
         if (nr_DT_NEEDED == Integer.MAX_VALUE) {
@@ -189,7 +207,7 @@ public final class MinElf {
         nr_DT_NEEDED += 1;
       } else if (d_tag == DT_STRTAB) {
         ptr_DT_STRTAB =
-            is32 ? getu32(fc, bb, dyn + Elf32_Dyn.d_un) : get64(fc, bb, dyn + Elf64_Dyn.d_un);
+            is32 ? getu32(bc, bb, dyn + Elf32_Dyn.d_un) : get64(bc, bb, dyn + Elf64_Dyn.d_un);
       }
 
       dyn += is32 ? 8 : 16;
@@ -207,25 +225,25 @@ public final class MinElf {
     for (int i = 0; i < e_phnum; ++i) {
       long p_type =
           is32
-              ? getu32(fc, bb, phdr + Elf32_Phdr.p_type)
-              : getu32(fc, bb, phdr + Elf64_Phdr.p_type);
+              ? getu32(bc, bb, phdr + Elf32_Phdr.p_type)
+              : getu32(bc, bb, phdr + Elf64_Phdr.p_type);
 
       if (p_type == PT_LOAD) {
         long p_vaddr =
             is32
-                ? getu32(fc, bb, phdr + Elf32_Phdr.p_vaddr)
-                : get64(fc, bb, phdr + Elf64_Phdr.p_vaddr);
+                ? getu32(bc, bb, phdr + Elf32_Phdr.p_vaddr)
+                : get64(bc, bb, phdr + Elf64_Phdr.p_vaddr);
 
         long p_memsz =
             is32
-                ? getu32(fc, bb, phdr + Elf32_Phdr.p_memsz)
-                : get64(fc, bb, phdr + Elf64_Phdr.p_memsz);
+                ? getu32(bc, bb, phdr + Elf32_Phdr.p_memsz)
+                : get64(bc, bb, phdr + Elf64_Phdr.p_memsz);
 
         if (p_vaddr <= ptr_DT_STRTAB && ptr_DT_STRTAB < p_vaddr + p_memsz) {
           long p_offset =
               is32
-                  ? getu32(fc, bb, phdr + Elf32_Phdr.p_offset)
-                  : get64(fc, bb, phdr + Elf64_Phdr.p_offset);
+                  ? getu32(bc, bb, phdr + Elf32_Phdr.p_offset)
+                  : get64(bc, bb, phdr + Elf64_Phdr.p_offset);
 
           off_DT_STRTAB = p_offset + (ptr_DT_STRTAB - p_vaddr);
           break;
@@ -245,13 +263,13 @@ public final class MinElf {
     dyn = dynStart;
 
     do {
-      d_tag = is32 ? getu32(fc, bb, dyn + Elf32_Dyn.d_tag) : get64(fc, bb, dyn + Elf64_Dyn.d_tag);
+      d_tag = is32 ? getu32(bc, bb, dyn + Elf32_Dyn.d_tag) : get64(bc, bb, dyn + Elf64_Dyn.d_tag);
 
       if (d_tag == DT_NEEDED) {
         long d_val =
-            is32 ? getu32(fc, bb, dyn + Elf32_Dyn.d_un) : get64(fc, bb, dyn + Elf64_Dyn.d_un);
+            is32 ? getu32(bc, bb, dyn + Elf32_Dyn.d_un) : get64(bc, bb, dyn + Elf64_Dyn.d_un);
 
-        needed[nr_DT_NEEDED] = getSz(fc, bb, off_DT_STRTAB + d_val);
+        needed[nr_DT_NEEDED] = getSz(bc, bb, off_DT_STRTAB + d_val);
         if (nr_DT_NEEDED == Integer.MAX_VALUE) {
           throw new ElfError("malformed DT_NEEDED section");
         }
@@ -269,22 +287,23 @@ public final class MinElf {
     return needed;
   }
 
-  private static String getSz(FileChannel fc, ByteBuffer bb, long offset) throws IOException {
+  private static String getSz(ElfByteChannel bc, ByteBuffer bb, long offset) throws IOException {
     StringBuilder sb = new StringBuilder();
     short b;
-    while ((b = getu8(fc, bb, offset++)) != 0) {
+    while ((b = getu8(bc, bb, offset++)) != 0) {
       sb.append((char) b);
     }
 
     return sb.toString();
   }
 
-  private static void read(FileChannel fc, ByteBuffer bb, int sz, long offset) throws IOException {
+  private static void read(ElfByteChannel bc, ByteBuffer bb, int sz, long offset)
+      throws IOException {
     bb.position(0);
     bb.limit(sz);
 
     while (bb.remaining() > 0) {
-      int numBytesRead = fc.read(bb, offset);
+      int numBytesRead = bc.read(bb, offset);
       if (numBytesRead == -1) {
         break; // Reached end of channel
       }
@@ -298,23 +317,23 @@ public final class MinElf {
     bb.position(0);
   }
 
-  private static long get64(FileChannel fc, ByteBuffer bb, long offset) throws IOException {
-    read(fc, bb, 8, offset);
+  private static long get64(ElfByteChannel bc, ByteBuffer bb, long offset) throws IOException {
+    read(bc, bb, 8, offset);
     return bb.getLong();
   }
 
-  private static long getu32(FileChannel fc, ByteBuffer bb, long offset) throws IOException {
-    read(fc, bb, 4, offset);
+  private static long getu32(ElfByteChannel bc, ByteBuffer bb, long offset) throws IOException {
+    read(bc, bb, 4, offset);
     return bb.getInt() & 0xFFFFFFFFL; // signed -> unsigned
   }
 
-  private static int getu16(FileChannel fc, ByteBuffer bb, long offset) throws IOException {
-    read(fc, bb, 2, offset);
+  private static int getu16(ElfByteChannel bc, ByteBuffer bb, long offset) throws IOException {
+    read(bc, bb, 2, offset);
     return bb.getShort() & (int) 0xFFFF; // signed -> unsigned
   }
 
-  private static short getu8(FileChannel fc, ByteBuffer bb, long offset) throws IOException {
-    read(fc, bb, 1, offset);
+  private static short getu8(ElfByteChannel bc, ByteBuffer bb, long offset) throws IOException {
+    read(bc, bb, 1, offset);
     return (short) (bb.get() & 0xFF); // signed -> unsigned
   }
 

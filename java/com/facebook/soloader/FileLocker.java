@@ -25,18 +25,36 @@ import javax.annotation.Nullable;
 
 public final class FileLocker implements Closeable {
 
-  private final FileOutputStream mLockFileOutputStream;
-  private final @Nullable FileLock mLock;
+  private FileOutputStream mLockFileOutputStream;
+  private @Nullable FileLock mLock;
 
   public static FileLocker lock(File lockFile) throws IOException {
-    return new FileLocker(lockFile);
+    return new FileLocker(lockFile, false);
   }
 
-  private FileLocker(File lockFile) throws IOException {
+  public static @Nullable FileLocker tryLock(File lockFile) throws IOException {
+    FileLocker fileLocker = new FileLocker(lockFile, true);
+    if (fileLocker.mLock == null) {
+      fileLocker.close();
+      return null;
+    }
+    return fileLocker;
+  }
+
+  private void init(File lockFile, boolean tryLock) throws IOException {
     mLockFileOutputStream = new FileOutputStream(lockFile);
     FileLock lock = null;
     try {
-      lock = mLockFileOutputStream.getChannel().lock();
+      if (tryLock) {
+        try {
+          lock = mLockFileOutputStream.getChannel().tryLock();
+        } catch (IOException e) {
+          // Try lock can throw an IOException (EAGAIN) while lock doesn't.
+          lock = null;
+        }
+      } else {
+        lock = mLockFileOutputStream.getChannel().lock();
+      }
     } finally {
       if (lock == null) {
         mLockFileOutputStream.close();
@@ -44,6 +62,10 @@ public final class FileLocker implements Closeable {
     }
 
     mLock = lock;
+  }
+
+  private FileLocker(File lockFile, boolean tryLock) throws IOException {
+    init(lockFile, tryLock);
   }
 
   @Override

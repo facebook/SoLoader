@@ -16,19 +16,22 @@
 
 package com.facebook.soloader;
 
-public interface SoFileLoader {
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
-  /** Load the so file from given path. */
-  void load(String pathToSoFile, int loadFlags);
+public interface ElfByteChannel extends java.nio.channels.ByteChannel {
 
-  /**
-   * Load the so from memory.
-   *
-   * @param pathName Name of the so file used to distinguish it from other loaded shared objects. If
-   *     the file is compressed in a file, the compressed file can be used as a name.
-   * @param bytes An elf byte channel containing the bytes representing the shared object to be
-   *     loaded.
-   * @param loadFlags SoLoader flags
-   */
-  void loadBytes(String pathName, ElfByteChannel bytes, int loadFlags);
+  long position() throws IOException;
+
+  ElfByteChannel position(long newPosition) throws IOException;
+
+  int read(ByteBuffer dst) throws IOException;
+
+  int read(ByteBuffer dst, long position) throws IOException;
+
+  long size() throws IOException;
+
+  ElfByteChannel truncate(long size) throws IOException;
+
+  int write(ByteBuffer src) throws IOException;
 }

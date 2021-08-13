@@ -52,7 +52,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
   }
 
   @Override
-  protected Unpacker makeUnpacker() throws IOException {
+  protected Unpacker makeUnpacker(byte state) throws IOException {
     return new ZipUnpacker(this);
   }
 
@@ -133,7 +133,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     }
 
     @Override
-    protected final DsoManifest getDsoManifest() throws IOException {
+    public final DsoManifest getDsoManifest() throws IOException {
       return new DsoManifest(ensureDsos());
     }
 
@@ -158,7 +158,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
         ZipDso zipDso = mDsos[mCurrentDso++];
         InputStream is = mZipFile.getInputStream(zipDso.backingEntry);
         try {
-          InputDso ret = new InputDso(zipDso, is);
+          InputDso ret = new InputDsoStream(zipDso, is);
           is = null; // Transfer ownership
           return ret;
         } finally {
