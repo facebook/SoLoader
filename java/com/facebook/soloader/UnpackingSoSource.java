@@ -485,8 +485,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     return depsBlock;
   }
 
-  protected @Nullable FileLocker getOrCreateLock(File lockFileName, boolean blocking)
-      throws IOException {
+  protected static @Nullable FileLocker getOrCreateLockOnDir(
+      File soDirectory, File lockFileName, boolean blocking) throws IOException {
     boolean notWritable = false;
     try {
       if (blocking) {
@@ -509,6 +509,11 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
       }
     }
+  }
+
+  protected @Nullable FileLocker getOrCreateLock(File lockFileName, boolean blocking)
+      throws IOException {
+    return getOrCreateLockOnDir(soDirectory, lockFileName, blocking);
   }
 
   /** Verify or refresh the state of the shared library store. */
