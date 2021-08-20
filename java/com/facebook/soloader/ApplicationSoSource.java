@@ -93,6 +93,12 @@ public class ApplicationSoSource extends SoSource {
 
   @Override
   @Nullable
+  public File getSoFileByName(String soName) throws IOException {
+    return soSource.getSoFileByName(soName);
+  }
+
+  @Override
+  @Nullable
   public String getLibraryPath(String soName) throws IOException {
     return soSource.getLibraryPath(soName);
   }
