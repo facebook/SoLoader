@@ -112,7 +112,7 @@ public final class ExoSoSource extends UnpackingSoSource {
     }
 
     @Override
-    protected InputDsoIterator openDsoIterator() throws IOException {
+    public InputDsoIterator openDsoIterator() throws IOException {
       return new FileBackedInputDsoIterator();
     }
 

@@ -209,7 +209,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   protected abstract static class Unpacker implements Closeable {
     public abstract DsoManifest getDsoManifest() throws IOException;
 
-    protected abstract InputDsoIterator openDsoIterator() throws IOException;
+    public abstract InputDsoIterator openDsoIterator() throws IOException;
 
     @Override
     public void close() throws IOException {

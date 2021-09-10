@@ -138,7 +138,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     }
 
     @Override
-    protected final InputDsoIterator openDsoIterator() throws IOException {
+    public final InputDsoIterator openDsoIterator() throws IOException {
       return new ZipBackedInputDsoIterator();
     }
 
