@@ -25,7 +25,6 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -485,35 +484,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     return depsBlock;
   }
 
-  protected static @Nullable FileLocker getOrCreateLockOnDir(
-      File soDirectory, File lockFileName, boolean blocking) throws IOException {
-    boolean notWritable = false;
-    try {
-      if (blocking) {
-        return FileLocker.lock(lockFileName);
-      } else {
-        return FileLocker.tryLock(lockFileName);
-      }
-    } catch (FileNotFoundException e) {
-      notWritable = true;
-      if (!soDirectory.setWritable(true)) {
-        throw e;
-      }
-      if (blocking) {
-        return FileLocker.lock(lockFileName);
-      } else {
-        return FileLocker.tryLock(lockFileName);
-      }
-    } finally {
-      if (notWritable && !soDirectory.setWritable(false)) {
-        Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
-      }
-    }
-  }
-
   protected @Nullable FileLocker getOrCreateLock(File lockFileName, boolean blocking)
       throws IOException {
-    return getOrCreateLockOnDir(soDirectory, lockFileName, blocking);
+    return SysUtil.getOrCreateLockOnDir(soDirectory, lockFileName, blocking);
   }
 
   /** Verify or refresh the state of the shared library store. */

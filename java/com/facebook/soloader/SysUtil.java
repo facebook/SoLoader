@@ -31,6 +31,7 @@ import android.util.Log;
 import java.io.DataOutput;
 import java.io.File;
 import java.io.FileDescriptor;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -40,6 +41,7 @@ import java.util.Enumeration;
 import java.util.TreeSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import javax.annotation.Nullable;
 
 public final class SysUtil {
 
@@ -388,5 +390,31 @@ public final class SysUtil {
     }
 
     return MarshmallowSysdeps.isSupportedDirectLoad(context, appType);
+  }
+
+  public static @Nullable FileLocker getOrCreateLockOnDir(
+      File soDirectory, File lockFileName, boolean blocking) throws IOException {
+    boolean notWritable = false;
+    try {
+      if (blocking) {
+        return FileLocker.lock(lockFileName);
+      } else {
+        return FileLocker.tryLock(lockFileName);
+      }
+    } catch (FileNotFoundException e) {
+      notWritable = true;
+      if (!soDirectory.setWritable(true)) {
+        throw e;
+      }
+      if (blocking) {
+        return FileLocker.lock(lockFileName);
+      } else {
+        return FileLocker.tryLock(lockFileName);
+      }
+    } finally {
+      if (notWritable && !soDirectory.setWritable(false)) {
+        Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
+      }
+    }
   }
 }
