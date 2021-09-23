@@ -142,6 +142,9 @@ public class SoLoader {
   /** Name of the directory we use for extracted DSOs from split APKs */
   private static final String SO_STORE_NAME_SPLIT = "lib-";
 
+  private static final String[] DEFAULT_DENY_LIST =
+      new String[] {System.mapLibraryName("breakpad")};
+
   /** Enable the exopackage SoSource. */
   public static final int SOLOADER_ENABLE_EXOPACKAGE = (1 << 0);
 
@@ -202,8 +205,21 @@ public class SoLoader {
     SYSTRACE_LIBRARY_LOADING = shouldSystrace;
   }
 
+  /**
+   * This method uses {@link #init(Context, int, SoFileLoader, String[])} and passes null as
+   * soFileLoader and {@link #DEFAULT_DENY_LIST} as denyList
+   */
   public static void init(Context context, int flags) throws IOException {
-    init(context, flags, null);
+    init(context, flags, null, DEFAULT_DENY_LIST);
+  }
+
+  /**
+   * This method uses {@link #init(Context, int, SoFileLoader, String[])} and passes {@link
+   * #DEFAULT_DENY_LIST} as denyList
+   */
+  public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
+      throws IOException {
+    init(context, flags, soFileLoader, DEFAULT_DENY_LIST);
   }
 
   /**
@@ -211,33 +227,43 @@ public class SoLoader {
    * used until this {@link #init} is called. This method is idempotent: calls after the first are
    * ignored.
    *
-   * @param context application context.
+   * @param context application context
    * @param flags Zero or more of the SOLOADER_* flags
-   * @param soFileLoader
+   * @param soFileLoader the custom {@link SoFileLoader}, you can implement your own loader
+   * @param denyList Skip load libs from system soSource, due to the linker namespace restriction
    */
-  public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
+  public static void init(
+      Context context, int flags, @Nullable SoFileLoader soFileLoader, String[] denyList)
       throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
       sAppType = getAppType(context, flags);
       initSoLoader(soFileLoader);
-      initSoSources(context, flags, soFileLoader);
+      initSoSources(context, flags, soFileLoader, denyList);
       NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
     } finally {
       StrictMode.setThreadPolicy(oldPolicy);
     }
   }
 
-  /** Backward compatibility */
+  /**
+   * Backward compatibility. This method uses {@link #init(Context, int, SoFileLoader, String[])}
+   * and passes null as soFileLoader and {@link #DEFAULT_DENY_LIST} as denyList
+   *
+   * @param context application context
+   * @param nativeExopackage pass {@link #SOLOADER_ENABLE_EXOPACKAGE} as flags if true
+   * @see <a href="https://buck.build/article/exopackage.html">What is exopackage?</a>
+   */
   public static void init(Context context, boolean nativeExopackage) {
     try {
-      init(context, nativeExopackage ? SOLOADER_ENABLE_EXOPACKAGE : 0);
+      init(context, nativeExopackage ? SOLOADER_ENABLE_EXOPACKAGE : 0, null, DEFAULT_DENY_LIST);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
   }
 
-  private static void initSoSources(Context context, int flags, @Nullable SoFileLoader soFileLoader)
+  private static void initSoSources(
+      Context context, int flags, @Nullable SoFileLoader soFileLoader, String[] denyList)
       throws IOException {
     if (sSoSources != null) {
       return;
@@ -249,7 +275,7 @@ public class SoLoader {
       sFlags = flags;
 
       ArrayList<SoSource> soSources = new ArrayList<>();
-      AddSystemLibSoSource(soSources);
+      AddSystemLibSoSource(soSources, denyList);
 
       //
       // We can only proceed forward if we have a Context. The prominent case
@@ -365,8 +391,13 @@ public class SoLoader {
     soSources.addAll(0, backupSources);
   }
 
-  /** Add SoSource objects for each of the system library directories. */
-  private static void AddSystemLibSoSource(ArrayList<SoSource> soSources) {
+  /**
+   * Add SoSource objects for each of the system library directories.
+   *
+   * @param soSources target soSource list
+   * @param denyList Skip load libs from current soSource, due to the linker namespace restriction
+   */
+  private static void AddSystemLibSoSource(ArrayList<SoSource> soSources, String[] denyList) {
     String LD_LIBRARY_PATH = System.getenv("LD_LIBRARY_PATH");
     if (LD_LIBRARY_PATH == null) {
       LD_LIBRARY_PATH =
@@ -379,7 +410,8 @@ public class SoLoader {
       // these libraries have on each other, so doing that ourselves would be a waste.
       Log.d(TAG, "adding system library source: " + systemLibraryDirectory);
       File systemSoDirectory = new File(systemLibraryDirectory);
-      soSources.add(new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
+      soSources.add(
+          new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH, denyList));
     }
   }
 
