@@ -298,8 +298,7 @@ public class SoLoader {
             Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
             soSources.add(0, directApkSoSource);
           }
-          addApplicationSoSource(
-              context, soSources, getApplicationSoSourceFlags(context, sAppType));
+          addApplicationSoSource(context, soSources, getApplicationSoSourceFlags());
           AddBackupSoSource(context, soSources, ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
         }
       }
@@ -319,7 +318,7 @@ public class SoLoader {
     }
   }
 
-  private static int getApplicationSoSourceFlags(Context context, int appType) {
+  private static int getApplicationSoSourceFlags() {
     switch (sAppType) {
       case AppType.THIRD_PARTY_APP:
         return 0;
