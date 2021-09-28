@@ -249,8 +249,13 @@ public final class SysUtil {
         // need this extra checking. ref: D27831042
         return isApkUncompressedDso(context);
       } else {
-        return (context.getApplicationInfo().flags & ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS) == 0;
+        return isDisabledExtractNativeLibs(context);
       }
+    }
+
+    public static boolean isDisabledExtractNativeLibs(Context context) {
+      return context != null
+          && (context.getApplicationInfo().flags & ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS) == 0;
     }
 
     private static boolean isApkUncompressedDso(Context context) throws IOException {
@@ -383,13 +388,19 @@ public final class SysUtil {
   }
 
   public static boolean isSupportedDirectLoad(Context context, int appType) throws IOException {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       // Android starts to support directly loading from API 23.
       // https://android.googlesource.com/platform/bionic/+/master/android-changes-for-ndk-developers.md#opening-shared-libraries-directly-from-an-apk
-      return false;
+      return MarshmallowSysdeps.isSupportedDirectLoad(context, appType);
     }
+    return false;
+  }
 
-    return MarshmallowSysdeps.isSupportedDirectLoad(context, appType);
+  public static boolean isDisabledExtractNativeLibs(Context context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      return MarshmallowSysdeps.isDisabledExtractNativeLibs(context);
+    }
+    return false;
   }
 
   public static @Nullable FileLocker getOrCreateLockOnDir(
