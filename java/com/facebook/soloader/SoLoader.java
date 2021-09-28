@@ -237,6 +237,13 @@ public class SoLoader {
       throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+          && context != null
+          && (context.getApplicationInfo().flags & ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS) == 0) {
+        // SoLoader doesn't need backup soSource if android:extractNativeLibs == false
+        flags |= SOLOADER_DISABLE_BACKUP_SOSOURCE;
+      }
+
       sAppType = getAppType(context, flags);
       initSoLoader(soFileLoader);
       initSoSources(context, flags, soFileLoader, denyList);
