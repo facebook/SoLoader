@@ -405,7 +405,7 @@ public class SoLoader {
     String LD_LIBRARY_PATH = System.getenv("LD_LIBRARY_PATH");
     if (LD_LIBRARY_PATH == null) {
       LD_LIBRARY_PATH =
-          SysUtil.is64Bit() ? "/vendor/lib64:/system/lib64" : "/vendor/lib:/system/lib";
+          SysUtil.is64Bit() ? "/system/lib64:/vendor/lib64" : "/system/lib:/vendor/lib";
     }
 
     for (String systemLibraryDirectory : LD_LIBRARY_PATH.split(":")) {
