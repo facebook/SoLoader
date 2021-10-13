@@ -276,7 +276,6 @@ public class SoLoader {
 
     sSoSourcesLock.writeLock().lock();
     try {
-      Log.i(TAG, "init start: " + flags);
       sFlags = flags;
 
       ArrayList<SoSource> soSources = new ArrayList<>();
@@ -295,12 +294,16 @@ public class SoLoader {
 
         if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
           sBackupSoSources = null;
-          Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
+          if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
+          }
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
         } else {
           if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
             SoSource directApkSoSource = new DirectApkSoSource(context);
-            Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+              Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
+            }
             soSources.add(0, directApkSoSource);
           }
           addApplicationSoSource(context, soSources, getApplicationSoSourceFlags());
@@ -311,14 +314,17 @@ public class SoLoader {
       SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
       int prepareFlags = makePrepareFlags();
       for (int i = finalSoSources.length; i-- > 0; ) {
-        Log.d(TAG, "Preparing SO source: " + finalSoSources[i]);
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+          Log.d(TAG, "Preparing SO source: " + finalSoSources[i]);
+        }
         finalSoSources[i].prepare(prepareFlags);
       }
       sSoSources = finalSoSources;
       sSoSourcesVersion.getAndIncrement();
-      Log.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
+      if (Log.isLoggable(TAG, Log.DEBUG)) {
+        Log.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
+      }
     } finally {
-      Log.d(TAG, "init exiting");
       sSoSourcesLock.writeLock().unlock();
     }
   }
@@ -349,7 +355,9 @@ public class SoLoader {
     }
 
     sApplicationSoSource = new ApplicationSoSource(context, flags);
-    Log.d(TAG, "adding application source: " + sApplicationSoSource.toString());
+    if (Log.isLoggable(TAG, Log.DEBUG)) {
+      Log.d(TAG, "adding application source: " + sApplicationSoSource.toString());
+    }
     soSources.add(0, sApplicationSoSource);
   }
 
@@ -373,11 +381,15 @@ public class SoLoader {
     ApkSoSource mainApkSource =
         new ApkSoSource(context, mainApkDir, SO_STORE_NAME_MAIN, apkSoSourceFlags);
     backupSources.add(mainApkSource);
-    Log.d(TAG, "adding backup source from : " + mainApkSource.toString());
+    if (Log.isLoggable(TAG, Log.DEBUG)) {
+      Log.d(TAG, "adding backup source from : " + mainApkSource.toString());
+    }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
         && context.getApplicationInfo().splitSourceDirs != null) {
-      Log.d(TAG, "adding backup sources from split apks");
+      if (Log.isLoggable(TAG, Log.DEBUG)) {
+        Log.d(TAG, "adding backup sources from split apks");
+      }
       int splitIndex = 0;
       for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
         ApkSoSource splitApkSource =
@@ -386,7 +398,9 @@ public class SoLoader {
                 new File(splitApkDir),
                 SO_STORE_NAME_SPLIT + (splitIndex++),
                 apkSoSourceFlags);
-        Log.d(TAG, "adding backup source: " + splitApkSource.toString());
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+          Log.d(TAG, "adding backup source: " + splitApkSource.toString());
+        }
         backupSources.add(splitApkSource);
       }
     }
@@ -412,7 +426,9 @@ public class SoLoader {
       // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
       // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
       // these libraries have on each other, so doing that ourselves would be a waste.
-      Log.d(TAG, "adding system library source: " + systemLibraryDirectory);
+      if (Log.isLoggable(TAG, Log.DEBUG)) {
+        Log.d(TAG, "adding system library source: " + systemLibraryDirectory);
+      }
       File systemSoDirectory = new File(systemLibraryDirectory);
       soSources.add(
           new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH, denyList));
@@ -554,7 +570,9 @@ public class SoLoader {
     } else {
       type = AppType.SYSTEM_APP;
     }
-    Log.d(TAG, "ApplicationInfo.flags is: " + appInfo.flags + " appType is: " + type);
+    if (Log.isLoggable(TAG, Log.DEBUG)) {
+      Log.d(TAG, "ApplicationInfo.flags is: " + appInfo.flags + " appType is: " + type);
+    }
     return type;
   }
 
@@ -873,7 +891,9 @@ public class SoLoader {
 
           if (!loaded) {
             try {
-              Log.d(TAG, "About to load: " + soName);
+              if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "About to load: " + soName);
+              }
               doLoadLibraryBySoName(soName, loadFlags, oldPolicy);
             } catch (UnsatisfiedLinkError ex) {
               String message = ex.getMessage();
@@ -884,8 +904,10 @@ public class SoLoader {
               }
               throw ex;
             }
-            synchronized (SoLoader.class) {
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
               Log.d(TAG, "Loaded: " + soName);
+            }
+            synchronized (SoLoader.class) {
               sLoadedLibraries.add(soName);
             }
           }
@@ -902,7 +924,9 @@ public class SoLoader {
               Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[", shortName, "]");
             }
             try {
-              Log.d(TAG, "About to merge: " + shortName + " / " + soName);
+              if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "About to merge: " + shortName + " / " + soName);
+              }
               MergedSoMapping.invokeJniOnload(shortName);
               sLoadedAndMergedLibraries.add(shortName);
             } catch (UnsatisfiedLinkError e) {
@@ -997,7 +1021,9 @@ public class SoLoader {
           result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
           if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSources != null) {
             // Let's try from the backup source
-            Log.d(TAG, "Trying backup SoSource for " + soName);
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+              Log.d(TAG, "Trying backup SoSource for " + soName);
+            }
             for (UnpackingSoSource backupSoSource : sBackupSoSources) {
               backupSoSource.prepare(soName);
               int resultFromBackup = backupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
@@ -1123,7 +1149,6 @@ public class SoLoader {
   public static void prependSoSource(SoSource extraSoSource) throws IOException {
     sSoSourcesLock.writeLock().lock();
     try {
-      Log.d(TAG, "Prepending to SO sources: " + extraSoSource);
       assertInitialized();
       extraSoSource.prepare(makePrepareFlags());
       SoSource[] newSoSources = new SoSource[sSoSources.length + 1];
@@ -1131,7 +1156,9 @@ public class SoLoader {
       System.arraycopy(sSoSources, 0, newSoSources, 1, sSoSources.length);
       sSoSources = newSoSources;
       sSoSourcesVersion.getAndIncrement();
-      Log.d(TAG, "Prepended to SO sources: " + extraSoSource);
+      if (Log.isLoggable(TAG, Log.DEBUG)) {
+        Log.d(TAG, "Prepended to SO sources: " + extraSoSource);
+      }
     } finally {
       sSoSourcesLock.writeLock().unlock();
     }
@@ -1145,7 +1172,6 @@ public class SoLoader {
     sSoSourcesLock.readLock().lock();
     try {
       assertInitialized();
-      Log.d(TAG, "makeLdLibraryPath");
       ArrayList<String> pathElements = new ArrayList<>();
       SoSource[] soSources = sSoSources;
       if (soSources != null) {
@@ -1154,7 +1180,9 @@ public class SoLoader {
         }
       }
       String joinedPaths = TextUtils.join(":", pathElements);
-      Log.d(TAG, "makeLdLibraryPath final path: " + joinedPaths);
+      if (Log.isLoggable(TAG, Log.DEBUG)) {
+        Log.d(TAG, "makeLdLibraryPath final path: " + joinedPaths);
+      }
       return joinedPaths;
     } finally {
       sSoSourcesLock.readLock().unlock();
