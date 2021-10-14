@@ -416,22 +416,29 @@ public class SoLoader {
    * @param denyList Skip load libs from current soSource, due to the linker namespace restriction
    */
   private static void AddSystemLibSoSource(ArrayList<SoSource> soSources, String[] denyList) {
-    String LD_LIBRARY_PATH = System.getenv("LD_LIBRARY_PATH");
-    if (LD_LIBRARY_PATH == null) {
-      LD_LIBRARY_PATH =
-          SysUtil.is64Bit() ? "/system/lib64:/vendor/lib64" : "/system/lib:/vendor/lib";
-    }
-
-    for (String systemLibraryDirectory : LD_LIBRARY_PATH.split(":")) {
-      // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
-      // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
-      // these libraries have on each other, so doing that ourselves would be a waste.
+    String systemLibPaths =
+        SysUtil.is64Bit() ? "/system/lib64:/vendor/lib64" : "/system/lib:/vendor/lib";
+    for (String systemLibraryDirectory : systemLibPaths.split(":")) {
       if (Log.isLoggable(TAG, Log.DEBUG)) {
-        Log.d(TAG, "adding system library source: " + systemLibraryDirectory);
+        Log.d(TAG, "adding default system library source: " + systemLibraryDirectory);
       }
       File systemSoDirectory = new File(systemLibraryDirectory);
-      soSources.add(
-          new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH, denyList));
+      soSources.add(new DirectorySoSource(systemSoDirectory, 0, denyList));
+    }
+
+    String LD_LIBRARY_PATH = System.getenv("LD_LIBRARY_PATH");
+    if (LD_LIBRARY_PATH != null && !LD_LIBRARY_PATH.equals("")) {
+      for (String libPath : LD_LIBRARY_PATH.split(":")) {
+        // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
+        // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
+        // these libraries have on each other, so doing that ourselves would be a waste.
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+          Log.d(TAG, "adding system library source: " + libPath);
+        }
+        File libDirectory = new File(libPath);
+        soSources.add(
+            new DirectorySoSource(libDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH, denyList));
+      }
     }
   }
 
