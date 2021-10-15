@@ -310,7 +310,7 @@ public final class SysUtil {
     return bytesCopied;
   }
 
-  static void fsyncRecursive(File fileName) throws IOException {
+  public static void fsyncRecursive(File fileName) throws IOException {
     if (fileName.isDirectory()) {
       File[] files = fileName.listFiles();
       if (files == null) {
