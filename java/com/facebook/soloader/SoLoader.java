@@ -1223,6 +1223,12 @@ public class SoLoader {
     }
   }
 
+  public static boolean useDepsFile(Context context, String depsFilePath) throws IOException {
+    File apkFile = new File(context.getApplicationInfo().sourceDir);
+    byte[] apkId = SysUtil.makeApkDepBlock(apkFile, context);
+    return NativeDeps.useDepsFile(apkId, depsFilePath);
+  }
+
   @DoNotOptimize
   @TargetApi(14)
   /* package */ static class Api14Utils {

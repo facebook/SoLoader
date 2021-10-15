@@ -103,7 +103,7 @@ public class DirectApkSoSource extends SoSource {
       Api18TraceUtils.beginTraceSection("SoLoader.getElfDependencies[", soName, "]");
     }
     try {
-      return MinElf.extract_DT_NEEDED(bc);
+      return NativeDeps.getDependencies(soName, bc);
     } finally {
       if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
         Api18TraceUtils.endSection();
