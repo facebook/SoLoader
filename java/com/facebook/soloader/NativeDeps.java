@@ -36,6 +36,7 @@ public final class NativeDeps {
   private static final int LIB_SUFFIX_LEN = ".so".length();
   private static final int LIB_PREFIX_SUFFIX_LEN = LIB_PREFIX_LEN + LIB_SUFFIX_LEN;
   private static final int DEFAULT_LIBS_CAPACITY = 512;
+  private static final int INITIAL_HASH = 5381;
 
   private static boolean sInitialized = false;
   private static @Nullable byte[] sEncodedDeps;
@@ -119,7 +120,7 @@ public final class NativeDeps {
         if (inLibName) {
           libNameBegin = byteOffset;
           int nextByte;
-          libHash = 5381;
+          libHash = INITIAL_HASH;
           while ((nextByte = bytes[byteOffset]) > ' ') {
             libHash = ((libHash << 5) + libHash) + nextByte;
             ++byteOffset;
@@ -202,7 +203,7 @@ public final class NativeDeps {
 
   // Hashes the name of a library
   private static int hashLib(String soName) {
-    int libHash = 5381;
+    int libHash = INITIAL_HASH;
     for (int i = LIB_PREFIX_LEN; i < soName.length() - LIB_SUFFIX_LEN; ++i) {
       libHash = ((libHash << 5) + libHash) + soName.codePointAt(i);
     }
@@ -296,12 +297,19 @@ public final class NativeDeps {
       deps.add(dep);
     }
 
+    if (deps.size() == 0) {
+      // If a library has no dependencies, then we don't know its
+      // dependencies, it was just listed in the native deps file because
+      // another library depends on this library.
+      return null;
+    }
+
     String[] depsArray = new String[deps.size()];
     return deps.toArray(depsArray);
   }
 
   @Nullable
-  private static String[] tryGetDepsFromPrecomputedDeps(String soName) {
+  static String[] tryGetDepsFromPrecomputedDeps(String soName) {
     if (!sInitialized) {
       return null;
     }
