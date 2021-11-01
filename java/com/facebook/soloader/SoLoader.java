@@ -244,7 +244,7 @@ public class SoLoader {
 
       sAppType = getAppType(context, flags);
       initSoLoader(soFileLoader);
-      initSoSources(context, flags, soFileLoader, denyList);
+      initSoSources(context, flags, denyList);
       NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
     } finally {
       StrictMode.setThreadPolicy(oldPolicy);
@@ -267,8 +267,7 @@ public class SoLoader {
     }
   }
 
-  private static void initSoSources(
-      Context context, int flags, @Nullable SoFileLoader soFileLoader, String[] denyList)
+  private static void initSoSources(Context context, int flags, String[] denyList)
       throws IOException {
     if (sSoSources != null) {
       return;
