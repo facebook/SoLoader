@@ -447,7 +447,8 @@ public class SoLoader {
       systemLibPaths += ":" + LD_LIBRARY_PATH;
     }
 
-    for (String libPath : systemLibPaths.split(":")) {
+    final Set<String> libPathSet = new HashSet<>(Arrays.asList(systemLibPaths.split(":")));
+    for (String libPath : libPathSet) {
       // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
       // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
       // these libraries have on each other, so doing that ourselves would be a waste.
