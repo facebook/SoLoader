@@ -428,4 +428,13 @@ public final class SysUtil {
       }
     }
   }
+
+  /** Gets the base name, without extension, of given file name. */
+  public static String getBaseName(String fileName) {
+    final int index = fileName.lastIndexOf('.');
+    if (index > 0) {
+      return fileName.substring(0, index);
+    }
+    return fileName;
+  }
 }

@@ -300,11 +300,7 @@ public class SoLoader {
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
         } else {
           if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
-            SoSource directApkSoSource = new DirectApkSoSource(context);
-            if (Log.isLoggable(TAG, Log.DEBUG)) {
-              Log.d(TAG, "adding directAPK source: " + directApkSoSource.toString());
-            }
-            soSources.add(0, directApkSoSource);
+            addDirectApkSoSource(context, soSources);
           }
           addApplicationSoSource(context, soSources, getApplicationSoSourceFlags());
           AddBackupSoSource(context, soSources, ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
@@ -341,6 +337,29 @@ public class SoLoader {
     }
   }
 
+  /** Add DirectApk SoSources for disabling android:extractNativeLibs */
+  private static void addDirectApkSoSource(Context context, ArrayList<SoSource> soSources) {
+    DirectApkSoSource directApkSoSource = new DirectApkSoSource(context);
+    if (Log.isLoggable(TAG, Log.DEBUG)) {
+      Log.d(TAG, "adding directApk source: " + directApkSoSource.toString());
+    }
+    soSources.add(0, directApkSoSource);
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+        && context.getApplicationInfo().splitSourceDirs != null) {
+      if (Log.isLoggable(TAG, Log.DEBUG)) {
+        Log.d(TAG, "adding directApk sources from split apks");
+      }
+      for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
+        DirectApkSoSource splitApkSource = new DirectApkSoSource(new File(splitApkDir));
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+          Log.d(TAG, "adding directApk source: " + splitApkSource.toString());
+        }
+        soSources.add(splitApkSource);
+      }
+    }
+  }
+
   /** Add a DirectorySoSource for the application's nativeLibraryDir . */
   private static void addApplicationSoSource(
       Context context, ArrayList<SoSource> soSources, int flags) {
@@ -361,7 +380,7 @@ public class SoLoader {
     soSources.add(0, sApplicationSoSource);
   }
 
-  /** Add a SoSource for recovering the dso if the file is corrupted or missed */
+  /** Add the SoSources for recovering the dso if the file is corrupted or missed */
   private static void AddBackupSoSource(
       Context context, ArrayList<SoSource> soSources, int apkSoSourceFlags) throws IOException {
     if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
@@ -385,6 +404,14 @@ public class SoLoader {
       Log.d(TAG, "adding backup source from : " + mainApkSource.toString());
     }
 
+    addBackupSoSourceFromSplitApk(context, apkSoSourceFlags, backupSources);
+
+    sBackupSoSources = backupSources.toArray(new UnpackingSoSource[backupSources.size()]);
+    soSources.addAll(0, backupSources);
+  }
+
+  private static void addBackupSoSourceFromSplitApk(
+      Context context, int apkSoSourceFlags, ArrayList<UnpackingSoSource> backupSources) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
         && context.getApplicationInfo().splitSourceDirs != null) {
       if (Log.isLoggable(TAG, Log.DEBUG)) {
@@ -404,9 +431,6 @@ public class SoLoader {
         backupSources.add(splitApkSource);
       }
     }
-
-    sBackupSoSources = backupSources.toArray(new UnpackingSoSource[backupSources.size()]);
-    soSources.addAll(0, backupSources);
   }
 
   /**

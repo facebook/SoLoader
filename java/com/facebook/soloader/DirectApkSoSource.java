@@ -43,15 +43,20 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class DirectApkSoSource extends SoSource {
 
-  private static final Set<String> sLibsInApk = Collections.synchronizedSet(new HashSet<String>());
-
+  private final Set<String> mLibsInApk = Collections.synchronizedSet(new HashSet<String>());
   private final @Nullable String mDirectApkLdPath;
   private final File mApkFile;
 
   public DirectApkSoSource(Context context) {
     super();
-    mDirectApkLdPath = getDirectApkLdPath();
+    mDirectApkLdPath = getDirectApkLdPath("");
     mApkFile = new File(context.getApplicationInfo().sourceDir);
+  }
+
+  public DirectApkSoSource(File apkFile) {
+    super();
+    mDirectApkLdPath = getDirectApkLdPath(SysUtil.getBaseName(apkFile.getName()));
+    mApkFile = apkFile;
   }
 
   @Override
@@ -60,7 +65,7 @@ public class DirectApkSoSource extends SoSource {
     if (SoLoader.sSoFileLoader == null) {
       throw new IllegalStateException("SoLoader.init() not yet called");
     }
-    if (!sLibsInApk.contains(soName) || TextUtils.isEmpty(mDirectApkLdPath)) {
+    if (!mLibsInApk.contains(soName) || TextUtils.isEmpty(mDirectApkLdPath)) {
       Log.d(SoLoader.TAG, soName + " not found on " + mDirectApkLdPath);
       return LOAD_RESULT_NOT_FOUND;
     }
@@ -83,14 +88,14 @@ public class DirectApkSoSource extends SoSource {
     throw new UnsupportedOperationException("DirectAPKSoSource doesn't support unpackLibrary");
   }
 
-  private @Nullable static String getDirectApkLdPath() {
+  private @Nullable static String getDirectApkLdPath(String apkName) {
     final String classLoaderLdLibraryPath =
         Build.VERSION.SDK_INT >= 14 ? SoLoader.Api14Utils.getClassLoaderLdLoadLibrary() : null;
 
     if (classLoaderLdLibraryPath != null) {
       final String[] paths = classLoaderLdLibraryPath.split(":");
       for (final String path : paths) {
-        if (path.contains(".apk!/")) {
+        if (path.contains(apkName + ".apk!/")) {
           return path;
         }
       }
@@ -120,7 +125,7 @@ public class DirectApkSoSource extends SoSource {
         if (entry != null && entry.getName().endsWith("/" + soName)) {
           try (ElfByteChannel bc = new ElfZipFileChannel(mZipFile, entry)) {
             for (String dependency : getDependencies(soName, bc)) {
-              if (sLibsInApk.contains(dependency) || dependency.startsWith("/")) {
+              if (mLibsInApk.contains(dependency) || dependency.startsWith("/")) {
                 // Bionic dynamic linker could correctly resolving dependencies, we don't need
                 // load them by ourselves.
                 continue;
@@ -159,7 +164,7 @@ public class DirectApkSoSource extends SoSource {
             && entry.getName().endsWith(".so")
             && entry.getMethod() == ZipEntry.STORED) {
           final String soName = entry.getName().substring(subDir.length() + 1);
-          sLibsInApk.add(soName);
+          mLibsInApk.add(soName);
         }
       }
     }
