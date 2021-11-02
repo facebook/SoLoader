@@ -205,18 +205,10 @@ public class SoLoader {
     SYSTRACE_LIBRARY_LOADING = shouldSystrace;
   }
 
-  /**
-   * This method uses {@link #init(Context, int, SoFileLoader, String[])} and passes null as
-   * soFileLoader and {@link #DEFAULT_DENY_LIST} as denyList
-   */
   public static void init(Context context, int flags) throws IOException {
     init(context, flags, null, DEFAULT_DENY_LIST);
   }
 
-  /**
-   * This method uses {@link #init(Context, int, SoFileLoader, String[])} and passes {@link
-   * #DEFAULT_DENY_LIST} as denyList
-   */
   public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
       throws IOException {
     init(context, flags, soFileLoader, DEFAULT_DENY_LIST);
@@ -252,8 +244,7 @@ public class SoLoader {
   }
 
   /**
-   * Backward compatibility. This method uses {@link #init(Context, int, SoFileLoader, String[])}
-   * and passes null as soFileLoader and {@link #DEFAULT_DENY_LIST} as denyList
+   * Backward compatibility.
    *
    * @param context application context
    * @param nativeExopackage pass {@link #SOLOADER_ENABLE_EXOPACKAGE} as flags if true
