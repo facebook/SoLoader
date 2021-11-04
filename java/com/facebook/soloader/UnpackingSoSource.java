@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.io.SyncFailedException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -223,6 +224,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       stateFile.write(state);
       stateFile.setLength(stateFile.getFilePointer());
       stateFile.getFD().sync();
+    } catch (SyncFailedException e) {
+      Log.w(TAG, "state file sync failed", e);
     }
   }
 
