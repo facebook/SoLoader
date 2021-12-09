@@ -47,7 +47,9 @@ public final class SysUtil {
 
   private static final String TAG = "SysUtil";
 
-  private static final byte APK_SIGNATURE_VERSION = 1;
+  private static final String APK_MANIFEST_PATH = "META-INF/MANIFEST.MF";
+
+  private static final byte APK_SIGNATURE_VERSION = 2;
 
   private static final long APK_DEP_BLOCK_METADATA_LENGTH =
       4 + // APK_SIGNATURE_VERSION
@@ -349,6 +351,16 @@ public final class SysUtil {
       parcel.writeString(apkFile.getPath());
       parcel.writeLong(apkFile.lastModified());
       parcel.writeInt(getAppVersionCode(context));
+
+      try (ZipFile apkZipFile = new ZipFile(apkFile)) {
+        ZipEntry apkManifestZipEntry = apkZipFile.getEntry(APK_MANIFEST_PATH);
+        if (apkManifestZipEntry != null) {
+          parcel.writeLong(apkManifestZipEntry.getCrc());
+        } else {
+          Log.e(TAG, "APK is missing file " + APK_MANIFEST_PATH);
+        }
+      }
+
       return parcel.marshall();
     } finally {
       parcel.recycle();

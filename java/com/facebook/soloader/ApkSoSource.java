@@ -22,6 +22,7 @@ import android.util.Log;
 import java.io.File;
 import java.io.IOException;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /** {@link SoSource} that extracts libraries from an APK to the filesystem. */
 public class ApkSoSource extends ExtractFromZipSoSource {
@@ -34,10 +35,12 @@ public class ApkSoSource extends ExtractFromZipSoSource {
    */
   public static final int PREFER_ANDROID_LIBS_DIRECTORY = (1 << 0);
 
-  private static final byte APK_SO_SOURCE_SIGNATURE_VERSION = 2;
+  private static final byte APK_SO_SOURCE_SIGNATURE_VERSION = 3;
   private static final byte LIBS_DIR_DONT_CARE = 0;
   private static final byte LIBS_DIR_DOESNT_EXIST = 1;
   private static final byte LIBS_DIR_SNAPSHOT = 2;
+
+  private static final String APK_MANIFEST_PATH = "META-INF/MANIFEST.MF";
 
   private final int mFlags;
 
@@ -122,6 +125,15 @@ public class ApkSoSource extends ExtractFromZipSoSource {
       parcel.writeString(apkFile.getPath());
       parcel.writeLong(apkFile.lastModified());
       parcel.writeInt(SysUtil.getAppVersionCode(mContext));
+
+      try (ZipFile zipFile = new ZipFile(apkFile)) {
+        ZipEntry zeMetadata = zipFile.getEntry(APK_MANIFEST_PATH);
+        if (zeMetadata == null) {
+          Log.e(TAG, "APK missing entry for " + APK_MANIFEST_PATH);
+        } else {
+          parcel.writeLong(zeMetadata.getCrc());
+        }
+      }
 
       if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
         parcel.writeByte(LIBS_DIR_DONT_CARE);
