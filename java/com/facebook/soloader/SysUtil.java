@@ -53,8 +53,7 @@ public final class SysUtil {
       4 + // APK_SIGNATURE_VERSION
           8 + // Apk file last modified time stamp
           4 + // App version code
-          4 + // Apk file length
-          8; // Apk manifest crc
+          4; // Apk file length
 
   /**
    * Determine how preferred a given ABI is on this system.
@@ -342,8 +341,10 @@ public final class SysUtil {
     return apkFileLen + APK_DEP_BLOCK_METADATA_LENGTH;
   }
 
-  // If this method is changed, the above method (getApkDepBlockLength) must also
-  // be updated to reflect the expected size of the dep block
+  /**
+   * N.B. If this method is changed, the above method {@link #getApkDepBlockLength} must also be
+   * updated to reflect the expected size of the dep block
+   */
   public static byte[] makeApkDepBlock(File apkFile, Context context) throws IOException {
     apkFile = apkFile.getCanonicalFile();
     Parcel parcel = Parcel.obtain();
