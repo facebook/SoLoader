@@ -168,7 +168,7 @@ public class DirectorySoSource extends SoSource {
       String soName, ElfByteChannel bc, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
     String[] dependencies = getDependencies(soName, bc);
-    Log.d(SoLoader.TAG, "Loading lib dependencies: " + Arrays.toString(dependencies));
+    Log.d(SoLoader.TAG, "Loading " + soName + "'s dependencies: " + Arrays.toString(dependencies));
     for (String dependency : dependencies) {
       if (dependency.startsWith("/")) {
         continue;
