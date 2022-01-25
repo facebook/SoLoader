@@ -179,6 +179,12 @@ public class SoLoader {
    */
   public static final int SOLOADER_ENABLE_DIRECT_SOSOURCE = (1 << 6);
 
+  /**
+   * For compatibility, we need explicitly enable the backup soSource. This flag conflicts with
+   * {@link #SOLOADER_DISABLE_BACKUP_SOSOURCE}, you should only set one of them or none.
+   */
+  public static final int SOLOADER_EXPLICITLY_ENABLE_BACKUP_SOSOURCE = (1 << 7);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -236,7 +242,8 @@ public class SoLoader {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
       sAppType = getAppType(context, flags);
-      if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
+      if ((flags & SOLOADER_EXPLICITLY_ENABLE_BACKUP_SOSOURCE) == 0
+          && SysUtil.isSupportedDirectLoad(context, sAppType)) {
         // SoLoader doesn't need backup soSource if it supports directly loading .so file from APK
         flags |= (SOLOADER_DISABLE_BACKUP_SOSOURCE | SOLOADER_ENABLE_DIRECT_SOSOURCE);
       }
