@@ -64,6 +64,7 @@ fb_java_library(
     provided_deps = [
         "//deps:jsr_305",
     ],
+    visibility = ["PUBLIC"],
 )
 
 fb_java_library(
