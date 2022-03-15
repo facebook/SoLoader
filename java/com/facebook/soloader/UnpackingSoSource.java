@@ -414,50 +414,61 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
     final DsoManifest manifest = desiredManifest;
 
-    Runnable syncer =
-        new Runnable() {
-          @Override
-          public void run() {
-            try {
-              try {
-                Log.v(TAG, "starting syncer worker");
-
-                // N.B. We can afford to write the deps file and the manifest file without
-                // synchronization or fsyncs because we've marked the DSO store STATE_DIRTY, which
-                // will cause us to ignore all intermediate state when regenerating it.  That is,
-                // it's okay for the depsFile or manifestFile blocks to hit the disk before the
-                // actual DSO data file blocks as long as both hit the disk before we reset
-                // STATE_CLEAN.
-
-                try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
-                  depsFile.write(deps);
-                  depsFile.setLength(depsFile.getFilePointer());
-                }
-
-                File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
-                try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
-                  manifest.write(manifestFile);
-                }
-
-                SysUtil.fsyncRecursive(soDirectory);
-                writeState(stateFileName, STATE_CLEAN);
-              } finally {
-                Log.v(TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
-                lock.close();
-              }
-            } catch (IOException ex) {
-              throw new RuntimeException(ex);
-            }
-          }
-        };
-
     if ((flags & PREPARE_FLAG_ALLOW_ASYNC_INIT) != 0) {
+      Runnable syncer = createSyncer(lock, deps, stateFileName, depsFileName, manifest, true);
       new Thread(syncer, "SoSync:" + soDirectory.getName()).start();
     } else {
+      Runnable syncer = createSyncer(lock, deps, stateFileName, depsFileName, manifest, false);
       syncer.run();
     }
 
     return true;
+  }
+
+  private Runnable createSyncer(
+      final FileLocker lock,
+      final byte[] deps,
+      final File stateFileName,
+      final File depsFileName,
+      final DsoManifest manifest,
+      final Boolean quietly) {
+    return new Runnable() {
+      @Override
+      public void run() {
+        try {
+          try {
+            Log.v(TAG, "starting syncer worker");
+
+            // N.B. We can afford to write the deps file and the manifest file without
+            // synchronization or fsyncs because we've marked the DSO store STATE_DIRTY, which
+            // will cause us to ignore all intermediate state when regenerating it.  That is,
+            // it's okay for the depsFile or manifestFile blocks to hit the disk before the
+            // actual DSO data file blocks as long as both hit the disk before we reset
+            // STATE_CLEAN.
+
+            try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
+              depsFile.write(deps);
+              depsFile.setLength(depsFile.getFilePointer());
+            }
+
+            File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
+            try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
+              manifest.write(manifestFile);
+            }
+
+            SysUtil.fsyncRecursive(soDirectory);
+            writeState(stateFileName, STATE_CLEAN);
+          } finally {
+            Log.v(TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
+            lock.close();
+          }
+        } catch (IOException ex) {
+          if (!quietly) {
+            throw new RuntimeException(ex);
+          }
+        }
+      }
+    };
   }
 
   /**
