@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
 import javax.annotation.Nullable;
 
 public final class FileLocker implements Closeable {
@@ -48,8 +49,11 @@ public final class FileLocker implements Closeable {
       if (tryLock) {
         try {
           lock = mLockFileOutputStream.getChannel().tryLock();
-        } catch (IOException e) {
+        } catch (IOException | OverlappingFileLockException e) {
           // Try lock can throw an IOException (EAGAIN) while lock doesn't.
+          // If this process already holds the lock this will throw OverlappingFileLockException as a RuntimeException.
+          // Ideally, this code would not try to init if the lock is held elsewhere, but this is the most
+          // straightforward fix for now
           lock = null;
         }
       } else {
