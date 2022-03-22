@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -341,6 +341,10 @@ public final class SysUtil {
     return apkFileLen + APK_DEP_BLOCK_METADATA_LENGTH;
   }
 
+  /**
+   * N.B. If this method is changed, the above method {@link #getApkDepBlockLength} must also be
+   * updated to reflect the expected size of the dep block
+   */
   public static byte[] makeApkDepBlock(File apkFile, Context context) throws IOException {
     apkFile = apkFile.getCanonicalFile();
     Parcel parcel = Parcel.obtain();

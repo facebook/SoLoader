@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -173,6 +173,18 @@ public class SoLoader {
   /** System Apps ignore PREFER_ANDROID_LIBS_DIRECTORY. Don't do that for this app. */
   public static final int SOLOADER_DONT_TREAT_AS_SYSTEMAPP = (1 << 5);
 
+  /**
+   * In API level 23 and above, it’s possible to open a .so file directly from your APK. Enabling
+   * this flag will explicitly add the direct SoSource in soSource list.
+   */
+  public static final int SOLOADER_ENABLE_DIRECT_SOSOURCE = (1 << 6);
+
+  /**
+   * For compatibility, we need explicitly enable the backup soSource. This flag conflicts with
+   * {@link #SOLOADER_DISABLE_BACKUP_SOSOURCE}, you should only set one of them or none.
+   */
+  public static final int SOLOADER_EXPLICITLY_ENABLE_BACKUP_SOSOURCE = (1 << 7);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -229,12 +241,13 @@ public class SoLoader {
       throws IOException {
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
-      if (SysUtil.isDisabledExtractNativeLibs(context)) {
-        // SoLoader doesn't need backup soSource if android:extractNativeLibs == false
-        flags |= SOLOADER_DISABLE_BACKUP_SOSOURCE;
+      sAppType = getAppType(context, flags);
+      if ((flags & SOLOADER_EXPLICITLY_ENABLE_BACKUP_SOSOURCE) == 0
+          && SysUtil.isSupportedDirectLoad(context, sAppType)) {
+        // SoLoader doesn't need backup soSource if it supports directly loading .so file from APK
+        flags |= (SOLOADER_DISABLE_BACKUP_SOSOURCE | SOLOADER_ENABLE_DIRECT_SOSOURCE);
       }
 
-      sAppType = getAppType(context, flags);
       initSoLoader(soFileLoader);
       initSoSources(context, flags, denyList);
       NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
@@ -289,7 +302,7 @@ public class SoLoader {
           }
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
         } else {
-          if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
+          if ((flags & SOLOADER_ENABLE_DIRECT_SOSOURCE) != 0) {
             addDirectApkSoSource(context, soSources);
           }
           addApplicationSoSource(context, soSources, getApplicationSoSourceFlags());
