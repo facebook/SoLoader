@@ -414,11 +414,10 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
     final DsoManifest manifest = desiredManifest;
 
+    Runnable syncer = createSyncer(lock, deps, stateFileName, depsFileName, manifest, false);
     if ((flags & PREPARE_FLAG_ALLOW_ASYNC_INIT) != 0) {
-      Runnable syncer = createSyncer(lock, deps, stateFileName, depsFileName, manifest, true);
       new Thread(syncer, "SoSync:" + soDirectory.getName()).start();
     } else {
-      Runnable syncer = createSyncer(lock, deps, stateFileName, depsFileName, manifest, false);
       syncer.run();
     }
 
