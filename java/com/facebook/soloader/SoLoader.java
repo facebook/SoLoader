@@ -316,7 +316,14 @@ public class SoLoader {
         if (Log.isLoggable(TAG, Log.DEBUG)) {
           Log.d(TAG, "Preparing SO source: " + finalSoSources[i]);
         }
+
+        if (SYSTRACE_LIBRARY_LOADING) {
+          Api18TraceUtils.beginTraceSection(TAG, "_", finalSoSources[i].getClass().getSimpleName());
+        }
         finalSoSources[i].prepare(prepareFlags);
+        if (SYSTRACE_LIBRARY_LOADING) {
+          Api18TraceUtils.endSection();
+        }
       }
       sSoSources = finalSoSources;
       sSoSourcesVersion.getAndIncrement();
