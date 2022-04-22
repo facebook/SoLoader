@@ -92,7 +92,7 @@ public class SoLoader {
    */
   @GuardedBy("sSoSourcesLock")
   @Nullable
-  private static SoSource[] sSoSources = null;
+  private static volatile SoSource[] sSoSources = null;
 
   @GuardedBy("sSoSourcesLock")
   private static final AtomicInteger sSoSourcesVersion = new AtomicInteger(0);
@@ -278,6 +278,13 @@ public class SoLoader {
     }
 
     sSoSourcesLock.writeLock().lock();
+
+    // Double check that sSoSources wasn't initialized while waiting for the lock.
+    if (sSoSources != null) {
+      sSoSourcesLock.writeLock().unlock();
+      return;
+    }
+
     try {
       sFlags = flags;
 
