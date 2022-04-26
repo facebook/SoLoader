@@ -240,8 +240,8 @@ public final class NativeDeps {
     }
   }
 
-  private static int verifyBytesAndGetOffset(byte[] apkId, byte[] bytes) {
-    if (apkId == null || apkId.length == 0) {
+  private static int verifyBytesAndGetOffset(@Nullable byte[] apkId, @Nullable byte[] bytes) {
+    if (apkId == null || bytes == null || apkId.length == 0) {
       return -1;
     }
 
@@ -263,11 +263,32 @@ public final class NativeDeps {
     return apkId.length + 4;
   }
 
+  @Nullable
+  private static byte[] readAllBytes(FileInputStream in, int length) throws IOException {
+    byte[] buffer = new byte[length];
+
+    int offset = 0;
+    while (offset < length) {
+      int bytesRead = in.read(buffer, offset, length - offset);
+      if (bytesRead == -1) {
+        // EOF reached before reading `length` bytes.
+        return null;
+      }
+      if (offset + bytesRead > length) {
+        // Read more bytes than expected
+        return null;
+      }
+      offset += bytesRead;
+    }
+
+    return buffer;
+  }
+
   // Reads deps file and builds indexes to quickly get deps from libraries.
   private static boolean readDepsFromFile(byte[] apkId, String depsFilePath) throws IOException {
-    try (FileInputStream in = new FileInputStream(depsFilePath)) {
-      sEncodedDeps = new byte[in.available()];
-      in.read(sEncodedDeps);
+    File file = new File(depsFilePath);
+    try (FileInputStream in = new FileInputStream(file)) {
+      sEncodedDeps = readAllBytes(in, (int) file.length());
       int offset = verifyBytesAndGetOffset(apkId, sEncodedDeps);
       if (offset == -1) {
         sEncodedDeps = null;
