@@ -345,7 +345,7 @@ public final class SysUtil {
    * N.B. If this method is changed, the above method {@link #getApkDepBlockLength} must also be
    * updated to reflect the expected size of the dep block
    */
-  public static byte[] makeApkDepBlock(File apkFile, Context context) throws IOException {
+  public static byte[] makeApkDepBlock(File apkFile, final Context context) throws IOException {
     apkFile = apkFile.getCanonicalFile();
     Parcel parcel = Parcel.obtain();
     try {
@@ -359,7 +359,7 @@ public final class SysUtil {
     }
   }
 
-  public static int getAppVersionCode(Context context) {
+  public static int getAppVersionCode(final Context context) {
     final PackageManager pm = context.getPackageManager();
     if (pm != null) {
       try {

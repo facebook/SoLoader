@@ -16,6 +16,8 @@
 
 package com.facebook.soloader;
 
+import android.content.Context;
+import android.util.Log;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.annotation.Nullable;
 
 /**
@@ -37,32 +40,121 @@ public final class NativeDeps {
   private static final int LIB_PREFIX_SUFFIX_LEN = LIB_PREFIX_LEN + LIB_SUFFIX_LEN;
   private static final int DEFAULT_LIBS_CAPACITY = 512;
   private static final int INITIAL_HASH = 5381;
+  private static final int WAITING_THREADS_WARNING_THRESHOLD = 3;
+  private static final String LOG_TAG = "NativeDeps";
 
-  private static boolean sInitialized = false;
+  private static volatile boolean sInitialized = false;
   private static @Nullable byte[] sEncodedDeps;
   private static List<Integer> sPrecomputedLibs;
   private static Map<Integer, List<Integer>> sPrecomputedDeps;
 
+  private static volatile boolean sUseDepsFileAsync = false;
+  private static final ReentrantReadWriteLock sWaitForDepsFileLock = new ReentrantReadWriteLock();
+
   public static String[] getDependencies(String soName, File elfFile) throws IOException {
-    if (sInitialized) {
-      String[] deps = tryGetDepsFromPrecomputedDeps(soName);
-      if (deps != null) {
-        return deps;
-      }
+    String[] deps = awaitGetDepsFromPrecomputedDeps(soName);
+    if (deps != null) {
+      return deps;
     }
 
     return MinElf.extract_DT_NEEDED(elfFile);
   }
 
   public static String[] getDependencies(String soName, ElfByteChannel bc) throws IOException {
-    if (sPrecomputedDeps != null) {
-      String[] deps = tryGetDepsFromPrecomputedDeps(soName);
-      if (deps != null) {
-        return deps;
-      }
+    String[] deps = awaitGetDepsFromPrecomputedDeps(soName);
+    if (deps != null) {
+      return deps;
     }
 
     return MinElf.extract_DT_NEEDED(bc);
+  }
+
+  @Nullable
+  private static String[] awaitGetDepsFromPrecomputedDeps(String soName) {
+    if (sInitialized) {
+      return tryGetDepsFromPrecomputedDeps(soName);
+    }
+
+    if (sUseDepsFileAsync) {
+      sWaitForDepsFileLock.readLock().lock();
+      try {
+        return tryGetDepsFromPrecomputedDeps(soName);
+      } finally {
+        sWaitForDepsFileLock.readLock().unlock();
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Enables fetching dependencies from a deps file expected to be in the APK. If enabled,
+   * dependencies will be looked up in the deps file instead of extracting them from the ELF file.
+   * The file is read only once when getDependencies is first called. If dependencies for a specific
+   * library are not found or the file is corrupt, we fall back to extracting the dependencies from
+   * the ELF file.
+   *
+   * @param context Application context, used to find apk file and data directory.
+   * @param async If true, native deps file initialization will be performed in a background thread,
+   *     and fetching dependencies will wait for initialization to complete. If false,
+   *     initialization is performed synchronously on this call.
+   * @return true if initialization succeeded, false otherwise. If async, always returns true.
+   */
+  public static boolean useDepsFileFromApk(final Context context, boolean async) {
+    if (!async) {
+      return useDepsFileFromApkSync(context);
+    }
+
+    Runnable runnable =
+        new Runnable() {
+          @Override
+          public void run() {
+            sWaitForDepsFileLock.writeLock().lock();
+            sUseDepsFileAsync = true;
+            try {
+              useDepsFileFromApkSync(context);
+            } finally {
+              int waitingThreads = sWaitForDepsFileLock.getReadLockCount();
+              if (waitingThreads >= WAITING_THREADS_WARNING_THRESHOLD) {
+                Log.w(
+                    LOG_TAG,
+                    "NativeDeps initialization finished with "
+                        + Integer.toString(waitingThreads)
+                        + " threads waiting.");
+              }
+              sWaitForDepsFileLock.writeLock().unlock();
+              sUseDepsFileAsync = false;
+            }
+          };
+        };
+
+    new Thread(runnable, "soloader-nativedeps-init").start();
+    return true;
+  }
+
+  private static boolean useDepsFileFromApkSync(final Context context) {
+    boolean success;
+    try {
+      success = useDepsFile(context, NativeDepsUnpacker.getNativeDepsFilePath(context).getPath());
+    } catch (IOException e) {
+      // File does not exist or reading failed for some reason. We need to make
+      // sure the file was extracted from the APK.
+      success = false;
+    }
+
+    if (!success) {
+      try {
+        NativeDepsUnpacker.ensureNativeDepsAvailable(context);
+        // Retry, now that we made sure the file was extracted.
+        success = useDepsFile(context, NativeDepsUnpacker.getNativeDepsFilePath(context).getPath());
+      } catch (IOException e) {
+        Log.w(
+            LOG_TAG,
+            "Failed to extract native deps from APK, falling back to using MinElf to get library dependencies.");
+      }
+    }
+
+    return success;
   }
 
   /**
@@ -72,7 +164,13 @@ public final class NativeDeps {
    * a specific library are not found or the file is corrupt, we fall back to extracting the
    * dependencies from the ELF file.
    */
-  public static boolean useDepsFile(byte[] apkId, String depsFilePath) throws IOException {
+  public static boolean useDepsFile(final Context context, String depsFilePath) throws IOException {
+    File apkFile = new File(context.getApplicationInfo().sourceDir);
+    byte[] apkId = SysUtil.makeApkDepBlock(apkFile, context);
+    return NativeDeps.useDepsFile(apkId, depsFilePath);
+  }
+
+  static boolean useDepsFile(byte[] apkId, String depsFilePath) throws IOException {
     if (!sInitialized) {
       synchronized (NativeDeps.class) {
         if (!sInitialized) {
