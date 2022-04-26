@@ -19,6 +19,7 @@ package com.facebook.soloader;
 import android.content.Context;
 import java.io.EOFException;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,6 +44,7 @@ public final class NativeDepsUnpacker {
   private static final String STATE_FILE_NAME = "state";
   private static final String APK_IDENTIFIER_FILE_NAME = "apk_id";
   private static final String NATIVE_DEPS_FILE_NAME = "deps";
+  private static final String NATIVE_DEPS_FILE_APK_PATH = "assets/native_deps.txt";
 
   private NativeDepsUnpacker() {}
 
@@ -109,10 +111,35 @@ public final class NativeDepsUnpacker {
     return SysUtil.makeApkDepBlock(apk, context);
   }
 
-  private static byte[] readNativeDepsFromApk(Context context) throws IOException {
+  private static byte[] readAllBytes(InputStream in, int length) throws IOException {
+    byte[] buffer = new byte[length];
+
+    int offset = 0;
+    while (offset < length) {
+      int bytesRead = in.read(buffer, offset, length - offset);
+      if (bytesRead == -1) {
+        throw new EOFException("EOF found unexpectedly");
+      }
+      if (offset + bytesRead > length) {
+        throw new IllegalStateException("Read more bytes than expected");
+      }
+      offset += bytesRead;
+    }
+
+    return buffer;
+  }
+
+  static byte[] readNativeDepsFromDisk(Context context) throws IOException {
+    File file = getNativeDepsFilePath(context);
+    try (FileInputStream in = new FileInputStream(file)) {
+      return readAllBytes(in, (int) file.length());
+    }
+  }
+
+  static byte[] readNativeDepsFromApk(Context context) throws IOException {
     File apk = new File(context.getApplicationInfo().sourceDir);
     ZipFile zipFile = new ZipFile(apk);
-    ZipEntry nativeDepsEntry = zipFile.getEntry("assets/native_deps.txt");
+    ZipEntry nativeDepsEntry = zipFile.getEntry(NATIVE_DEPS_FILE_APK_PATH);
     if (nativeDepsEntry == null) {
       throw new FileNotFoundException("Could not find native_deps file in APK");
     }
@@ -121,9 +148,7 @@ public final class NativeDepsUnpacker {
       if (nativeDepsIs == null) {
         throw new FileNotFoundException("Failed to read native_deps file from APK");
       }
-      byte[] data = new byte[nativeDepsIs.available()];
-      nativeDepsIs.read(data);
-      return data;
+      return readAllBytes(nativeDepsIs, (int) nativeDepsEntry.getSize());
     }
   }
 

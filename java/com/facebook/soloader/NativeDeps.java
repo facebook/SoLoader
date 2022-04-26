@@ -38,7 +38,7 @@ public final class NativeDeps {
   private static final int LIB_PREFIX_LEN = "lib".length();
   private static final int LIB_SUFFIX_LEN = ".so".length();
   private static final int LIB_PREFIX_SUFFIX_LEN = LIB_PREFIX_LEN + LIB_SUFFIX_LEN;
-  private static final int DEFAULT_LIBS_CAPACITY = 512;
+  private static final float HASHMAP_LOAD_FACTOR = 1f;
   private static final int INITIAL_HASH = 5381;
   private static final int WAITING_THREADS_WARNING_THRESHOLD = 3;
   private static final String LOG_TAG = "NativeDeps";
@@ -234,7 +234,7 @@ public final class NativeDeps {
         ++byteOffset;
       }
     } catch (IndexOutOfBoundsException e) {
-      if (inLibName) {
+      if (inLibName && libNameBegin != bytes.length) {
         indexLib(libHash, libNameBegin);
       }
     }
@@ -261,6 +261,27 @@ public final class NativeDeps {
     }
 
     return apkId.length + 4;
+  }
+
+  private static int findNextLine(byte[] bytes, int offset) {
+    while (offset < bytes.length && bytes[offset] != '\n') {
+      offset++;
+    }
+
+    if (offset < bytes.length) {
+      offset++;
+    }
+
+    return offset;
+  }
+
+  private static int parseLibCount(byte[] data, int offset, int length) {
+    try {
+      return Integer.parseInt(new String(data, offset, length));
+    } catch (NumberFormatException e) {
+      // Invalid data
+      return -1;
+    }
   }
 
   @Nullable
@@ -294,9 +315,28 @@ public final class NativeDeps {
         sEncodedDeps = null;
         return false;
       }
-      sPrecomputedDeps = new HashMap<>(DEFAULT_LIBS_CAPACITY);
-      sPrecomputedLibs = new ArrayList<>(DEFAULT_LIBS_CAPACITY);
-      indexDepsBytes(sEncodedDeps, offset);
+
+      int deps_offset = findNextLine(sEncodedDeps, offset);
+      if (deps_offset >= sEncodedDeps.length) {
+        sEncodedDeps = null;
+        return false;
+      }
+
+      int libsCount = parseLibCount(sEncodedDeps, offset, deps_offset - offset - 1);
+      if (libsCount <= 0) {
+        sEncodedDeps = null;
+        return false;
+      }
+
+      sPrecomputedDeps =
+          new HashMap<>((int) (libsCount / HASHMAP_LOAD_FACTOR) + 1, HASHMAP_LOAD_FACTOR);
+      sPrecomputedLibs = new ArrayList<>(libsCount);
+      indexDepsBytes(sEncodedDeps, deps_offset);
+
+      if (sPrecomputedLibs.size() != libsCount) {
+        sEncodedDeps = null;
+        return false;
+      }
     } catch (IOException e) {
       // Release bytes that are not needed anymore and propagate exception
       sEncodedDeps = null;
