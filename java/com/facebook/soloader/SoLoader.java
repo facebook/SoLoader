@@ -1265,19 +1265,18 @@ public class SoLoader {
    * from the ELF files. The file is expected to be in the APK in assets/native_deps.txt. Returns
    * true on success, false on failure. On failure, dependencies will be read from ELF files instead
    * of the deps file.
+   *
+   * @param context - Application context, used to find native deps file in APK
+   * @param async - If true, initialization will occur in a background thread and we library loading
+   *     will wait for initialization to complete.
+   * @param extractToDisk - If true, the native deps file will be extract from the APK and written
+   *     to disk. This can be useful when the file is compressed in the APK, since we can prevent
+   *     decompressing the file every time.
+   * @return True if initialization succeeded, false otherwise. Always returns true if async is
+   *     true.
    */
-  public static boolean useDepsFile(Context context, boolean async) {
-    return NativeDeps.useDepsFileFromApk(context, async);
-  }
-
-  /**
-   * Enables the use of a deps file to fetch the native library dependencies to avoid reading them
-   * from the ELF files. The path to the deps file is provided in depsFilePath. Throws IOException
-   * if it fail to read the file. In this case, we will fall back to reading dependencies from ELF
-   * files. Returns true on success, false on failure.
-   */
-  public static boolean useDepsFile(Context context, String depsFilePath) throws IOException {
-    return NativeDeps.useDepsFile(context, depsFilePath);
+  public static boolean useDepsFile(Context context, boolean async, boolean extractToDisk) {
+    return NativeDeps.useDepsFile(context, async, extractToDisk);
   }
 
   @DoNotOptimize

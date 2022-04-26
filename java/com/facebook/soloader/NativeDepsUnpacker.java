@@ -111,7 +111,7 @@ public final class NativeDepsUnpacker {
     return SysUtil.makeApkDepBlock(apk, context);
   }
 
-  private static byte[] readAllBytes(InputStream in, int length) throws IOException {
+  static byte[] readAllBytes(InputStream in, int length) throws IOException {
     byte[] buffer = new byte[length];
 
     int offset = 0;
