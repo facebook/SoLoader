@@ -1260,6 +1260,43 @@ public class SoLoader {
     }
   }
 
+  /**
+   * Enables the use of a deps file to fetch the native library dependencies to avoid reading them
+   * from the ELF files. The file is expected to be in the APK in assets/native_deps.txt. Returns
+   * true on success, false on failure. On failure, dependencies will be read from ELF files instead
+   * of the deps file.
+   */
+  public static boolean useDepsFile(Context context) {
+    boolean success;
+    try {
+      success = useDepsFile(context, NativeDepsUnpacker.getNativeDepsFilePath(context).getPath());
+    } catch (IOException e) {
+      // File does not exist or reading failed for some reason. We need to make
+      // sure the file was extracted from the APK.
+      success = false;
+    }
+
+    if (!success) {
+      try {
+        NativeDepsUnpacker.ensureNativeDepsAvailable(context);
+        // Retry, now that we made sure the file was extracted.
+        success = useDepsFile(context, NativeDepsUnpacker.getNativeDepsFilePath(context).getPath());
+      } catch (IOException e) {
+        Log.w(
+            TAG,
+            "Failed to extract native deps from APK, falling back to using MinElf to get library dependencies.");
+      }
+    }
+
+    return success;
+  }
+
+  /**
+   * Enables the use of a deps file to fetch the native library dependencies to avoid reading them
+   * from the ELF files. The path to the deps file is provided in depsFilePath. Throws IOException
+   * if it fail to read the file. In this case, we will fall back to reading dependencies from ELF
+   * files. Returns true on success, false on failure.
+   */
   public static boolean useDepsFile(Context context, String depsFilePath) throws IOException {
     File apkFile = new File(context.getApplicationInfo().sourceDir);
     byte[] apkId = SysUtil.makeApkDepBlock(apkFile, context);
