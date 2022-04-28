@@ -138,17 +138,18 @@ public final class NativeDepsUnpacker {
 
   static byte[] readNativeDepsFromApk(Context context) throws IOException {
     File apk = new File(context.getApplicationInfo().sourceDir);
-    ZipFile zipFile = new ZipFile(apk);
-    ZipEntry nativeDepsEntry = zipFile.getEntry(NATIVE_DEPS_FILE_APK_PATH);
-    if (nativeDepsEntry == null) {
-      throw new FileNotFoundException("Could not find native_deps file in APK");
-    }
-
-    try (InputStream nativeDepsIs = zipFile.getInputStream(nativeDepsEntry)) {
-      if (nativeDepsIs == null) {
-        throw new FileNotFoundException("Failed to read native_deps file from APK");
+    try (ZipFile zipFile = new ZipFile(apk)) {
+      ZipEntry nativeDepsEntry = zipFile.getEntry(NATIVE_DEPS_FILE_APK_PATH);
+      if (nativeDepsEntry == null) {
+        throw new FileNotFoundException("Could not find native_deps file in APK");
       }
-      return readAllBytes(nativeDepsIs, (int) nativeDepsEntry.getSize());
+
+      try (InputStream nativeDepsIs = zipFile.getInputStream(nativeDepsEntry)) {
+        if (nativeDepsIs == null) {
+          throw new FileNotFoundException("Failed to read native_deps file from APK");
+        }
+        return readAllBytes(nativeDepsIs, (int) nativeDepsEntry.getSize());
+      }
     }
   }
 
