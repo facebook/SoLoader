@@ -239,6 +239,10 @@ public class SoLoader {
   public static void init(
       Context context, int flags, @Nullable SoFileLoader soFileLoader, String[] denyList)
       throws IOException {
+    if (isInitialized()) {
+      return;
+    }
+
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
       sAppType = getAppType(context, flags);
@@ -1172,6 +1176,9 @@ public class SoLoader {
   }
 
   public static boolean isInitialized() {
+    if (sSoSources != null) {
+      return true;
+    }
     sSoSourcesLock.readLock().lock();
     try {
       return sSoSources != null;
