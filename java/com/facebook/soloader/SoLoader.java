@@ -1293,6 +1293,15 @@ public class SoLoader {
     return NativeDeps.useDepsFile(context, async, extractToDisk);
   }
 
+  /**
+   * Returns count of already loaded so libraries
+   *
+   * @return number of loaded libraries
+   */
+  public static int getLoadedLibrariesCount() {
+    return sLoadedLibraries.size();
+  }
+
   @DoNotOptimize
   @TargetApi(14)
   /* package */ static class Api14Utils {
