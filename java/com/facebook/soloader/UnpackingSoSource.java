@@ -521,14 +521,21 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       mInstanceLock = getOrCreateLock(instanceLockFileName, false);
     }
 
+    final boolean dirCanWrite = soDirectory.canWrite();
     try {
       Log.v(TAG, "locked dso store " + soDirectory);
+      if (!dirCanWrite) {
+        soDirectory.setWritable(true);
+      }
       if (refreshLocked(lock, flags, getDepsBlock())) {
         lock = null; // Lock transferred to syncer thread
       } else {
         Log.i(TAG, "dso store is up-to-date: " + soDirectory);
       }
     } finally {
+      if (!dirCanWrite) {
+        soDirectory.setWritable(false);
+      }
       if (lock != null) {
         Log.v(TAG, "releasing dso store lock for " + soDirectory);
         lock.close();
