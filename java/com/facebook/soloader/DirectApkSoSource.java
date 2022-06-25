@@ -23,13 +23,13 @@ import android.text.TextUtils;
 import android.util.Log;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -43,19 +43,19 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class DirectApkSoSource extends SoSource {
 
-  private final Set<String> mLibsInApk = Collections.synchronizedSet(new HashSet<String>());
-  private final @Nullable String mDirectApkLdPath;
+  private final Map<String, Set<String>> mLibsInApkMap = new HashMap<>();
+  private final Set<String> mDirectApkLdPaths;
   private final File mApkFile;
 
   public DirectApkSoSource(Context context) {
     super();
-    mDirectApkLdPath = getDirectApkLdPath("");
+    mDirectApkLdPaths = getDirectApkLdPaths("");
     mApkFile = new File(context.getApplicationInfo().sourceDir);
   }
 
   public DirectApkSoSource(File apkFile) {
     super();
-    mDirectApkLdPath = getDirectApkLdPath(SysUtil.getBaseName(apkFile.getName()));
+    mDirectApkLdPaths = getDirectApkLdPaths(SysUtil.getBaseName(apkFile.getName()));
     mApkFile = apkFile;
   }
 
@@ -65,22 +65,29 @@ public class DirectApkSoSource extends SoSource {
     if (SoLoader.sSoFileLoader == null) {
       throw new IllegalStateException("SoLoader.init() not yet called");
     }
-    if (!mLibsInApk.contains(soName) || TextUtils.isEmpty(mDirectApkLdPath)) {
-      Log.d(SoLoader.TAG, soName + " not found on " + mDirectApkLdPath);
-      return LOAD_RESULT_NOT_FOUND;
-    }
 
-    loadDependencies(soName, loadFlags, threadPolicy);
+    for (String directApkLdPath : mDirectApkLdPaths) {
+      Set<String> libsInApk = mLibsInApkMap.get(directApkLdPath);
+      if (TextUtils.isEmpty(directApkLdPath) || libsInApk == null || !libsInApk.contains(soName)) {
+        Log.v(SoLoader.TAG, soName + " not found on " + directApkLdPath);
+        continue;
+      }
 
-    try {
-      loadFlags |= SoLoader.SOLOADER_LOOK_IN_ZIP;
-      SoLoader.sSoFileLoader.load(mDirectApkLdPath + File.separator + soName, loadFlags);
-    } catch (UnsatisfiedLinkError e) {
-      Log.w(SoLoader.TAG, soName + " not found on DirectAPKSoSource: " + loadFlags, e);
-      return LOAD_RESULT_NOT_FOUND;
+      loadDependencies(soName, loadFlags, threadPolicy);
+
+      try {
+        final String soPath = directApkLdPath + File.separator + soName;
+        loadFlags |= SoLoader.SOLOADER_LOOK_IN_ZIP;
+        SoLoader.sSoFileLoader.load(soPath, loadFlags);
+      } catch (UnsatisfiedLinkError e) {
+        Log.w(SoLoader.TAG, soName + " not found on " + directApkLdPath + " flag: " + loadFlags, e);
+        continue;
+      }
+
+      Log.d(SoLoader.TAG, soName + " found on " + directApkLdPath);
+      return LOAD_RESULT_LOADED;
     }
-    Log.d(SoLoader.TAG, soName + " found on DirectAPKSoSource: " + loadFlags);
-    return LOAD_RESULT_LOADED;
+    return LOAD_RESULT_NOT_FOUND;
   }
 
   @Override
@@ -88,19 +95,20 @@ public class DirectApkSoSource extends SoSource {
     throw new UnsupportedOperationException("DirectAPKSoSource doesn't support unpackLibrary");
   }
 
-  private @Nullable static String getDirectApkLdPath(String apkName) {
+  /*package*/ static Set<String> getDirectApkLdPaths(String apkName) {
+    Set<String> directApkPathSet = new HashSet<>();
     final String classLoaderLdLibraryPath =
-        Build.VERSION.SDK_INT >= 14 ? SoLoader.Api14Utils.getClassLoaderLdLoadLibrary() : null;
+        Build.VERSION.SDK_INT >= 14 ? SysUtil.Api14Utils.getClassLoaderLdLoadLibrary() : null;
 
     if (classLoaderLdLibraryPath != null) {
       final String[] paths = classLoaderLdLibraryPath.split(":");
       for (final String path : paths) {
         if (path.contains(apkName + ".apk!/")) {
-          return path;
+          directApkPathSet.add(path);
         }
       }
     }
-    return null;
+    return directApkPathSet;
   }
 
   private static String[] getDependencies(String soName, ElfByteChannel bc) throws IOException {
@@ -125,7 +133,7 @@ public class DirectApkSoSource extends SoSource {
         if (entry != null && entry.getName().endsWith("/" + soName)) {
           try (ElfByteChannel bc = new ElfZipFileChannel(mZipFile, entry)) {
             for (String dependency : getDependencies(soName, bc)) {
-              if (mLibsInApk.contains(dependency) || dependency.startsWith("/")) {
+              if (this.contains(dependency) || dependency.startsWith("/")) {
                 // Bionic dynamic linker could correctly resolving dependencies, we don't need
                 // load them by ourselves.
                 continue;
@@ -144,27 +152,29 @@ public class DirectApkSoSource extends SoSource {
   @Override
   protected void prepare(int flags) throws IOException {
     String subDir = null;
-    if (!TextUtils.isEmpty(mDirectApkLdPath)) {
-      final int i = mDirectApkLdPath.indexOf('!');
-      if (i >= 0 && i + 2 < mDirectApkLdPath.length()) {
-        // Exclude `!` and `/` in the path
-        subDir = mDirectApkLdPath.substring(i + 2);
+    for (String directApkLdPath : mDirectApkLdPaths) {
+      if (!TextUtils.isEmpty(directApkLdPath)) {
+        final int i = directApkLdPath.indexOf('!');
+        if (i >= 0 && i + 2 < directApkLdPath.length()) {
+          // Exclude `!` and `/` in the path
+          subDir = directApkLdPath.substring(i + 2);
+        }
       }
-    }
-    if (subDir == null) {
-      return;
-    }
+      if (TextUtils.isEmpty(subDir)) {
+        continue;
+      }
 
-    try (ZipFile mZipFile = new ZipFile(mApkFile)) {
-      Enumeration<? extends ZipEntry> entries = mZipFile.entries();
-      while (entries.hasMoreElements()) {
-        ZipEntry entry = entries.nextElement();
-        if (entry != null
-            && entry.getName().startsWith(subDir)
-            && entry.getName().endsWith(".so")
-            && entry.getMethod() == ZipEntry.STORED) {
-          final String soName = entry.getName().substring(subDir.length() + 1);
-          mLibsInApk.add(soName);
+      try (ZipFile mZipFile = new ZipFile(mApkFile)) {
+        Enumeration<? extends ZipEntry> entries = mZipFile.entries();
+        while (entries.hasMoreElements()) {
+          ZipEntry entry = entries.nextElement();
+          if (entry != null
+              && entry.getName().startsWith(subDir)
+              && entry.getName().endsWith(".so")
+              && entry.getMethod() == ZipEntry.STORED) {
+            final String soName = entry.getName().substring(subDir.length() + 1);
+            append(directApkLdPath, soName);
+          }
         }
       }
     }
@@ -175,8 +185,34 @@ public class DirectApkSoSource extends SoSource {
     return new StringBuilder()
         .append(getClass().getName())
         .append("[root = ")
-        .append(mDirectApkLdPath)
+        .append(LdPathsToString())
         .append(']')
         .toString();
+  }
+
+  private synchronized boolean contains(String soName) {
+    for (Set<String> libInApk : mLibsInApkMap.values()) {
+      if (libInApk.contains(soName)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private synchronized void append(String ldPath, String soName) {
+    if (!mLibsInApkMap.containsKey(ldPath)) {
+      mLibsInApkMap.put(ldPath, new HashSet<String>());
+    }
+    mLibsInApkMap.get(ldPath).add(soName);
+  }
+
+  private String LdPathsToString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append('(');
+    for (String path : mDirectApkLdPaths) {
+      sb.append(path).append(", ");
+    }
+    sb.append(')');
+    return sb.toString();
   }
 }

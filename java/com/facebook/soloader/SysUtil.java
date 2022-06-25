@@ -28,6 +28,7 @@ import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 import android.util.Log;
+import dalvik.system.BaseDexClassLoader;
 import java.io.DataOutput;
 import java.io.File;
 import java.io.FileDescriptor;
@@ -35,6 +36,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -440,5 +442,29 @@ public final class SysUtil {
       return fileName.substring(0, index);
     }
     return fileName;
+  }
+
+  @DoNotOptimize
+  @TargetApi(14)
+  public static class Api14Utils {
+    public static String getClassLoaderLdLoadLibrary() {
+      final ClassLoader classLoader = SoLoader.class.getClassLoader();
+
+      if (classLoader != null && !(classLoader instanceof BaseDexClassLoader)) {
+        throw new IllegalStateException(
+            "ClassLoader "
+                + classLoader.getClass().getName()
+                + " should be of type BaseDexClassLoader");
+      }
+      try {
+        final BaseDexClassLoader baseDexClassLoader = (BaseDexClassLoader) classLoader;
+        final Method getLdLibraryPathMethod =
+            BaseDexClassLoader.class.getMethod("getLdLibraryPath");
+
+        return (String) getLdLibraryPathMethod.invoke(baseDexClassLoader);
+      } catch (Exception e) {
+        throw new RuntimeException("Cannot call getLdLibraryPath", e);
+      }
+    }
   }
 }

@@ -16,7 +16,6 @@
 
 package com.facebook.soloader;
 
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
@@ -24,7 +23,6 @@ import android.os.StrictMode;
 import android.text.TextUtils;
 import android.util.Log;
 import com.facebook.soloader.nativeloader.NativeLoader;
-import dalvik.system.BaseDexClassLoader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -513,7 +511,7 @@ public class SoLoader {
     final boolean hasNativeLoadMethod = nativeLoadRuntimeMethod != null;
 
     final String localLdLibraryPath =
-        hasNativeLoadMethod ? Api14Utils.getClassLoaderLdLoadLibrary() : null;
+        hasNativeLoadMethod ? SysUtil.Api14Utils.getClassLoaderLdLoadLibrary() : null;
     final String localLdLibraryPathNoZips = makeNonZipPath(localLdLibraryPath);
 
     sSoFileLoader =
@@ -1300,29 +1298,5 @@ public class SoLoader {
    */
   public static int getLoadedLibrariesCount() {
     return sLoadedLibraries.size();
-  }
-
-  @DoNotOptimize
-  @TargetApi(14)
-  /* package */ static class Api14Utils {
-    public static String getClassLoaderLdLoadLibrary() {
-      final ClassLoader classLoader = SoLoader.class.getClassLoader();
-
-      if (classLoader != null && !(classLoader instanceof BaseDexClassLoader)) {
-        throw new IllegalStateException(
-            "ClassLoader "
-                + classLoader.getClass().getName()
-                + " should be of type BaseDexClassLoader");
-      }
-      try {
-        final BaseDexClassLoader baseDexClassLoader = (BaseDexClassLoader) classLoader;
-        final Method getLdLibraryPathMethod =
-            BaseDexClassLoader.class.getMethod("getLdLibraryPath");
-
-        return (String) getLdLibraryPathMethod.invoke(baseDexClassLoader);
-      } catch (Exception e) {
-        throw new RuntimeException("Cannot call getLdLibraryPath", e);
-      }
-    }
   }
 }

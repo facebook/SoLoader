@@ -80,7 +80,7 @@ public class DirectorySoSource extends SoSource {
 
     File soFile = getSoFileByName(soName);
     if (soFile == null) {
-      Log.d(SoLoader.TAG, soName + " not found on " + libDir.getCanonicalPath());
+      Log.v(SoLoader.TAG, soName + " not found on " + libDir.getCanonicalPath());
       return LOAD_RESULT_NOT_FOUND;
     } else {
       Log.d(SoLoader.TAG, soName + " found on " + libDir.getCanonicalPath());
