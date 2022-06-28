@@ -2,7 +2,7 @@ NAME = 'SoLoader'
 
 GROUP = 'com.facebook.soloader'
 ARTIFACT = 'soloader'
-VERSION='0.10.3'
+VERSION='0.10.4'
 
 DESCRIPTION = "Reliable native code loader for Android"
 URL = 'https://github.com/facebook/soloader'
@@ -25,13 +25,13 @@ INTERNAL_DEPENDENCIES = (""
   "<dependency>"
     "<groupId>com.facebook.soloader</groupId>"
     "<artifactId>annotation</artifactId>"
-    "<version>0.10.3</version>"
+    "<version>0.10.4</version>"
     "<scope>compile</scope>"
   "</dependency>"
   "<dependency>"
     "<groupId>com.facebook.soloader</groupId>"
     "<artifactId>nativeloader</artifactId>"
-    "<version>0.10.3</version>"
+    "<version>0.10.4</version>"
     "<scope>compile</scope>"
   "</dependency>"
 "</dependencies>")
