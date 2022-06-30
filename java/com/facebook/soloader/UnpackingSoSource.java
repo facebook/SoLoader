@@ -507,35 +507,39 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
   protected void prepare(int flags) throws IOException {
     SysUtil.mkdirOrThrow(soDirectory);
 
-    // LOCK_FILE_NAME is used to synchronize changes in the dso store.
-    File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
-    FileLocker lock = getOrCreateLock(lockFileName, true);
-
-    // INSTANCE_LOCK_FILE_NAME is used to signal to other processes/threads that
-    // there is an initialized SoSource from which DSOs might be getting loaded.
-    // This lock is held for the entire lifetime of the process.
-    // This prevents from doing changes to DSOs which might prevent previously
-    // initialized SoSources from loading libraries.
-    if (mInstanceLock == null) {
-      File instanceLockFileName = new File(soDirectory, INSTANCE_LOCK_FILE_NAME);
-      mInstanceLock = getOrCreateLock(instanceLockFileName, false);
-    }
-
     final boolean dirCanWrite = soDirectory.canWrite();
+    FileLocker lock = null;
     try {
-      Log.v(TAG, "locked dso store " + soDirectory);
-      if (!dirCanWrite) {
-        soDirectory.setWritable(true);
+      if (!dirCanWrite && !soDirectory.setWritable(true)) {
+        Log.w(TAG, "error adding " + soDirectory.getCanonicalPath() + " write permission");
       }
+
+      // LOCK_FILE_NAME is used to synchronize changes in the dso store.
+      File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
+      lock = getOrCreateLock(lockFileName, true);
+
+      // INSTANCE_LOCK_FILE_NAME is used to signal to other processes/threads that
+      // there is an initialized SoSource from which DSOs might be getting loaded.
+      // This lock is held for the entire lifetime of the process.
+      // This prevents from doing changes to DSOs which might prevent previously
+      // initialized SoSources from loading libraries.
+      if (mInstanceLock == null) {
+        File instanceLockFileName = new File(soDirectory, INSTANCE_LOCK_FILE_NAME);
+        mInstanceLock = getOrCreateLock(instanceLockFileName, false);
+      }
+
+      Log.v(TAG, "locked dso store " + soDirectory);
+
       if (refreshLocked(lock, flags, getDepsBlock())) {
         lock = null; // Lock transferred to syncer thread
       } else {
         Log.i(TAG, "dso store is up-to-date: " + soDirectory);
       }
     } finally {
-      if (!dirCanWrite) {
-        soDirectory.setWritable(false);
+      if (!dirCanWrite && !soDirectory.setWritable(false)) {
+        Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
       }
+
       if (lock != null) {
         Log.v(TAG, "releasing dso store lock for " + soDirectory);
         lock.close();

@@ -413,25 +413,26 @@ public final class SysUtil {
       File soDirectory, File lockFileName, boolean blocking) throws IOException {
     boolean notWritable = false;
     try {
-      if (blocking) {
-        return FileLocker.lock(lockFileName);
-      } else {
-        return FileLocker.tryLock(lockFileName);
-      }
+      return getFileLocker(lockFileName, blocking);
     } catch (FileNotFoundException e) {
       notWritable = true;
       if (!soDirectory.setWritable(true)) {
         throw e;
       }
-      if (blocking) {
-        return FileLocker.lock(lockFileName);
-      } else {
-        return FileLocker.tryLock(lockFileName);
-      }
+      return getFileLocker(lockFileName, blocking);
     } finally {
       if (notWritable && !soDirectory.setWritable(false)) {
         Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
       }
+    }
+  }
+
+  private static @Nullable FileLocker getFileLocker(File lockFileName, boolean blocking)
+      throws IOException {
+    if (blocking) {
+      return FileLocker.lock(lockFileName);
+    } else {
+      return FileLocker.tryLock(lockFileName);
     }
   }
 
