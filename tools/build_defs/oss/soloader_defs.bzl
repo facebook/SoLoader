@@ -73,12 +73,18 @@ def maven_library(
             visibility = visibility,
         )
 
+def _to_json(x):
+    if hasattr(native, "json"):
+        return native.json.encode(x)
+    else:
+        return x.to_json()
+
 def define_list_deps_target(DEPENDENCIES_INDEX):
     """
     Generates rule that dumps all maven_libraries defined in given
     BUCK file in json format.
     """
-    json_deps = struct(**DEPENDENCIES_INDEX).to_json()
+    json_deps = _to_json(struct(**DEPENDENCIES_INDEX))
     native.genrule(
         name = "list-deps",
         out = "dependencies.json",
