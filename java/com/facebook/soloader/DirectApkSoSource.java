@@ -133,9 +133,7 @@ public class DirectApkSoSource extends SoSource {
         if (entry != null && entry.getName().endsWith("/" + soName)) {
           try (ElfByteChannel bc = new ElfZipFileChannel(mZipFile, entry)) {
             for (String dependency : getDependencies(soName, bc)) {
-              if (this.contains(dependency) || dependency.startsWith("/")) {
-                // Bionic dynamic linker could correctly resolving dependencies, we don't need
-                // load them by ourselves.
+              if (dependency.startsWith("/")) {
                 continue;
               }
 
@@ -188,15 +186,6 @@ public class DirectApkSoSource extends SoSource {
         .append(LdPathsToString())
         .append(']')
         .toString();
-  }
-
-  private synchronized boolean contains(String soName) {
-    for (Set<String> libInApk : mLibsInApkMap.values()) {
-      if (libInApk.contains(soName)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private synchronized void append(String ldPath, String soName) {
