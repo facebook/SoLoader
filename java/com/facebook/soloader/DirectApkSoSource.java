@@ -59,6 +59,12 @@ public class DirectApkSoSource extends SoSource {
     mApkFile = apkFile;
   }
 
+  public DirectApkSoSource(File apkFile, Set<String> directApkLdPaths) {
+    super();
+    mDirectApkLdPaths = directApkLdPaths;
+    mApkFile = apkFile;
+  }
+
   @Override
   public int loadLibrary(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
