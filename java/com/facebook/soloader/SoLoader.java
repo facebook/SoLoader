@@ -305,11 +305,6 @@ public class SoLoader {
         //
 
         if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
-          // Even for an exopackage, there might be some native libraries
-          // packaged directly in the application (e.g. ASAN libraries alongside
-          // a wrap.sh script [1]), so make sure we can load them.
-          // [1] https://developer.android.com/ndk/guides/wrap-script
-          addApplicationSoSource(context, soSources, getApplicationSoSourceFlags());
           sBackupSoSources = null;
           if (Log.isLoggable(TAG, Log.DEBUG)) {
             Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
