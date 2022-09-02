@@ -365,23 +365,26 @@ public class SoLoader {
   private static void addDirectApkSoSource(Context context, ArrayList<SoSource> soSources) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
         && context.getApplicationInfo().splitSourceDirs != null) {
-      if (Log.isLoggable(TAG, Log.DEBUG)) {
-        Log.d(TAG, "adding directApk sources from split apks");
-      }
       for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
         DirectApkSoSource splitApkSource = new DirectApkSoSource(new File(splitApkDir));
         if (Log.isLoggable(TAG, Log.DEBUG)) {
-          Log.d(TAG, "adding directApk source: " + splitApkSource.toString());
+          Log.d(
+              TAG,
+              "validating/adding directApk source from splitApk: " + splitApkSource.toString());
         }
-        soSources.add(0, splitApkSource);
+        if (splitApkSource.isValid()) {
+          soSources.add(0, splitApkSource);
+        }
       }
     }
 
     DirectApkSoSource directApkSoSource = new DirectApkSoSource(context);
     if (Log.isLoggable(TAG, Log.DEBUG)) {
-      Log.d(TAG, "adding directApk source: " + directApkSoSource.toString());
+      Log.d(TAG, "validating/adding directApk source: " + directApkSoSource.toString());
     }
-    soSources.add(0, directApkSoSource);
+    if (directApkSoSource.isValid()) {
+      soSources.add(0, directApkSoSource);
+    }
   }
 
   /** Add a DirectorySoSource for the application's nativeLibraryDir . */

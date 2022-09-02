@@ -101,6 +101,10 @@ public class DirectApkSoSource extends SoSource {
     throw new UnsupportedOperationException("DirectAPKSoSource doesn't support unpackLibrary");
   }
 
+  public boolean isValid() {
+    return !mDirectApkLdPaths.isEmpty();
+  }
+
   /*package*/ static Set<String> getDirectApkLdPaths(String apkName) {
     Set<String> directApkPathSet = new HashSet<>();
     final String classLoaderLdLibraryPath =
