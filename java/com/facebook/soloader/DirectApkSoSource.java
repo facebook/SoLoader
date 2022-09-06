@@ -212,7 +212,7 @@ public class DirectApkSoSource extends SoSource {
     return new StringBuilder()
         .append(getClass().getName())
         .append("[root = ")
-        .append(LdPathsToString())
+        .append(mDirectApkLdPaths.toString())
         .append(']')
         .toString();
   }
@@ -222,15 +222,5 @@ public class DirectApkSoSource extends SoSource {
       mLibsInApkMap.put(ldPath, new HashSet<String>());
     }
     mLibsInApkMap.get(ldPath).add(soName);
-  }
-
-  private String LdPathsToString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append('(');
-    for (String path : mDirectApkLdPaths) {
-      sb.append(path).append(", ");
-    }
-    sb.append(')');
-    return sb.toString();
   }
 }
