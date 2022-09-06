@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -49,13 +50,15 @@ public class DirectApkSoSource extends SoSource {
 
   public DirectApkSoSource(Context context) {
     super();
-    mDirectApkLdPaths = getDirectApkLdPaths("");
-    mApkFile = new File(context.getApplicationInfo().sourceDir);
+    final String apkPath = context.getApplicationInfo().sourceDir;
+    mDirectApkLdPaths = getDirectApkLdPaths("", apkPath);
+    mApkFile = new File(apkPath);
   }
 
   public DirectApkSoSource(File apkFile) {
     super();
-    mDirectApkLdPaths = getDirectApkLdPaths(SysUtil.getBaseName(apkFile.getName()));
+    mDirectApkLdPaths =
+        getDirectApkLdPaths(SysUtil.getBaseName(apkFile.getName()), apkFile.getAbsolutePath());
     mApkFile = apkFile;
   }
 
@@ -105,7 +108,7 @@ public class DirectApkSoSource extends SoSource {
     return !mDirectApkLdPaths.isEmpty();
   }
 
-  /*package*/ static Set<String> getDirectApkLdPaths(String apkName) {
+  /*package*/ static Set<String> getDirectApkLdPaths(String apkName, String apkPath) {
     Set<String> directApkPathSet = new HashSet<>();
     final String classLoaderLdLibraryPath =
         Build.VERSION.SDK_INT >= 14 ? SysUtil.Api14Utils.getClassLoaderLdLoadLibrary() : null;
@@ -118,6 +121,14 @@ public class DirectApkSoSource extends SoSource {
         }
       }
     }
+
+    if (directApkPathSet.isEmpty()) {
+      final @Nullable String fallbackApkLdPath = getFallbackApkLdPath(apkPath);
+      if (fallbackApkLdPath != null) {
+        directApkPathSet.add(fallbackApkLdPath);
+      }
+    }
+
     return directApkPathSet;
   }
 
@@ -132,6 +143,14 @@ public class DirectApkSoSource extends SoSource {
         Api18TraceUtils.endSection();
       }
     }
+  }
+
+  private static @Nullable String getFallbackApkLdPath(String apkPath) {
+    final String[] supportedAbis = SysUtil.getSupportedAbis();
+    if (!TextUtils.isEmpty(apkPath) && supportedAbis.length > 0) {
+      return apkPath + "!/lib/" + supportedAbis[0];
+    }
+    return null;
   }
 
   private void loadDependencies(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
