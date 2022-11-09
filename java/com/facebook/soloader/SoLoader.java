@@ -18,11 +18,14 @@ package com.facebook.soloader;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.StrictMode;
 import android.text.TextUtils;
 import android.util.Log;
 import com.facebook.soloader.nativeloader.NativeLoader;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -55,6 +58,12 @@ import javax.annotation.concurrent.ThreadSafe;
  * initializer of the Java class declaring the native methods. The argument should be the library's
  * short name.
  *
+ * <p><b>Note:</b> SoLoader is enabled automatically only on Android 23 and below. Application
+ * must define PACKAGE_NAME.com.facebook.soloader.force-enabled metadata entry (with the value
+ * "true") and call one of the {@link #init} methods in order to enable SoLoader functionality
+ * on Android 24 and newer. When force-enabled, SoLoader will fall back to
+ * System.loadLibrary(...) in case of an error.
+ *
  * <p>For example, if the native code is in libmy_jni_methods.so:
  *
  * <pre>{@code
@@ -68,6 +77,16 @@ import javax.annotation.concurrent.ThreadSafe;
  * <p>Before any library can be loaded SoLoader needs to be initialized. The application using
  * SoLoader should do that by calling SoLoader.init early on app initialization path. The call must
  * happen before any class using SoLoader in its static initializer is loaded.
+ *
+ * <p>An example of the meta data entry to force enable SoLoader:
+ *
+ * <pre>
+ *     &lt;application ...&gt;
+ *       &lt;meta-data
+ *           android:name="${applicationId}.com.facebook.soloader.force-enabled"
+ *           android:value="true" /&gt;
+ *     &lt;/application&gt;
+ * </pre>
  */
 @ThreadSafe
 public class SoLoader {
@@ -76,6 +95,9 @@ public class SoLoader {
   /* package */ static final boolean DEBUG = false;
   /* package */ static final boolean SYSTRACE_LIBRARY_LOADING;
   /* package */ @Nullable static SoFileLoader sSoFileLoader;
+
+  // optional identifier strings to facilitate bytecode analysis
+  public static String VERSION = "0.10.5";
 
   /**
    * locking controlling the list of SoSources. We want to allow long running iterations over the
@@ -131,6 +153,11 @@ public class SoLoader {
 
   /** Wrapper for System.loadLibrary. */
   @Nullable private static SystemLoadLibraryWrapper sSystemLoadLibraryWrapper = null;
+
+  /** Whether SoLoader is enabled unconditionally, via
+   * ${applicationId}.com.facebook.soloader.force-enabled meta data (boolean)
+   */
+  private static boolean isForceEnabled = false;
 
   /**
    * Name of the directory we use for extracted DSOs from built-in SO sources (main APK, exopackage)
@@ -216,6 +243,10 @@ public class SoLoader {
     }
 
     SYSTRACE_LIBRARY_LOADING = shouldSystrace;
+
+    Log.i(TAG, "SoLoader " + VERSION
+            + ((Build.VERSION.SDK_INT < Build.VERSION_CODES.M) ? " always enabled" : "")
+            + " platform API " + Build.VERSION.SDK_INT);
   }
 
   public static void init(Context context, int flags) throws IOException {
@@ -253,6 +284,7 @@ public class SoLoader {
         flags |= (SOLOADER_DISABLE_BACKUP_SOSOURCE | SOLOADER_ENABLE_DIRECT_SOSOURCE);
       }
 
+      initConfig(context);
       initSoLoader(soFileLoader);
       initSoSources(context, flags, denyList);
       NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
@@ -273,6 +305,28 @@ public class SoLoader {
       init(context, nativeExopackage ? SOLOADER_ENABLE_EXOPACKAGE : 0, null, DEFAULT_DENY_LIST);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
+    }
+  }
+
+  private static void initConfig(Context context) {
+    final String packageName = context.getPackageName();
+    // Check whether manifest explicitly enables SoLoader for its package
+    final String name = packageName + ".com.facebook.soloader.force-enabled";
+    Bundle metaData = null;
+    try {
+      metaData = context.getPackageManager().getApplicationInfo(
+              packageName, PackageManager.GET_META_DATA
+      ).metaData;
+    } catch (PackageManager.NameNotFoundException e) {
+      // cannot happen, our package exists while app is running
+      Log.w(TAG, "Unexpected issue with package manager (" + packageName + ")", e);
+    }
+    isForceEnabled = (null != metaData && metaData.getBoolean(name, false));
+    if (isForceEnabled) {
+      final int sdkInt = Build.VERSION.SDK_INT;
+      if (sdkInt >= Build.VERSION_CODES.M) {
+        Log.v(TAG, "SoLoader is force-enabled on API " + sdkInt);
+      }
     }
   }
 
@@ -797,6 +851,30 @@ public class SoLoader {
    *     through a previous call to SoLoader (false).
    */
   public static boolean loadLibrary(String shortName, int loadFlags) throws UnsatisfiedLinkError {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+      return loadLibraryImpl(shortName, loadFlags);
+    } else if (isForceEnabled) {
+      return loadLibraryForceEnabled(shortName, loadFlags);
+    } else { // M+ - using framework linker by default
+      System.loadLibrary(shortName);
+      return true;
+    }
+  }
+
+  private static boolean loadLibraryForceEnabled(String shortName, int loadFlags) throws UnsatisfiedLinkError {
+    try {
+      return loadLibraryImpl(shortName, loadFlags);
+    } catch (Throwable e) {
+      Log.e(TAG,
+              "SoLoader failed when force-enabled, fallback to system linker: "
+                      + shortName,
+              e);
+      System.loadLibrary(shortName);
+      return true;
+    }
+  }
+
+  private static boolean loadLibraryImpl(String shortName, int loadFlags) throws UnsatisfiedLinkError {
     Boolean needsLoad = loadLibraryOnNonAndroid(shortName);
     if (needsLoad != null) {
       return needsLoad;
