@@ -183,6 +183,9 @@ public class SoLoader {
    */
   public static final int SOLOADER_EXPLICITLY_ENABLE_BACKUP_SOSOURCE = (1 << 7);
 
+  /** Experiment ONLY: disable the fsync job in soSource */
+  public static final int SOLOADER_DISABLE_FS_SYNC_JOB = (1 << 8);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -497,6 +500,10 @@ public class SoLoader {
     try {
       if ((sFlags & SOLOADER_ALLOW_ASYNC_INIT) != 0) {
         prepareFlags |= SoSource.PREPARE_FLAG_ALLOW_ASYNC_INIT;
+      }
+
+      if ((sFlags & SOLOADER_DISABLE_FS_SYNC_JOB) != 0) {
+        prepareFlags |= SoSource.PREPARE_FLAG_DISABLE_FS_SYNC_JOB;
       }
       return prepareFlags;
     } finally {

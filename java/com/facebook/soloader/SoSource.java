@@ -58,6 +58,9 @@ public abstract class SoSource {
   /** Force prepare to refresh libs. */
   public static final int PREPARE_FLAG_FORCE_REFRESH = (1 << 1);
 
+  /** Disable so file fsync job. */
+  public static final int PREPARE_FLAG_DISABLE_FS_SYNC_JOB = (1 << 2);
+
   /** Prepare to install this SoSource in SoLoader. */
   protected void prepare(int flags) throws IOException {
     /* By default, do nothing */
