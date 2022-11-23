@@ -84,7 +84,7 @@ public abstract class NativeLibrary {
   /**
    * loads libraries (if not loaded yet), throws on failure
    *
-   * @throws UnsatisfiedLinkError
+   * @throws UnsatisfiedLinkError UnsatisfiedLinkError
    */
   public void ensureLoaded() throws UnsatisfiedLinkError {
     if (!loadLibraries()) {

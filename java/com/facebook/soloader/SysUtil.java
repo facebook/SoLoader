@@ -108,6 +108,7 @@ public final class SysUtil {
    *
    * @param fd File descriptor for file
    * @param length Number of bytes to allocate.
+   * @throws IOException IOException
    */
   public static void fallocateIfSupported(FileDescriptor fd, long length) throws IOException {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -123,6 +124,7 @@ public final class SysUtil {
    * delete the contents of pointed-to directories.
    *
    * @param file File or directory to delete
+   * @throws IOException IOException
    */
   public static void dumbDeleteRecursive(File file) throws IOException {
     if (file.isDirectory()) {
@@ -283,6 +285,7 @@ public final class SysUtil {
    * names a directory.
    *
    * @param dir Directory to create. All parents created as well.
+   * @throws IOException IOException
    */
   public static void mkdirOrThrow(File dir) throws IOException {
     if (!dir.mkdirs() && !dir.isDirectory()) {
@@ -335,17 +338,29 @@ public final class SysUtil {
     return len + (4 - (len % 4)) % 4;
   }
 
+  /**
+   * Retrieve the size of dependency file.
+   *
+   * @param apkFile the apk file
+   * @return the size of dependency file
+   * @throws IOException IOException
+   */
   public static long getApkDepBlockLength(File apkFile) throws IOException {
     apkFile = apkFile.getCanonicalFile();
     // Parcel encodes strings starting with the length (4 bytes), then
     // 2 bytes for every character, and a null terminating character at the end
-    long apkFileLen = getParcelPadSize(2 * (apkFile.getPath().length() + 1));
+    long apkFileLen = getParcelPadSize(2L * (apkFile.getPath().length() + 1));
     return apkFileLen + APK_DEP_BLOCK_METADATA_LENGTH;
   }
 
   /**
    * N.B. If this method is changed, the above method {@link #getApkDepBlockLength} must also be
    * updated to reflect the expected size of the dep block
+   *
+   * @param apkFile apk file
+   * @param context application context
+   * @return dependency file in bytes
+   * @throws IOException IOException
    */
   public static byte[] makeApkDepBlock(File apkFile, final Context context) throws IOException {
     apkFile = apkFile.getCanonicalFile();
@@ -436,7 +451,12 @@ public final class SysUtil {
     }
   }
 
-  /** Gets the base name, without extension, of given file name. */
+  /**
+   * Gets the base name, without extension, of given file name.
+   *
+   * @param fileName full file name
+   * @return base name
+   */
   public static String getBaseName(String fileName) {
     final int index = fileName.lastIndexOf('.');
     if (index > 0) {

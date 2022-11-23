@@ -36,10 +36,13 @@ public class DirectorySoSource extends SoSource {
   protected final List<String> denyList;
 
   /**
-   * Make a new DirectorySoSource. If {@code flags} contains {@code RESOLVE_DEPENDENCIES},
-   * recursively load dependencies for shared objects loaded from this directory. (We shouldn't need
-   * to resolve dependencies for libraries loaded from system directories: the dynamic linker is
-   * smart enough to do it on its own there.)
+   * Make a new DirectorySoSource. If {@code flags} contains {@link
+   * DirectorySoSource#RESOLVE_DEPENDENCIES}, recursively load dependencies for shared objects
+   * loaded from this directory. (We shouldn't need to resolve dependencies for libraries loaded
+   * from system directories: the dynamic linker is smart enough to do it on its own there.)
+   *
+   * @param soDirectory the dir that contains the so files
+   * @param flags load flags
    */
   public DirectorySoSource(File soDirectory, int flags) {
     this(soDirectory, flags, new String[0]);
@@ -49,6 +52,8 @@ public class DirectorySoSource extends SoSource {
    * This method is similar to {@link #DirectorySoSource(File, int)}, with the following
    * differences:
    *
+   * @param soDirectory the dir that contains the so files
+   * @param flags load flags
    * @param denyList the soname list that we won't try to load from this source
    */
   public DirectorySoSource(File soDirectory, int flags, String[] denyList) {

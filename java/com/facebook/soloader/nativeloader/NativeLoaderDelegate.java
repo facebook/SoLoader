@@ -20,6 +20,7 @@ import java.io.IOException;
 
 /** Interface used to connect chosen loader of native libraries to NativeLoader */
 public interface NativeLoaderDelegate {
+
   /**
    * Skip calling JNI_OnLoad if the library is merged. This is necessary for libraries that don't
    * define JNI_OnLoad and are only loaded for their side effects (like static constructors
@@ -27,10 +28,26 @@ public interface NativeLoaderDelegate {
    * methods Java_com_facebook_whatever) because that is buggy on Android.
    */
   int SKIP_MERGED_JNI_ONLOAD = 1;
-  /** @see com.facebook.soloader.nativeloader.NativeLoader#loadLibrary(String, int) */
+
+  /**
+   * @see com.facebook.soloader.nativeloader.NativeLoader#loadLibrary(String, int)
+   * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
+   * @param flags 0 for default behavior, otherwise NativeLoaderDelegate defines other behaviors.
+   * @return whether load successfully
+   */
   boolean loadLibrary(String shortName, int flags);
-  /** @see com.facebook.soloader.nativeloader.NativeLoader#getLibraryPath(String) */
+
+  /**
+   * @see com.facebook.soloader.nativeloader.NativeLoader#getLibraryPath(String)
+   * @param libName Name of library to find, without "lib" prefix or ".so" suffix
+   * @return the so file path
+   * @throws IOException IOException
+   */
   String getLibraryPath(String libName) throws IOException;
-  /** @see com.facebook.soloader.nativeloader.NativeLoader#getSoSourcesVersion() */
+
+  /**
+   * @see com.facebook.soloader.nativeloader.NativeLoader#getSoSourcesVersion()
+   * @return The version number for the loader.
+   */
   int getSoSourcesVersion();
 }

@@ -97,6 +97,7 @@ public final class NativeDeps {
    * @param async If true, native deps file initialization will be performed in a background thread,
    *     and fetching dependencies will wait for initialization to complete. If false,
    *     initialization is performed synchronously on this call.
+   * @param extractToDisk Whether the dependency file got extracted into disk.
    * @return true if initialization succeeded, false otherwise. If async, always returns true.
    */
   public static boolean useDepsFile(

@@ -109,6 +109,7 @@ public final class MinElf {
    *
    * @param bc ElfByteChannel referring to ELF file
    * @return Array of strings, one for each DT_NEEDED entry, in file order
+   * @throws IOException IOException
    */
   public static String[] extract_DT_NEEDED(ElfByteChannel bc) throws IOException {
     if (bc instanceof ElfFileChannel) {

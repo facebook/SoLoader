@@ -56,6 +56,7 @@ public class NativeLoader {
    *
    * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
    * @return The path for the loaded library, null otherwise.
+   * @throws IOException IOException
    */
   public static String getLibraryPath(String shortName) throws IOException {
     synchronized (NativeLoader.class) {
@@ -107,16 +108,18 @@ public class NativeLoader {
    * However, libraries that want to provide a default initialization for {@code NativeLoader} to
    * hide its existence from the app can use this method to avoid re-initializing.
    *
-   * @return True iff {@link #init(NativeLoaderDelegate)} has been called.
+   * @return True if {@link #init(NativeLoaderDelegate)} has been called.
    */
   public static synchronized boolean isInitialized() {
     return sDelegate != null;
   }
 
   /**
-   * Perform an initialization only if {@code NativeLoader} has not already been initialized. This
+   * Perform an initialization only if {@link NativeLoader} has not already been initialized. This
    * protects against race conditions where isInitialized and init are called by multiple threads
    * and both threads end up trying to perform an initialization
+   *
+   * @param delegate the NativeLoaderDelegate
    */
   public static synchronized void initIfUninitialized(NativeLoaderDelegate delegate) {
     if (!isInitialized()) {

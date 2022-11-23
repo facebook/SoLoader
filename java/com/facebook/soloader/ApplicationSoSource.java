@@ -53,6 +53,7 @@ public class ApplicationSoSource extends SoSource {
    * if there have been changes, update the context and soSource
    *
    * @return true if the nativeLibraryDir was updated
+   * @throws IOException IOException
    */
   public boolean checkAndMaybeUpdate() throws IOException {
     File nativeLibDir = soSource.soDirectory;

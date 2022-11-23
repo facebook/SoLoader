@@ -72,7 +72,9 @@ public abstract class SoSource {
    *
    * @param soName Name of library to load
    * @param loadFlags Zero or more of the LOAD_FLAG_XXX constants.
+   * @param threadPolicy Strict Mode policy
    * @return One of the LOAD_RESULT_XXX constants.
+   * @throws IOException IOException
    */
   public abstract int loadLibrary(
       String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy) throws IOException;
@@ -83,6 +85,7 @@ public abstract class SoSource {
    *
    * @param soName Name of library to load
    * @return File if library found; {@code null} if not.
+   * @throws IOException IOException
    */
   @Nullable
   public abstract File unpackLibrary(String soName) throws IOException;

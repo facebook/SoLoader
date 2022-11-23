@@ -258,6 +258,7 @@ public class SoLoader {
    * @param flags Zero or more of the SOLOADER_* flags
    * @param soFileLoader the custom {@link SoFileLoader}, you can implement your own loader
    * @param denyList Skip load libs from system soSource, due to the linker namespace restriction
+   * @throws IOException IOException
    */
   public static void init(
       Context context, int flags, @Nullable SoFileLoader soFileLoader, String[] denyList)
@@ -760,6 +761,8 @@ public class SoLoader {
   /**
    * Provide a wrapper object for calling {@link System#loadLibrary}. This is useful for controlling
    * which ClassLoader libraries are loaded into.
+   *
+   * @param wrapper the wrapper you wanna set
    */
   public static void setSystemLoadLibraryWrapper(SystemLoadLibraryWrapper wrapper) {
     sSystemLoadLibraryWrapper = wrapper;
@@ -830,6 +833,9 @@ public class SoLoader {
   /**
    * Returns the so file for the specified library. Returns null if the library does not exist or if
    * it's not backed by a file.
+   *
+   * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
+   * @return the File object of the so file
    */
   public static @Nullable File getSoFile(String shortName) {
     String mergedLibName = MergedSoMapping.mapLibName(shortName);
@@ -1288,6 +1294,7 @@ public class SoLoader {
    * currently-installed source.
    *
    * @param extraSoSource The SoSource to install
+   * @throws IOException IOException
    */
   public static void prependSoSource(SoSource extraSoSource) throws IOException {
     sSoSourcesLock.writeLock().lock();
@@ -1310,6 +1317,8 @@ public class SoLoader {
   /**
    * Retrieve an LD_LIBRARY_PATH value suitable for using the native linker to resolve our shared
    * libraries.
+   *
+   * @return the LD_LIBRARY_PATH in string
    */
   public static String makeLdLibraryPath() {
     sSoSourcesLock.readLock().lock();

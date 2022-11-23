@@ -61,6 +61,9 @@ public final class NativeDepsUnpacker {
    * to load libraries. If either the file hasn't been extracted, the extracted file is corrupt, or
    * the APK changed, the file will be extracted from the APK. If the file was already extracted,
    * this is a no-op. If extraction fails, an IOException will be thrown.
+   *
+   * @param context application context
+   * @throws IOException IOException
    */
   public static void ensureNativeDepsAvailable(Context context) throws IOException {
     File dir = getNativeDepsDir(context);
