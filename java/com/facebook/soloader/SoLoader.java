@@ -18,11 +18,14 @@ package com.facebook.soloader;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.StrictMode;
 import android.text.TextUtils;
 import android.util.Log;
 import com.facebook.soloader.nativeloader.NativeLoader;
+import com.facebook.soloader.nativeloader.SystemDelegate;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -55,6 +58,9 @@ import javax.annotation.concurrent.ThreadSafe;
  * initializer of the Java class declaring the native methods. The argument should be the library's
  * short name.
  *
+ * <p><b>Note:</b> SoLoader is enabled by default. Application could define
+ * com.facebook.soloader.enabled metadata entry to control using SoLoader or System Loader.
+ *
  * <p>For example, if the native code is in libmy_jni_methods.so:
  *
  * <pre>{@code
@@ -68,6 +74,16 @@ import javax.annotation.concurrent.ThreadSafe;
  * <p>Before any library can be loaded SoLoader needs to be initialized. The application using
  * SoLoader should do that by calling SoLoader.init early on app initialization path. The call must
  * happen before any class using SoLoader in its static initializer is loaded.
+ *
+ * <p>An example of the meta data entry to disable SoLoader:
+ *
+ * <pre>
+ *     &lt;application ...&gt;
+ *       &lt;meta-data
+ *           android:name="com.facebook.soloader.enabled"
+ *           android:value="false" /&gt;
+ *     &lt;/application&gt;
+ * </pre>
  */
 @ThreadSafe
 public class SoLoader {
@@ -76,6 +92,9 @@ public class SoLoader {
   /* package */ static final boolean DEBUG = false;
   /* package */ static final boolean SYSTRACE_LIBRARY_LOADING;
   /* package */ @Nullable static SoFileLoader sSoFileLoader;
+
+  // optional identifier strings to facilitate bytecode analysis
+  public static String VERSION = "0.10.5";
 
   /**
    * locking controlling the list of SoSources. We want to allow long running iterations over the
@@ -131,6 +150,9 @@ public class SoLoader {
 
   /** Wrapper for System.loadLibrary. */
   @Nullable private static SystemLoadLibraryWrapper sSystemLoadLibraryWrapper = null;
+
+  /** Whether SoLoader is enabled, via com.facebook.soloader.enabled meta data (boolean) */
+  private static boolean isEnabled = true;
 
   /**
    * Name of the directory we use for extracted DSOs from built-in SO sources (main APK, exopackage)
@@ -246,16 +268,22 @@ public class SoLoader {
 
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
-      sAppType = getAppType(context, flags);
-      if ((flags & SOLOADER_EXPLICITLY_ENABLE_BACKUP_SOSOURCE) == 0
-          && SysUtil.isSupportedDirectLoad(context, sAppType)) {
-        // SoLoader doesn't need backup soSource if it supports directly loading .so file from APK
-        flags |= (SOLOADER_DISABLE_BACKUP_SOSOURCE | SOLOADER_ENABLE_DIRECT_SOSOURCE);
-      }
+      isEnabled = initEnableConfig(context);
+      if (isEnabled) {
+        sAppType = getAppType(context, flags);
+        if ((flags & SOLOADER_EXPLICITLY_ENABLE_BACKUP_SOSOURCE) == 0
+            && SysUtil.isSupportedDirectLoad(context, sAppType)) {
+          // SoLoader doesn't need backup soSource if it supports directly loading .so file from APK
+          flags |= (SOLOADER_DISABLE_BACKUP_SOSOURCE | SOLOADER_ENABLE_DIRECT_SOSOURCE);
+        }
 
-      initSoLoader(soFileLoader);
-      initSoSources(context, flags, denyList);
-      NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
+        initSoLoader(soFileLoader);
+        initSoSources(context, flags, denyList);
+        NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
+      } else {
+        initDummySoSource();
+        NativeLoader.initIfUninitialized(new SystemDelegate());
+      }
     } finally {
       StrictMode.setThreadPolicy(oldPolicy);
     }
@@ -276,6 +304,36 @@ public class SoLoader {
     }
   }
 
+  /**
+   * Determine whether to enable soloader.
+   *
+   * @param context application context
+   * @return Whether SoLoader is enabled
+   */
+  private static boolean initEnableConfig(Context context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+      return true;
+    }
+
+    final String packageName = context.getPackageName();
+    // Check whether manifest explicitly enables SoLoader for its package
+    final String name = "com.facebook.soloader.enabled";
+    Bundle metaData = null;
+    try {
+      metaData =
+          context
+              .getPackageManager()
+              .getApplicationInfo(packageName, PackageManager.GET_META_DATA)
+              .metaData;
+    } catch (PackageManager.NameNotFoundException e) {
+      // cannot happen, our package exists while app is running
+      Log.w(TAG, "Unexpected issue with package manager (" + packageName + ")", e);
+    }
+
+    // Keep the fallback value as true for backward compatibility.
+    return (null == metaData || metaData.getBoolean(name, true));
+  }
+
   private static void initSoSources(Context context, int flags, String[] denyList)
       throws IOException {
     if (sSoSources != null) {
@@ -283,14 +341,12 @@ public class SoLoader {
     }
 
     sSoSourcesLock.writeLock().lock();
-
-    // Double check that sSoSources wasn't initialized while waiting for the lock.
-    if (sSoSources != null) {
-      sSoSourcesLock.writeLock().unlock();
-      return;
-    }
-
     try {
+      // Double check that sSoSources wasn't initialized while waiting for the lock.
+      if (sSoSources != null) {
+        return;
+      }
+
       sFlags = flags;
 
       ArrayList<SoSource> soSources = new ArrayList<>();
@@ -347,6 +403,23 @@ public class SoLoader {
       if (Log.isLoggable(TAG, Log.DEBUG)) {
         Log.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
       }
+    } finally {
+      sSoSourcesLock.writeLock().unlock();
+    }
+  }
+
+  private static void initDummySoSource() {
+    if (sSoSources != null) {
+      return;
+    }
+
+    sSoSourcesLock.writeLock().lock();
+    try {
+      // Double check that sSoSources wasn't initialized while waiting for the lock.
+      if (sSoSources != null) {
+        return;
+      }
+      sSoSources = new SoSource[0];
     } finally {
       sSoSourcesLock.writeLock().unlock();
     }
@@ -784,7 +857,7 @@ public class SoLoader {
   }
 
   public static boolean loadLibrary(String shortName) {
-    return loadLibrary(shortName, 0);
+    return isEnabled ? loadLibrary(shortName, 0) : NativeLoader.loadLibrary(shortName);
   }
 
   /**
@@ -797,6 +870,10 @@ public class SoLoader {
    *     through a previous call to SoLoader (false).
    */
   public static boolean loadLibrary(String shortName, int loadFlags) throws UnsatisfiedLinkError {
+    if (!isEnabled) {
+      NativeLoader.loadLibrary(shortName);
+    }
+
     Boolean needsLoad = loadLibraryOnNonAndroid(shortName);
     if (needsLoad != null) {
       return needsLoad;

@@ -3,10 +3,16 @@
 [![Support Ukraine](https://img.shields.io/badge/Support-Ukraine-FFD500?style=flat&labelColor=005BBB)](https://opensource.fb.com/support-ukraine)
 
 SoLoader is a native code loader for Android. It takes care of unpacking your native libraries
-and recursively loads dependencies on platforms that don't support that out of the box.
+and recursively loads dependencies on Android API 23 and earlier, since those old OS versions
+do not support all of that functionality out of box.
 
 ## Requirements
-SoLoader can be included in any Android application.
+SoLoader is useful for applications running on Android API 23 and earlier. SoLoader should not
+be used on Android API 24 and above unless the app is delivered as
+[Exopackage](https://buck.build/article/exopackage.html), requires
+[Android Native Library Merging](https://engineering.fb.com/2018/01/23/android/android-native-library-merging/)
+or uses [Superpack](https://engineering.fb.com/2021/09/13/core-data/superpack/)
+compression.
 
 ## Including SoLoader in your apps
 You can use [prebuilt aars](https://github.com/facebook/soloader/releases/latest)
