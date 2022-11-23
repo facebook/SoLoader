@@ -1,6 +1,8 @@
 # SoLoader
 
-[![Support Ukraine](https://img.shields.io/badge/Support-Ukraine-FFD500?style=flat&labelColor=005BBB)](https://opensource.fb.com/support-ukraine)
+[![Build CI](https://github.com/facebook/soloader/actions/workflows/build.yml/badge.svg)](https://github.com/facebook/SoLoader/actions/workflows/build.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.facebook.soloader/soloader/badge.svg?style=flat)](https://maven-badges.herokuapp.com/maven-central/com.facebook.soloader/soloader)
 
 SoLoader is a native code loader for Android. It takes care of unpacking your native libraries
 and recursively loads dependencies on Android API 23 and earlier, since those old OS versions
@@ -19,7 +21,7 @@ You can use [prebuilt aars](https://github.com/facebook/soloader/releases/latest
 or fetch SoLoader from Maven repository by adding the following to your
 `build.gradle` file:
 ```groovy
-implementation 'com.facebook.soloader:soloader:0.10.4+'
+implementation 'com.facebook.soloader:soloader:0.10.5+'
 ```
 
 ## Building from source
