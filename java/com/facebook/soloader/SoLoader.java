@@ -279,9 +279,11 @@ public class SoLoader {
 
         initSoLoader(soFileLoader);
         initSoSources(context, flags, denyList);
+        Log.v(TAG, "Init SoLoader delegate");
         NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
       } else {
         initDummySoSource();
+        Log.v(TAG, "Init System Loader delegate");
         NativeLoader.initIfUninitialized(new SystemDelegate());
       }
     } finally {
