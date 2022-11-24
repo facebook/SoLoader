@@ -48,6 +48,7 @@ public class NativeLoader {
                 + "NativeLoader.init(new SystemDelegate()).");
       }
     }
+
     return sDelegate.loadLibrary(shortName, flags);
   }
 
@@ -95,11 +96,13 @@ public class NativeLoader {
    *
    * @param delegate Delegate to use for all {@code loadLibrary} calls.
    */
-  public static synchronized void init(NativeLoaderDelegate delegate) {
-    if (sDelegate != null) {
-      throw new IllegalStateException("Cannot re-initialize NativeLoader.");
+  public static void init(NativeLoaderDelegate delegate) {
+    synchronized (NativeLoader.class) {
+      if (sDelegate != null) {
+        throw new IllegalStateException("Cannot re-initialize NativeLoader.");
+      }
+      sDelegate = delegate;
     }
-    sDelegate = delegate;
   }
 
   /**
@@ -110,8 +113,10 @@ public class NativeLoader {
    *
    * @return True if {@link #init(NativeLoaderDelegate)} has been called.
    */
-  public static synchronized boolean isInitialized() {
-    return sDelegate != null;
+  public static boolean isInitialized() {
+    synchronized (NativeLoader.class) {
+      return sDelegate != null;
+    }
   }
 
   /**
@@ -121,7 +126,7 @@ public class NativeLoader {
    *
    * @param delegate the NativeLoaderDelegate
    */
-  public static synchronized void initIfUninitialized(NativeLoaderDelegate delegate) {
+  public static void initIfUninitialized(NativeLoaderDelegate delegate) {
     if (!isInitialized()) {
       init(delegate);
     }
