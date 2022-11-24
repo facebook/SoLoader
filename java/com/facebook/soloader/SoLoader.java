@@ -318,17 +318,18 @@ public class SoLoader {
       return true;
     }
 
-    final String packageName = context.getPackageName();
-    // Check whether manifest explicitly enables SoLoader for its package
     final String name = "com.facebook.soloader.enabled";
     Bundle metaData = null;
+    String packageName = null;
     try {
+      packageName = context.getPackageName();
+      // Check whether manifest explicitly enables/disables SoLoader for its package
       metaData =
           context
               .getPackageManager()
               .getApplicationInfo(packageName, PackageManager.GET_META_DATA)
               .metaData;
-    } catch (PackageManager.NameNotFoundException e) {
+    } catch (Exception e) {
       // cannot happen, our package exists while app is running
       Log.w(TAG, "Unexpected issue with package manager (" + packageName + ")", e);
     }
@@ -878,13 +879,13 @@ public class SoLoader {
    *     through a previous call to SoLoader (false).
    */
   public static boolean loadLibrary(String shortName, int loadFlags) throws UnsatisfiedLinkError {
-    if (!isEnabled) {
-      NativeLoader.loadLibrary(shortName);
-    }
-
     Boolean needsLoad = loadLibraryOnNonAndroid(shortName);
     if (needsLoad != null) {
       return needsLoad;
+    }
+
+    if (!isEnabled) {
+      return NativeLoader.loadLibrary(shortName);
     }
 
     // This is to account for the fact that we want to load .so files from the apk itself when it is
