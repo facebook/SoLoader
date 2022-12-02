@@ -58,8 +58,9 @@ import javax.annotation.concurrent.ThreadSafe;
  * initializer of the Java class declaring the native methods. The argument should be the library's
  * short name.
  *
- * <p><b>Note:</b> SoLoader is enabled by default. Application could define
- * com.facebook.soloader.enabled metadata entry to control using SoLoader or System Loader.
+ * <p><b>Note:</b> SoLoader is enabled in the source code by default but disabled for the OSS
+ * package via meta-data config. The application could define com.facebook.soloader.enabled metadata
+ * entry to override the default behavior.
  *
  * <p>For example, if the native code is in libmy_jni_methods.so:
  *
@@ -75,13 +76,14 @@ import javax.annotation.concurrent.ThreadSafe;
  * SoLoader should do that by calling SoLoader.init early on app initialization path. The call must
  * happen before any class using SoLoader in its static initializer is loaded.
  *
- * <p>An example of the meta data entry to disable SoLoader:
+ * <p>An example of the meta data entry to enable SoLoader:
  *
  * <pre>
  *     &lt;application ...&gt;
  *       &lt;meta-data
+ *           tools:replace="android:value"
  *           android:name="com.facebook.soloader.enabled"
- *           android:value="false" /&gt;
+ *           android:value="true" /&gt;
  *     &lt;/application&gt;
  * </pre>
  */
