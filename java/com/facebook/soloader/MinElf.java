@@ -16,7 +16,6 @@
 
 package com.facebook.soloader;
 
-import android.util.Log;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -96,7 +95,7 @@ public final class MinElf {
         // a static initializer. A failure here will get memoized resulting in
         // all future attempts to load the same class to fail.
         Thread.interrupted();
-        Log.e(TAG, "retrying extract_DT_NEEDED due to ClosedByInterruptException", e);
+        LogUtil.e(TAG, "retrying extract_DT_NEEDED due to ClosedByInterruptException", e);
         // FileChannel gets closed after an interruption, we need to reopen the
         // channel.
         fc.openChannel();

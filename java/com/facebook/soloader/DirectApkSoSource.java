@@ -20,7 +20,6 @@ import android.content.Context;
 import android.os.Build;
 import android.os.StrictMode;
 import android.text.TextUtils;
-import android.util.Log;
 import java.io.File;
 import java.io.IOException;
 import java.util.Enumeration;
@@ -78,7 +77,7 @@ public class DirectApkSoSource extends SoSource {
     for (String directApkLdPath : mDirectApkLdPaths) {
       Set<String> libsInApk = mLibsInApkMap.get(directApkLdPath);
       if (TextUtils.isEmpty(directApkLdPath) || libsInApk == null || !libsInApk.contains(soName)) {
-        Log.v(SoLoader.TAG, soName + " not found on " + directApkLdPath);
+        LogUtil.v(SoLoader.TAG, soName + " not found on " + directApkLdPath);
         continue;
       }
 
@@ -89,11 +88,12 @@ public class DirectApkSoSource extends SoSource {
         loadFlags |= SoLoader.SOLOADER_LOOK_IN_ZIP;
         SoLoader.sSoFileLoader.load(soPath, loadFlags);
       } catch (UnsatisfiedLinkError e) {
-        Log.w(SoLoader.TAG, soName + " not found on " + directApkLdPath + " flag: " + loadFlags, e);
+        LogUtil.w(
+            SoLoader.TAG, soName + " not found on " + directApkLdPath + " flag: " + loadFlags, e);
         continue;
       }
 
-      Log.d(SoLoader.TAG, soName + " found on " + directApkLdPath);
+      LogUtil.d(SoLoader.TAG, soName + " found on " + directApkLdPath);
       return LOAD_RESULT_LOADED;
     }
     return LOAD_RESULT_NOT_FOUND;

@@ -27,7 +27,6 @@ import android.os.Parcel;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
-import android.util.Log;
 import dalvik.system.BaseDexClassLoader;
 import java.io.DataOutput;
 import java.io.File;
@@ -78,7 +77,7 @@ public final class SysUtil {
     final File folder = file.getParentFile();
     // We need write permission on parent folder to delete the file
     if (folder != null && !folder.canWrite() && !folder.setWritable(true)) {
-      Log.e(TAG, "Enable write permission failed: " + folder);
+      LogUtil.e(TAG, "Enable write permission failed: " + folder);
     }
 
     if (!file.delete() && file.exists()) {
@@ -166,7 +165,7 @@ public final class SysUtil {
           allowedAbis.add(MinElf.ISA.X86.toString());
         }
       } catch (ErrnoException e) {
-        Log.e(
+        LogUtil.e(
             TAG,
             String.format(
                 "Could not read /proc/self/exe. Falling back to default ABI list: %s. errno: %d Err msg: %s",
@@ -402,7 +401,7 @@ public final class SysUtil {
       try {
         is64bit = LollipopSysdeps.is64Bit();
       } catch (Exception e) {
-        Log.e(TAG, String.format("Could not read /proc/self/exe. Err msg: %s", e.getMessage()));
+        LogUtil.e(TAG, String.format("Could not read /proc/self/exe. Err msg: %s", e.getMessage()));
       }
     }
     return is64bit;
@@ -437,7 +436,7 @@ public final class SysUtil {
       return getFileLocker(lockFileName, blocking);
     } finally {
       if (notWritable && !soDirectory.setWritable(false)) {
-        Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
+        LogUtil.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
       }
     }
   }

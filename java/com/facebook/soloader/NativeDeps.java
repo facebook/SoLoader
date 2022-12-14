@@ -17,7 +17,6 @@
 package com.facebook.soloader;
 
 import android.content.Context;
-import android.util.Log;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -117,7 +116,7 @@ public final class NativeDeps {
             } finally {
               int waitingThreads = sWaitForDepsFileLock.getReadLockCount();
               if (waitingThreads >= WAITING_THREADS_WARNING_THRESHOLD) {
-                Log.w(
+                LogUtil.w(
                     LOG_TAG,
                     "NativeDeps initialization finished with "
                         + Integer.toString(waitingThreads)
@@ -155,7 +154,7 @@ public final class NativeDeps {
     }
 
     if (!success) {
-      Log.w(
+      LogUtil.w(
           LOG_TAG,
           "Failed to extract native deps from APK, falling back to using MinElf to get library dependencies.");
     }

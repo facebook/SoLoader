@@ -19,7 +19,6 @@ package com.facebook.soloader;
 import android.content.Context;
 import android.os.Parcel;
 import android.os.StrictMode;
-import android.util.Log;
 import java.io.Closeable;
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -225,7 +224,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       stateFile.setLength(stateFile.getFilePointer());
       stateFile.getFD().sync();
     } catch (SyncFailedException e) {
-      Log.w(TAG, "state file sync failed", e);
+      LogUtil.w(TAG, "state file sync failed", e);
     }
   }
 
@@ -259,14 +258,14 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
       if (!found) {
         File fileNameToDelete = new File(soDirectory, fileName);
-        Log.v(TAG, "deleting unaccounted-for file " + fileNameToDelete);
+        LogUtil.v(TAG, "deleting unaccounted-for file " + fileNameToDelete);
         SysUtil.dumbDeleteRecursive(fileNameToDelete);
       }
     }
   }
 
   private void extractDso(InputDso iDso, byte[] ioBuffer) throws IOException {
-    Log.i(TAG, "extracting DSO " + iDso.getDso().name);
+    LogUtil.i(TAG, "extracting DSO " + iDso.getDso().name);
     try {
       if (!soDirectory.setWritable(true)) {
         throw new IOException("cannot make directory writable for us: " + soDirectory);
@@ -274,7 +273,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       extractDsoImpl(iDso, ioBuffer);
     } finally {
       if (!soDirectory.setWritable(false)) {
-        Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
+        LogUtil.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
       }
     }
   }
@@ -284,13 +283,13 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     RandomAccessFile dsoFile = null;
     try {
       if (dsoFileName.exists() && !dsoFileName.setWritable(true)) {
-        Log.w(TAG, "error adding write permission to: " + dsoFileName);
+        LogUtil.w(TAG, "error adding write permission to: " + dsoFileName);
       }
 
       try {
         dsoFile = new RandomAccessFile(dsoFileName, "rw");
       } catch (IOException ex) {
-        Log.w(TAG, "error overwriting " + dsoFileName + " trying to delete and start over", ex);
+        LogUtil.w(TAG, "error overwriting " + dsoFileName + " trying to delete and start over", ex);
         SysUtil.dumbDeleteRecursive(dsoFileName); // Throws on error; not existing is okay
         dsoFile = new RandomAccessFile(dsoFileName, "rw");
       }
@@ -309,7 +308,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       throw e;
     } finally {
       if (!dsoFileName.setWritable(false)) {
-        Log.w(TAG, "error removing " + dsoFileName + " write permission");
+        LogUtil.w(TAG, "error removing " + dsoFileName + " write permission");
       }
       if (dsoFile != null) {
         dsoFile.close();
@@ -319,7 +318,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   private void regenerate(byte state, DsoManifest desiredManifest, InputDsoIterator dsoIterator)
       throws IOException {
-    Log.v(TAG, "regenerating DSO store " + getClass().getName());
+    LogUtil.v(TAG, "regenerating DSO store " + getClass().getName());
     File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
     try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
       DsoManifest existingManifest = null;
@@ -327,7 +326,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         try {
           existingManifest = DsoManifest.read(manifestFile);
         } catch (Exception ex) {
-          Log.i(TAG, "error reading existing DSO manifest", ex);
+          LogUtil.i(TAG, "error reading existing DSO manifest", ex);
         }
       }
 
@@ -358,7 +357,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         }
       }
     }
-    Log.v(TAG, "Finished regenerating DSO store " + getClass().getName());
+    LogUtil.v(TAG, "Finished regenerating DSO store " + getClass().getName());
   }
 
   protected boolean depsChanged(final byte[] existingDeps, final byte[] deps) {
@@ -373,7 +372,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       try {
         state = stateFile.readByte();
         if (state != STATE_CLEAN) {
-          Log.v(TAG, "dso store " + soDirectory + " regeneration interrupted: wiping clean");
+          LogUtil.v(TAG, "dso store " + soDirectory + " regeneration interrupted: wiping clean");
           state = STATE_DIRTY;
         }
       } catch (EOFException ex) {
@@ -386,17 +385,17 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
       byte[] existingDeps = new byte[(int) depsFile.length()];
       if (depsFile.read(existingDeps) != existingDeps.length) {
-        Log.v(TAG, "short read of so store deps file: marking unclean");
+        LogUtil.v(TAG, "short read of so store deps file: marking unclean");
         state = STATE_DIRTY;
       }
 
       if (depsChanged(existingDeps, deps)) {
-        Log.v(TAG, "deps mismatch on deps store: regenerating");
+        LogUtil.v(TAG, "deps mismatch on deps store: regenerating");
         state = STATE_DIRTY;
       }
 
       if (state == STATE_DIRTY || ((flags & SoSource.PREPARE_FLAG_FORCE_REFRESH) != 0)) {
-        Log.v(TAG, "so store dirty: regenerating");
+        LogUtil.v(TAG, "so store dirty: regenerating");
         writeState(stateFileName, STATE_DIRTY);
 
         try (Unpacker u = makeUnpacker(state)) {
@@ -440,7 +439,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       public void run() {
         try {
           try {
-            Log.v(TAG, "starting syncer worker");
+            LogUtil.v(TAG, "starting syncer worker");
 
             // N.B. We can afford to write the deps file and the manifest file without
             // synchronization or fsyncs because we've marked the DSO store STATE_DIRTY, which
@@ -462,7 +461,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
             SysUtil.fsyncRecursive(soDirectory);
             writeState(stateFileName, STATE_CLEAN);
           } finally {
-            Log.v(TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
+            LogUtil.v(TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
             lock.close();
           }
         } catch (IOException ex) {
@@ -515,7 +514,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     FileLocker lock = null;
     try {
       if (!dirCanWrite && !soDirectory.setWritable(true)) {
-        Log.w(TAG, "error adding " + soDirectory.getCanonicalPath() + " write permission");
+        LogUtil.w(TAG, "error adding " + soDirectory.getCanonicalPath() + " write permission");
       }
 
       // LOCK_FILE_NAME is used to synchronize changes in the dso store.
@@ -532,23 +531,24 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         mInstanceLock = getOrCreateLock(instanceLockFileName, false);
       }
 
-      Log.v(TAG, "locked dso store " + soDirectory);
+      LogUtil.v(TAG, "locked dso store " + soDirectory);
 
       if (refreshLocked(lock, flags, getDepsBlock())) {
         lock = null; // Lock transferred to syncer thread
       } else {
-        Log.i(TAG, "dso store is up-to-date: " + soDirectory);
+        LogUtil.i(TAG, "dso store is up-to-date: " + soDirectory);
       }
     } finally {
       if (!dirCanWrite && !soDirectory.setWritable(false)) {
-        Log.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
+        LogUtil.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
       }
 
       if (lock != null) {
-        Log.v(TAG, "releasing dso store lock for " + soDirectory);
+        LogUtil.v(TAG, "releasing dso store lock for " + soDirectory);
         lock.close();
       } else {
-        Log.v(TAG, "not releasing dso store lock for " + soDirectory + " (syncer thread started)");
+        LogUtil.v(
+            TAG, "not releasing dso store lock for " + soDirectory + " (syncer thread started)");
       }
     }
   }

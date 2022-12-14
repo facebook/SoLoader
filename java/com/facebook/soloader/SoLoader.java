@@ -23,7 +23,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.StrictMode;
 import android.text.TextUtils;
-import android.util.Log;
 import com.facebook.soloader.nativeloader.NativeLoader;
 import com.facebook.soloader.nativeloader.SystemDelegate;
 import java.io.File;
@@ -282,11 +281,11 @@ public class SoLoader {
 
         initSoLoader(soFileLoader);
         initSoSources(context, flags, denyList);
-        Log.v(TAG, "Init SoLoader delegate");
+        LogUtil.v(TAG, "Init SoLoader delegate");
         NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
       } else {
         initDummySoSource();
-        Log.v(TAG, "Init System Loader delegate");
+        LogUtil.v(TAG, "Init System Loader delegate");
         NativeLoader.initIfUninitialized(new SystemDelegate());
       }
     } finally {
@@ -333,7 +332,7 @@ public class SoLoader {
               .metaData;
     } catch (Exception e) {
       // cannot happen, our package exists while app is running
-      Log.w(TAG, "Unexpected issue with package manager (" + packageName + ")", e);
+      LogUtil.w(TAG, "Unexpected issue with package manager (" + packageName + ")", e);
     }
 
     // Keep the fallback value as true for backward compatibility.
@@ -376,9 +375,7 @@ public class SoLoader {
           // [1] https://developer.android.com/ndk/guides/wrap-script
           addApplicationSoSource(context, soSources, getApplicationSoSourceFlags());
           sBackupSoSources = null;
-          if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
-          }
+          LogUtil.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
         } else {
           if ((flags & SOLOADER_ENABLE_DIRECT_SOSOURCE) != 0) {
@@ -392,9 +389,7 @@ public class SoLoader {
       SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
       int prepareFlags = makePrepareFlags();
       for (int i = finalSoSources.length; i-- > 0; ) {
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-          Log.d(TAG, "Preparing SO source: " + finalSoSources[i]);
-        }
+        LogUtil.d(TAG, "Preparing SO source: " + finalSoSources[i]);
 
         if (SYSTRACE_LIBRARY_LOADING) {
           Api18TraceUtils.beginTraceSection(TAG, "_", finalSoSources[i].getClass().getSimpleName());
@@ -406,9 +401,7 @@ public class SoLoader {
       }
       sSoSources = finalSoSources;
       sSoSourcesVersion.getAndIncrement();
-      if (Log.isLoggable(TAG, Log.DEBUG)) {
-        Log.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
-      }
+      LogUtil.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
     } finally {
       sSoSourcesLock.writeLock().unlock();
     }
@@ -449,11 +442,9 @@ public class SoLoader {
         && context.getApplicationInfo().splitSourceDirs != null) {
       for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
         DirectApkSoSource splitApkSource = new DirectApkSoSource(new File(splitApkDir));
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-          Log.d(
-              TAG,
-              "validating/adding directApk source from splitApk: " + splitApkSource.toString());
-        }
+        LogUtil.d(
+            TAG, "validating/adding directApk source from splitApk: " + splitApkSource.toString());
+
         if (splitApkSource.isValid()) {
           soSources.add(0, splitApkSource);
         }
@@ -461,9 +452,7 @@ public class SoLoader {
     }
 
     DirectApkSoSource directApkSoSource = new DirectApkSoSource(context);
-    if (Log.isLoggable(TAG, Log.DEBUG)) {
-      Log.d(TAG, "validating/adding directApk source: " + directApkSoSource.toString());
-    }
+    LogUtil.d(TAG, "validating/adding directApk source: " + directApkSoSource.toString());
     if (directApkSoSource.isValid()) {
       soSources.add(0, directApkSoSource);
     }
@@ -483,9 +472,7 @@ public class SoLoader {
     }
 
     sApplicationSoSource = new ApplicationSoSource(context, flags);
-    if (Log.isLoggable(TAG, Log.DEBUG)) {
-      Log.d(TAG, "adding application source: " + sApplicationSoSource.toString());
-    }
+    LogUtil.d(TAG, "adding application source: " + sApplicationSoSource.toString());
     soSources.add(0, sApplicationSoSource);
   }
 
@@ -499,7 +486,7 @@ public class SoLoader {
       try {
         SysUtil.dumbDeleteRecursive(backupDir);
       } catch (IOException e) {
-        Log.w(TAG, "Failed to delete " + backupDir.getCanonicalPath(), e);
+        LogUtil.w(TAG, "Failed to delete " + backupDir.getCanonicalPath(), e);
       }
       return;
     }
@@ -509,9 +496,7 @@ public class SoLoader {
     ApkSoSource mainApkSource =
         new ApkSoSource(context, mainApkDir, SO_STORE_NAME_MAIN, apkSoSourceFlags);
     backupSources.add(mainApkSource);
-    if (Log.isLoggable(TAG, Log.DEBUG)) {
-      Log.d(TAG, "adding backup source from : " + mainApkSource.toString());
-    }
+    LogUtil.d(TAG, "adding backup source from : " + mainApkSource.toString());
 
     addBackupSoSourceFromSplitApk(context, apkSoSourceFlags, backupSources);
 
@@ -523,9 +508,7 @@ public class SoLoader {
       Context context, int apkSoSourceFlags, ArrayList<UnpackingSoSource> backupSources) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
         && context.getApplicationInfo().splitSourceDirs != null) {
-      if (Log.isLoggable(TAG, Log.DEBUG)) {
-        Log.d(TAG, "adding backup sources from split apks");
-      }
+      LogUtil.d(TAG, "adding backup sources from split apks");
       int splitIndex = 0;
       for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
         ApkSoSource splitApkSource =
@@ -534,9 +517,7 @@ public class SoLoader {
                 new File(splitApkDir),
                 SO_STORE_NAME_SPLIT + (splitIndex++),
                 apkSoSourceFlags);
-        if (Log.isLoggable(TAG, Log.DEBUG)) {
-          Log.d(TAG, "adding backup source: " + splitApkSource.toString());
-        }
+        LogUtil.d(TAG, "adding backup source: " + splitApkSource.toString());
         backupSources.add(splitApkSource);
       }
     }
@@ -562,9 +543,7 @@ public class SoLoader {
       // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
       // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
       // these libraries have on each other, so doing that ourselves would be a waste.
-      if (Log.isLoggable(TAG, Log.DEBUG)) {
-        Log.d(TAG, "adding system library source: " + libPath);
-      }
+      LogUtil.d(TAG, "adding system library source: " + libPath);
       File systemSoDirectory = new File(libPath);
       soSources.add(
           new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH, denyList));
@@ -638,7 +617,7 @@ public class SoLoader {
                 throw new RuntimeException(error, e);
               } finally {
                 if (error != null) {
-                  Log.e(
+                  LogUtil.e(
                       TAG,
                       "Error when loading lib: "
                           + error
@@ -687,7 +666,7 @@ public class SoLoader {
       method.setAccessible(true);
       return method;
     } catch (final NoSuchMethodException | SecurityException e) {
-      Log.w(TAG, "Cannot get nativeLoad method", e);
+      LogUtil.w(TAG, "Cannot get nativeLoad method", e);
       return null;
     }
   }
@@ -710,9 +689,7 @@ public class SoLoader {
     } else {
       type = AppType.SYSTEM_APP;
     }
-    if (Log.isLoggable(TAG, Log.DEBUG)) {
-      Log.d(TAG, "ApplicationInfo.flags is: " + appInfo.flags + " appType is: " + type);
-    }
+    LogUtil.d(TAG, "ApplicationInfo.flags is: " + appInfo.flags + " appType is: " + type);
     return type;
   }
 
@@ -961,7 +938,7 @@ public class SoLoader {
         sSoSourcesLock.writeLock().lock();
         try {
           if (sApplicationSoSource != null && sApplicationSoSource.checkAndMaybeUpdate()) {
-            Log.w(
+            LogUtil.w(
                 TAG,
                 "sApplicationSoSource updated during load: " + soName + ", attempting load again.");
             sSoSourcesVersion.getAndIncrement();
@@ -1040,9 +1017,7 @@ public class SoLoader {
 
           if (!loaded) {
             try {
-              if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "About to load: " + soName);
-              }
+              LogUtil.d(TAG, "About to load: " + soName);
               doLoadLibraryBySoName(soName, loadFlags, oldPolicy);
             } catch (UnsatisfiedLinkError ex) {
               String message = ex.getMessage();
@@ -1053,9 +1028,7 @@ public class SoLoader {
               }
               throw ex;
             }
-            if (Log.isLoggable(TAG, Log.DEBUG)) {
-              Log.d(TAG, "Loaded: " + soName);
-            }
+            LogUtil.d(TAG, "Loaded: " + soName);
             synchronized (SoLoader.class) {
               sLoadedLibraries.add(soName);
             }
@@ -1073,9 +1046,7 @@ public class SoLoader {
               Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[", shortName, "]");
             }
             try {
-              if (Log.isLoggable(TAG, Log.DEBUG)) {
-                Log.d(TAG, "About to merge: " + shortName + " / " + soName);
-              }
+              LogUtil.d(TAG, "About to merge: " + shortName + " / " + soName);
               MergedSoMapping.invokeJniOnload(shortName);
               sLoadedAndMergedLibraries.add(shortName);
             } catch (UnsatisfiedLinkError e) {
@@ -1142,7 +1113,7 @@ public class SoLoader {
     sSoSourcesLock.readLock().lock();
     try {
       if (sSoSources == null) {
-        Log.e(TAG, "Could not load: " + soName + " because no SO source exists");
+        LogUtil.e(TAG, "Could not load: " + soName + " because no SO source exists");
         throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
       }
     } finally {
@@ -1170,9 +1141,7 @@ public class SoLoader {
           result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
           if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSources != null) {
             // Let's try from the backup source
-            if (Log.isLoggable(TAG, Log.DEBUG)) {
-              Log.d(TAG, "Trying backup SoSource for " + soName);
-            }
+            LogUtil.d(TAG, "Trying backup SoSource for " + soName);
             for (UnpackingSoSource backupSoSource : sBackupSoSources) {
               backupSoSource.prepare(soName);
               int resultFromBackup = backupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
@@ -1226,7 +1195,7 @@ public class SoLoader {
         }
         sb.append(" result: ").append(result);
         final String message = sb.toString();
-        Log.e(TAG, message);
+        LogUtil.e(TAG, message);
         UnsatisfiedLinkError err = new UnsatisfiedLinkError(message);
         if (error != null) {
           err.initCause(error);
@@ -1309,9 +1278,7 @@ public class SoLoader {
       System.arraycopy(sSoSources, 0, newSoSources, 1, sSoSources.length);
       sSoSources = newSoSources;
       sSoSourcesVersion.getAndIncrement();
-      if (Log.isLoggable(TAG, Log.DEBUG)) {
-        Log.d(TAG, "Prepended to SO sources: " + extraSoSource);
-      }
+      LogUtil.d(TAG, "Prepended to SO sources: " + extraSoSource);
     } finally {
       sSoSourcesLock.writeLock().unlock();
     }
@@ -1335,9 +1302,7 @@ public class SoLoader {
         }
       }
       String joinedPaths = TextUtils.join(":", pathElements);
-      if (Log.isLoggable(TAG, Log.DEBUG)) {
-        Log.d(TAG, "makeLdLibraryPath final path: " + joinedPaths);
-      }
+      LogUtil.d(TAG, "makeLdLibraryPath final path: " + joinedPaths);
       return joinedPaths;
     } finally {
       sSoSourcesLock.readLock().unlock();
@@ -1366,7 +1331,7 @@ public class SoLoader {
             soSourceSupported = soSourceAbi.equals(supportedAbis[k]);
           }
           if (!soSourceSupported) {
-            Log.e(TAG, "abi not supported: " + soSourceAbi);
+            LogUtil.e(TAG, "abi not supported: " + soSourceAbi);
             return false;
           }
         }

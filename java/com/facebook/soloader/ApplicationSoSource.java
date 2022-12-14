@@ -19,7 +19,6 @@ package com.facebook.soloader;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.StrictMode;
-import android.util.Log;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -35,7 +34,7 @@ public class ApplicationSoSource extends SoSource {
   public ApplicationSoSource(Context context, int flags) {
     applicationContext = context.getApplicationContext();
     if (applicationContext == null) {
-      Log.w(
+      LogUtil.w(
           SoLoader.TAG,
           "context.getApplicationContext returned null, holding reference to original context."
               + "ApplicationSoSource fallbacks to: "
@@ -60,7 +59,7 @@ public class ApplicationSoSource extends SoSource {
     Context updatedContext = getUpdatedContext();
     File updatedNativeLibDir = getNativeLibDirFromContext(updatedContext);
     if (!nativeLibDir.equals(updatedNativeLibDir)) {
-      Log.d(
+      LogUtil.d(
           SoLoader.TAG,
           "Native library directory updated from " + nativeLibDir + " to " + updatedNativeLibDir);
       // update flags to resolve dependencies since the system does not properly resolve

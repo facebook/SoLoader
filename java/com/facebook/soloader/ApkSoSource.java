@@ -18,7 +18,6 @@ package com.facebook.soloader;
 
 import android.content.Context;
 import android.os.Parcel;
-import android.util.Log;
 import java.io.File;
 import java.io.IOException;
 import java.util.zip.ZipEntry;
@@ -128,7 +127,7 @@ public class ApkSoSource extends ExtractFromZipSoSource {
           }
         }
       }
-      Log.d(TAG, msg);
+      LogUtil.d(TAG, msg);
       return result;
     }
   }

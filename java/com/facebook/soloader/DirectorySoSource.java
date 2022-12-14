@@ -17,7 +17,6 @@
 package com.facebook.soloader;
 
 import android.os.StrictMode;
-import android.util.Log;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -77,7 +76,7 @@ public class DirectorySoSource extends SoSource {
     }
 
     if (denyList.contains(soName)) {
-      Log.d(
+      LogUtil.d(
           SoLoader.TAG,
           soName + " is on the denyList, skip loading from " + libDir.getCanonicalPath());
       return LOAD_RESULT_NOT_FOUND;
@@ -85,14 +84,14 @@ public class DirectorySoSource extends SoSource {
 
     File soFile = getSoFileByName(soName);
     if (soFile == null) {
-      Log.v(SoLoader.TAG, soName + " not found on " + libDir.getCanonicalPath());
+      LogUtil.v(SoLoader.TAG, soName + " not found on " + libDir.getCanonicalPath());
       return LOAD_RESULT_NOT_FOUND;
     } else {
-      Log.d(SoLoader.TAG, soName + " found on " + libDir.getCanonicalPath());
+      LogUtil.d(SoLoader.TAG, soName + " found on " + libDir.getCanonicalPath());
     }
     if ((loadFlags & LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) != 0
         && (flags & ON_LD_LIBRARY_PATH) != 0) {
-      Log.d(SoLoader.TAG, soName + " loaded implicitly");
+      LogUtil.d(SoLoader.TAG, soName + " loaded implicitly");
       return LOAD_RESULT_IMPLICITLY_PROVIDED;
     }
 
@@ -107,7 +106,7 @@ public class DirectorySoSource extends SoSource {
       if (shouldLoadDependencies) {
         loadDependencies(soName, bc, loadFlags, threadPolicy);
       } else {
-        Log.d(SoLoader.TAG, "Not resolving dependencies for " + soName);
+        LogUtil.d(SoLoader.TAG, "Not resolving dependencies for " + soName);
       }
 
       try {
@@ -120,7 +119,7 @@ public class DirectorySoSource extends SoSource {
 
       } catch (UnsatisfiedLinkError e) {
         if (e.getMessage().contains("bad ELF magic")) {
-          Log.d(SoLoader.TAG, "Corrupted lib file detected");
+          LogUtil.d(SoLoader.TAG, "Corrupted lib file detected");
           // Swallow exception. Higher layers will try again from a backup source
           return LOAD_RESULT_CORRUPTED_LIB_FILE;
         } else {
@@ -173,7 +172,8 @@ public class DirectorySoSource extends SoSource {
       String soName, ElfByteChannel bc, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
     String[] dependencies = getDependencies(soName, bc);
-    Log.d(SoLoader.TAG, "Loading " + soName + "'s dependencies: " + Arrays.toString(dependencies));
+    LogUtil.d(
+        SoLoader.TAG, "Loading " + soName + "'s dependencies: " + Arrays.toString(dependencies));
     for (String dependency : dependencies) {
       if (dependency.startsWith("/")) {
         continue;
