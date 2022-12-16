@@ -16,8 +16,7 @@
 
 package com.facebook.soloader;
 
-import static android.util.Log.isLoggable;
-
+import android.os.Build;
 import android.util.Log;
 
 public class LogUtil {
@@ -156,5 +155,14 @@ public class LogUtil {
     if (isLoggable(tag, Log.VERBOSE)) {
       Log.v(tag, msg);
     }
+  }
+
+  private static boolean isLoggable(String tag, int level) {
+    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.N_MR1 && tag.length() > 23) {
+      // IllegalArgumentException is thrown if the tag.length() > 23 for Nougat (7.1) and prior
+      // releases (API <= 25), there is no tag limit of concern after this API level.
+      return Log.isLoggable(tag.substring(0, 23), level);
+    }
+    return Log.isLoggable(tag, level);
   }
 }
