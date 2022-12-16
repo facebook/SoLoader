@@ -20,6 +20,11 @@ import android.os.Build;
 import android.util.Log;
 
 public class LogUtil {
+
+  /**
+   * We skip {@link Log#isLoggable(String, int)} check for {@link Log#WARN} and above leve log,
+   * since the isLoggable is not free and we consider the warn+ level logs are important.
+   */
   private LogUtil() {}
 
   /**
@@ -31,9 +36,7 @@ public class LogUtil {
    * @param tr An exception to log
    */
   public static void e(final String tag, final String msg, final Throwable tr) {
-    if (isLoggable(tag, Log.ERROR)) {
-      Log.e(tag, msg, tr);
-    }
+    Log.e(tag, msg, tr);
   }
 
   /**
@@ -44,9 +47,7 @@ public class LogUtil {
    * @param msg The message you would like logged.
    */
   public static void e(final String tag, final String msg) {
-    if (isLoggable(tag, Log.ERROR)) {
-      Log.e(tag, msg);
-    }
+    Log.e(tag, msg);
   }
 
   /**
@@ -58,9 +59,7 @@ public class LogUtil {
    * @param tr An exception to log
    */
   public static void w(final String tag, final String msg, final Throwable tr) {
-    if (isLoggable(tag, Log.WARN)) {
-      Log.w(tag, msg, tr);
-    }
+    Log.w(tag, msg, tr);
   }
 
   /**
@@ -71,9 +70,7 @@ public class LogUtil {
    * @param msg The message you would like logged.
    */
   public static void w(final String tag, final String msg) {
-    if (isLoggable(tag, Log.WARN)) {
-      Log.w(tag, msg);
-    }
+    Log.w(tag, msg);
   }
 
   /**
