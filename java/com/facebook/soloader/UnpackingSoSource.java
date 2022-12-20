@@ -533,10 +533,15 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
       LogUtil.v(TAG, "locked dso store " + soDirectory);
 
-      if (refreshLocked(lock, flags, getDepsBlock())) {
-        lock = null; // Lock transferred to syncer thread
-      } else {
-        LogUtil.i(TAG, "dso store is up-to-date: " + soDirectory);
+      // If another process holds the instance lock, it means that it already
+      // initialized the so source and libraries might be getting loaded in that
+      // process, so we can't refresh the so source.
+      if (mInstanceLock != null) {
+        if (refreshLocked(lock, flags, getDepsBlock())) {
+          lock = null; // Lock transferred to syncer thread
+        } else {
+          LogUtil.i(TAG, "dso store is up-to-date: " + soDirectory);
+        }
       }
     } finally {
       if (!dirCanWrite && !soDirectory.setWritable(false)) {
