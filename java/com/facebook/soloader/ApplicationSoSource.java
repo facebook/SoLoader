@@ -56,29 +56,29 @@ public class ApplicationSoSource extends SoSource {
    */
   public boolean checkAndMaybeUpdate() throws IOException {
     File nativeLibDir = soSource.soDirectory;
-    Context updatedContext = getUpdatedContext();
-    File updatedNativeLibDir = getNativeLibDirFromContext(updatedContext);
-    if (!nativeLibDir.equals(updatedNativeLibDir)) {
-      LogUtil.d(
-          SoLoader.TAG,
-          "Native library directory updated from " + nativeLibDir + " to " + updatedNativeLibDir);
-      // update flags to resolve dependencies since the system does not properly resolve
-      // dependencies when the location has moved
-      flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
-      soSource = new DirectorySoSource(updatedNativeLibDir, flags);
-      soSource.prepare(flags);
-      applicationContext = updatedContext;
-      return true;
+    try {
+      Context updatedContext = getUpdatedContext();
+      File updatedNativeLibDir = getNativeLibDirFromContext(updatedContext);
+      if (!nativeLibDir.equals(updatedNativeLibDir)) {
+        LogUtil.d(
+            SoLoader.TAG,
+            "Native library directory updated from " + nativeLibDir + " to " + updatedNativeLibDir);
+        // update flags to resolve dependencies since the system does not properly resolve
+        // dependencies when the location has moved
+        flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
+        soSource = new DirectorySoSource(updatedNativeLibDir, flags);
+        soSource.prepare(flags);
+        applicationContext = updatedContext;
+        return true;
+      }
+    } catch (PackageManager.NameNotFoundException e) {
+      LogUtil.w(SoLoader.TAG, "Can not find the package during checkAndMaybeUpdate ", e);
     }
     return false;
   }
 
-  public Context getUpdatedContext() {
-    try {
-      return applicationContext.createPackageContext(applicationContext.getPackageName(), 0);
-    } catch (PackageManager.NameNotFoundException e) {
-      throw new RuntimeException(e);
-    }
+  public Context getUpdatedContext() throws PackageManager.NameNotFoundException {
+    return applicationContext.createPackageContext(applicationContext.getPackageName(), 0);
   }
 
   public static File getNativeLibDirFromContext(Context context) {

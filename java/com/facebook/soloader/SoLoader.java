@@ -1184,12 +1184,16 @@ public class SoLoader {
             sb.append("\n\tSoSource ").append(i).append(": ").append(sSoSources[i].toString());
           }
           if (sApplicationSoSource != null) {
-            Context updatedContext = sApplicationSoSource.getUpdatedContext();
-            File updatedNativeLibDir =
-                ApplicationSoSource.getNativeLibDirFromContext(updatedContext);
-            sb.append("\n\tNative lib dir: ")
-                .append(updatedNativeLibDir.getAbsolutePath())
-                .append("\n");
+            try {
+              Context updatedContext = sApplicationSoSource.getUpdatedContext();
+              File updatedNativeLibDir =
+                  ApplicationSoSource.getNativeLibDirFromContext(updatedContext);
+              sb.append("\n\tNative lib dir: ")
+                  .append(updatedNativeLibDir.getAbsolutePath())
+                  .append("\n");
+            } catch (Exception e) {
+              LogUtil.w(TAG, "Can not find the package during doLoadLibraryBySoName", e);
+            }
           }
           sSoSourcesLock.readLock().unlock();
         }
