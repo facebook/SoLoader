@@ -941,6 +941,7 @@ public class SoLoader {
             LogUtil.w(
                 TAG,
                 "sApplicationSoSource updated during load: " + soName + ", attempting load again.");
+            updateDirectApkSoSource(sApplicationSoSource.getCurrentContext());
             sSoSourcesVersion.getAndIncrement();
             retry = true;
           }
@@ -957,6 +958,16 @@ public class SoLoader {
       }
     } while (retry);
     return ret;
+  }
+
+  private static void updateDirectApkSoSource(Context currentContext) {
+    if (sSoSources != null) {
+      for (int i = 0; i < sSoSources.length; ++i) {
+        if (sSoSources[i] instanceof DirectApkSoSource) {
+          sSoSources[i] = new DirectApkSoSource(currentContext);
+        }
+      }
+    }
   }
 
   private static boolean loadLibraryBySoNameImpl(

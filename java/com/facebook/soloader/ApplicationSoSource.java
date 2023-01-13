@@ -81,6 +81,10 @@ public class ApplicationSoSource extends SoSource {
     return applicationContext.createPackageContext(applicationContext.getPackageName(), 0);
   }
 
+  public Context getCurrentContext() {
+    return applicationContext;
+  }
+
   public static File getNativeLibDirFromContext(Context context) {
     return new File(context.getApplicationInfo().nativeLibraryDir);
   }
