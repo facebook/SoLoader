@@ -108,6 +108,18 @@ public class DirectApkSoSource extends SoSource {
     return !mDirectApkLdPaths.isEmpty();
   }
 
+  @Override
+  @Nullable
+  public String getLibraryPath(String soName) throws IOException {
+    for (String directApkLdPath : mDirectApkLdPaths) {
+      Set<String> libsInApk = mLibsInApkMap.get(directApkLdPath);
+      if (!TextUtils.isEmpty(directApkLdPath) && libsInApk != null && libsInApk.contains(soName)) {
+        return directApkLdPath + File.separator + soName;
+      }
+    }
+    return null;
+  }
+
   /*package*/ static Set<String> getDirectApkLdPaths(String apkName, String apkPath) {
     Set<String> directApkPathSet = new HashSet<>();
     final String classLoaderLdLibraryPath =
