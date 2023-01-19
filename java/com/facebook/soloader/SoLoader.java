@@ -438,19 +438,6 @@ public class SoLoader {
 
   /** Add DirectApk SoSources for disabling android:extractNativeLibs */
   private static void addDirectApkSoSource(Context context, ArrayList<SoSource> soSources) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
-        && context.getApplicationInfo().splitSourceDirs != null) {
-      for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
-        DirectApkSoSource splitApkSource = new DirectApkSoSource(new File(splitApkDir));
-        LogUtil.d(
-            TAG, "validating/adding directApk source from splitApk: " + splitApkSource.toString());
-
-        if (splitApkSource.isValid()) {
-          soSources.add(0, splitApkSource);
-        }
-      }
-    }
-
     DirectApkSoSource directApkSoSource = new DirectApkSoSource(context);
     LogUtil.d(TAG, "validating/adding directApk source: " + directApkSoSource.toString());
     if (directApkSoSource.isValid()) {

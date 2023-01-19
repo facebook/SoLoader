@@ -43,28 +43,19 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class DirectApkSoSource extends SoSource {
 
-  private final Map<String, Set<String>> mLibsInApkMap = new HashMap<>();
+  // <key: ld path, value: libs set>
+  private final Map<String, Set<String>> mLibsInApkCache = new HashMap<>();
   private final Set<String> mDirectApkLdPaths;
-  private final File mApkFile;
 
   public DirectApkSoSource(Context context) {
     super();
     final String apkPath = context.getApplicationInfo().sourceDir;
-    mDirectApkLdPaths = getDirectApkLdPaths("", apkPath);
-    mApkFile = new File(apkPath);
+    mDirectApkLdPaths = getDirectApkLdPaths(apkPath);
   }
 
-  public DirectApkSoSource(File apkFile) {
-    super();
-    mDirectApkLdPaths =
-        getDirectApkLdPaths(SysUtil.getBaseName(apkFile.getName()), apkFile.getAbsolutePath());
-    mApkFile = apkFile;
-  }
-
-  public DirectApkSoSource(File apkFile, Set<String> directApkLdPaths) {
+  public DirectApkSoSource(Set<String> directApkLdPaths) {
     super();
     mDirectApkLdPaths = directApkLdPaths;
-    mApkFile = apkFile;
   }
 
   @Override
@@ -75,13 +66,14 @@ public class DirectApkSoSource extends SoSource {
     }
 
     for (String directApkLdPath : mDirectApkLdPaths) {
-      Set<String> libsInApk = mLibsInApkMap.get(directApkLdPath);
+      final String apkPath = getApkPathFromLdPath(directApkLdPath);
+      Set<String> libsInApk = mLibsInApkCache.get(directApkLdPath);
       if (TextUtils.isEmpty(directApkLdPath) || libsInApk == null || !libsInApk.contains(soName)) {
         LogUtil.v(SoLoader.TAG, soName + " not found on " + directApkLdPath);
         continue;
       }
 
-      loadDependencies(soName, loadFlags, threadPolicy);
+      loadDependencies(apkPath, soName, loadFlags, threadPolicy);
 
       try {
         final String soPath = directApkLdPath + File.separator + soName;
@@ -112,7 +104,7 @@ public class DirectApkSoSource extends SoSource {
   @Nullable
   public String getLibraryPath(String soName) throws IOException {
     for (String directApkLdPath : mDirectApkLdPaths) {
-      Set<String> libsInApk = mLibsInApkMap.get(directApkLdPath);
+      Set<String> libsInApk = mLibsInApkCache.get(directApkLdPath);
       if (!TextUtils.isEmpty(directApkLdPath) && libsInApk != null && libsInApk.contains(soName)) {
         return directApkLdPath + File.separator + soName;
       }
@@ -120,7 +112,7 @@ public class DirectApkSoSource extends SoSource {
     return null;
   }
 
-  /*package*/ static Set<String> getDirectApkLdPaths(String apkName, String apkPath) {
+  /*package*/ static Set<String> getDirectApkLdPaths(String apkPath) {
     Set<String> directApkPathSet = new HashSet<>();
     final String classLoaderLdLibraryPath =
         Build.VERSION.SDK_INT >= 14 ? SysUtil.Api14Utils.getClassLoaderLdLoadLibrary() : null;
@@ -128,7 +120,7 @@ public class DirectApkSoSource extends SoSource {
     if (classLoaderLdLibraryPath != null) {
       final String[] paths = classLoaderLdLibraryPath.split(":");
       for (final String path : paths) {
-        if (path.contains(apkName + ".apk!/")) {
+        if (path.contains(".apk!/")) {
           directApkPathSet.add(path);
         }
       }
@@ -165,9 +157,10 @@ public class DirectApkSoSource extends SoSource {
     return null;
   }
 
-  private void loadDependencies(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
+  private void loadDependencies(
+      String apkPath, String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
-    try (ZipFile mZipFile = new ZipFile(mApkFile)) {
+    try (ZipFile mZipFile = new ZipFile(apkPath)) {
       Enumeration<? extends ZipEntry> entries = mZipFile.entries();
       while (entries.hasMoreElements()) {
         ZipEntry entry = entries.nextElement();
@@ -202,17 +195,16 @@ public class DirectApkSoSource extends SoSource {
       if (TextUtils.isEmpty(subDir)) {
         continue;
       }
-
-      try (ZipFile mZipFile = new ZipFile(mApkFile)) {
+      try (ZipFile mZipFile = new ZipFile(getApkPathFromLdPath(directApkLdPath))) {
         Enumeration<? extends ZipEntry> entries = mZipFile.entries();
         while (entries.hasMoreElements()) {
           ZipEntry entry = entries.nextElement();
           if (entry != null
+              && entry.getMethod() == ZipEntry.STORED
               && entry.getName().startsWith(subDir)
-              && entry.getName().endsWith(".so")
-              && entry.getMethod() == ZipEntry.STORED) {
+              && entry.getName().endsWith(".so")) {
             final String soName = entry.getName().substring(subDir.length() + 1);
-            append(directApkLdPath, soName);
+            appendLibsCache(directApkLdPath, soName);
           }
         }
       }
@@ -229,10 +221,14 @@ public class DirectApkSoSource extends SoSource {
         .toString();
   }
 
-  private synchronized void append(String ldPath, String soName) {
-    if (!mLibsInApkMap.containsKey(ldPath)) {
-      mLibsInApkMap.put(ldPath, new HashSet<String>());
+  private synchronized void appendLibsCache(String ldPath, String soName) {
+    if (!mLibsInApkCache.containsKey(ldPath)) {
+      mLibsInApkCache.put(ldPath, new HashSet<String>());
     }
-    mLibsInApkMap.get(ldPath).add(soName);
+    mLibsInApkCache.get(ldPath).add(soName);
+  }
+
+  private static String getApkPathFromLdPath(String ldPath) {
+    return ldPath.substring(0, ldPath.indexOf('!'));
   }
 }
