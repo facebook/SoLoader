@@ -434,6 +434,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       @Override
       public void run() {
         try {
+          boolean unpackingCompleted = false;
           try {
             LogUtil.v(TAG, "starting syncer worker");
 
@@ -456,7 +457,14 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
             SysUtil.fsyncRecursive(soDirectory);
             writeState(stateFileName, STATE_CLEAN);
+            unpackingCompleted = true;
           } finally {
+            if (mInstanceLock != null && !unpackingCompleted) {
+              // Unpacking was not successfull. We should not hold the instance
+              // lock to allow other processes to unpack again.
+              mInstanceLock.close();
+              mInstanceLock = null;
+            }
             LogUtil.v(TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
             lock.close();
           }
@@ -508,6 +516,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
     final boolean dirCanWrite = soDirectory.canWrite();
     FileLocker lock = null;
+    boolean unpackingCompleted = false;
     try {
       if (!dirCanWrite && !soDirectory.setWritable(true)) {
         LogUtil.w(TAG, "error adding " + soDirectory.getCanonicalPath() + " write permission");
@@ -536,6 +545,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
         if (refreshLocked(lock, flags, getDepsBlock())) {
           lock = null; // Lock transferred to syncer thread
         } else {
+          unpackingCompleted = true;
           LogUtil.i(TAG, "dso store is up-to-date: " + soDirectory);
         }
       }
@@ -545,6 +555,12 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       }
 
       if (lock != null) {
+        if (mInstanceLock != null && !unpackingCompleted) {
+          // Unpacking was not successfull. We should not hold the instance
+          // lock to allow other processes to unpack again.
+          mInstanceLock.close();
+          mInstanceLock = null;
+        }
         LogUtil.v(TAG, "releasing dso store lock for " + soDirectory);
         lock.close();
       } else {
