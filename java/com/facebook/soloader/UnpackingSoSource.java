@@ -361,6 +361,22 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     return !Arrays.equals(existingDeps, deps);
   }
 
+  protected boolean depsChanged(final byte[] deps) {
+    final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
+    try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
+      byte[] existingDeps = new byte[(int) depsFile.length()];
+      if (depsFile.read(existingDeps) != existingDeps.length) {
+        LogUtil.v(TAG, "short read of so store deps file: marking unclean");
+        return true;
+      }
+
+      return depsChanged(existingDeps, deps);
+    } catch (IOException ioe) {
+      LogUtil.w(TAG, "failed to compare whether deps changed", ioe);
+      return true;
+    }
+  }
+
   protected boolean refreshLocked(final FileLocker lock, final int flags, final byte[] deps)
       throws IOException {
     final File stateFileName = new File(soDirectory, STATE_FILE_NAME);
@@ -377,29 +393,20 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       }
     }
 
-    final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
+    if (depsChanged(deps)) {
+      LogUtil.v(TAG, "deps mismatch on deps store: regenerating");
+      state = STATE_DIRTY;
+    }
+
     DsoManifest desiredManifest = null;
-    try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
-      byte[] existingDeps = new byte[(int) depsFile.length()];
-      if (depsFile.read(existingDeps) != existingDeps.length) {
-        LogUtil.v(TAG, "short read of so store deps file: marking unclean");
-        state = STATE_DIRTY;
-      }
+    if (state == STATE_DIRTY || ((flags & SoSource.PREPARE_FLAG_FORCE_REFRESH) != 0)) {
+      LogUtil.v(TAG, "so store dirty: regenerating");
+      writeState(stateFileName, STATE_DIRTY);
 
-      if (depsChanged(existingDeps, deps)) {
-        LogUtil.v(TAG, "deps mismatch on deps store: regenerating");
-        state = STATE_DIRTY;
-      }
-
-      if (state == STATE_DIRTY || ((flags & SoSource.PREPARE_FLAG_FORCE_REFRESH) != 0)) {
-        LogUtil.v(TAG, "so store dirty: regenerating");
-        writeState(stateFileName, STATE_DIRTY);
-
-        try (Unpacker u = makeUnpacker(state)) {
-          desiredManifest = u.getDsoManifest();
-          try (InputDsoIterator idi = u.openDsoIterator()) {
-            regenerate(state, desiredManifest, idi);
-          }
+      try (Unpacker u = makeUnpacker(state)) {
+        desiredManifest = u.getDsoManifest();
+        try (InputDsoIterator idi = u.openDsoIterator()) {
+          regenerate(state, desiredManifest, idi);
         }
       }
     }
@@ -410,6 +417,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
     final DsoManifest manifest = desiredManifest;
 
+    final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
     Runnable syncer = createSyncer(lock, deps, stateFileName, depsFileName, manifest, false);
     if ((flags & PREPARE_FLAG_ALLOW_ASYNC_INIT) != 0) {
       new Thread(syncer, "SoSync:" + soDirectory.getName()).start();
