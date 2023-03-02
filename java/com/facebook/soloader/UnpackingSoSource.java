@@ -40,7 +40,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   private static final String STATE_FILE_NAME = "dso_state";
   private static final String LOCK_FILE_NAME = "dso_lock";
-  private static final String INSTANCE_LOCK_FILE_NAME = "dso_instance_lock";
   private static final String DEPS_FILE_NAME = "dso_deps";
   private static final String MANIFEST_FILE_NAME = "dso_manifest";
 
@@ -51,7 +50,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
 
   protected final Context mContext;
   @Nullable protected String mCorruptedLib;
-  protected @Nullable FileLocker mInstanceLock;
 
   @Nullable private String[] mAbis;
 
@@ -243,7 +241,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       String fileName = existingFiles[i];
       if (fileName.equals(STATE_FILE_NAME)
           || fileName.equals(LOCK_FILE_NAME)
-          || fileName.equals(INSTANCE_LOCK_FILE_NAME)
           || fileName.equals(DEPS_FILE_NAME)
           || fileName.equals(MANIFEST_FILE_NAME)) {
         continue;
@@ -459,12 +456,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
             writeState(stateFileName, STATE_CLEAN);
             unpackingCompleted = true;
           } finally {
-            if (mInstanceLock != null && !unpackingCompleted) {
-              // Unpacking was not successfull. We should not hold the instance
-              // lock to allow other processes to unpack again.
-              mInstanceLock.close();
-              mInstanceLock = null;
-            }
             LogUtil.v(TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
             lock.close();
           }
@@ -526,28 +517,16 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
       lock = getOrCreateLock(lockFileName, true);
 
-      // INSTANCE_LOCK_FILE_NAME is used to signal to other processes/threads that
-      // there is an initialized SoSource from which DSOs might be getting loaded.
-      // This lock is held for the entire lifetime of the process.
-      // This prevents from doing changes to DSOs which might prevent previously
-      // initialized SoSources from loading libraries.
-      if (mInstanceLock == null) {
-        File instanceLockFileName = new File(soDirectory, INSTANCE_LOCK_FILE_NAME);
-        mInstanceLock = getOrCreateLock(instanceLockFileName, false);
-      }
-
       LogUtil.v(TAG, "locked dso store " + soDirectory);
 
       // If another process holds the instance lock, it means that it already
       // initialized the so source and libraries might be getting loaded in that
       // process, so we can't refresh the so source.
-      if (mInstanceLock != null) {
-        if (refreshLocked(lock, flags, getDepsBlock())) {
-          lock = null; // Lock transferred to syncer thread
-        } else {
-          unpackingCompleted = true;
-          LogUtil.i(TAG, "dso store is up-to-date: " + soDirectory);
-        }
+      if (refreshLocked(lock, flags, getDepsBlock())) {
+        lock = null; // Lock transferred to syncer thread
+      } else {
+        unpackingCompleted = true;
+        LogUtil.i(TAG, "dso store is up-to-date: " + soDirectory);
       }
     } finally {
       if (!dirCanWrite && !soDirectory.setWritable(false)) {
@@ -555,12 +534,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
       }
 
       if (lock != null) {
-        if (mInstanceLock != null && !unpackingCompleted) {
-          // Unpacking was not successfull. We should not hold the instance
-          // lock to allow other processes to unpack again.
-          mInstanceLock.close();
-          mInstanceLock = null;
-        }
         LogUtil.v(TAG, "releasing dso store lock for " + soDirectory);
         lock.close();
       } else {
