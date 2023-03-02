@@ -716,8 +716,13 @@ public class SoLoader {
         sLoadedLibraries.clear();
         sLoadingLibraries.clear();
         sSoFileLoader = null;
+        sApplicationSoSource = null;
       }
       setSoSources(null);
+    }
+
+    /* package */ static void setApplicationSoSource(ApplicationSoSource source) {
+      sApplicationSoSource = source;
     }
   }
 
