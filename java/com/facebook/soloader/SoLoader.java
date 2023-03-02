@@ -917,6 +917,7 @@ public class SoLoader {
       @Nullable StrictMode.ThreadPolicy oldPolicy) {
     boolean ret = false;
     boolean retry;
+    boolean waitedForUnpacking = false;
     do {
       retry = false;
       try {
@@ -933,6 +934,13 @@ public class SoLoader {
             sSoSourcesVersion.getAndIncrement();
             retry = true;
           }
+
+          if (!waitedForUnpacking) {
+            waitForUnpackingSoSources();
+            waitedForUnpacking = true;
+            sSoSourcesVersion.getAndIncrement();
+            retry = true;
+          }
         } catch (IOException ex) {
           throw new RuntimeException(ex);
         } finally {
@@ -946,6 +954,23 @@ public class SoLoader {
       }
     } while (retry);
     return ret;
+  }
+
+  /* Wait for any UnpackingSoSources to finish unpacking. */
+  private static void waitForUnpackingSoSources() {
+    if (sSoSources == null) {
+      return;
+    }
+
+    for (int i = 0; i < sSoSources.length; ++i) {
+      if (!(sSoSources[i] instanceof UnpackingSoSource)) {
+        continue;
+      }
+
+      UnpackingSoSource source = (UnpackingSoSource) sSoSources[i];
+      source.waitForUnpacking();
+    }
+    return;
   }
 
   private static void updateDirectApkSoSource(Context currentContext) {

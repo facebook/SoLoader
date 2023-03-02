@@ -476,6 +476,25 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     };
   }
 
+  protected void waitForUnpacking() {
+    File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
+    FileLocker lock = null;
+    try {
+      try {
+        lock = getOrCreateLock(lockFileName, true /* blocking */);
+      } catch (IOException ioe) {
+        LogUtil.w(TAG, "Encountered exception during wait for unpacking", ioe);
+      } finally {
+        if (lock != null) {
+          lock.close();
+        }
+      }
+    } catch (IOException ioe) {
+      LogUtil.w(TAG, "Encountered exception during wait for unpacking trying to close lock", ioe);
+    }
+    return;
+  }
+
   /**
    * Return an opaque blob of bytes that represents all the dependencies of this SoSource; if this
    * block differs from one we've previously saved, we go through the heavyweight refresh process
