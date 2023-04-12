@@ -128,13 +128,13 @@ public final class MinElf {
     // Read ELF header.
 
     bb.order(ByteOrder.LITTLE_ENDIAN);
-    long magic = getu32(bc, bb, Elf32_Ehdr.e_ident);
+    long magic = getu32(bc, bb, Elf32.Ehdr.E_IDENT);
     if (magic != ELF_MAGIC) {
       throw new ElfError("file is not ELF: 0x" + Long.toHexString(magic));
     }
 
-    boolean is32 = (getu8(bc, bb, Elf32_Ehdr.e_ident + 0x4) == 1);
-    if (getu8(bc, bb, Elf32_Ehdr.e_ident + 0x5) == 2) {
+    boolean is32 = (getu8(bc, bb, Elf32.Ehdr.E_IDENT + 0x4) == 1);
+    if (getu8(bc, bb, Elf32.Ehdr.E_IDENT + 0x5) == 2) {
       bb.order(ByteOrder.BIG_ENDIAN);
     }
 
@@ -142,21 +142,21 @@ public final class MinElf {
 
     // Find the offset of the dynamic linking information.
 
-    long e_phoff = is32 ? getu32(bc, bb, Elf32_Ehdr.e_phoff) : get64(bc, bb, Elf64_Ehdr.e_phoff);
+    long e_phoff = is32 ? getu32(bc, bb, Elf32.Ehdr.E_PHOFF) : get64(bc, bb, Elf64.Ehdr.E_PHOFF);
 
-    long e_phnum = is32 ? getu16(bc, bb, Elf32_Ehdr.e_phnum) : getu16(bc, bb, Elf64_Ehdr.e_phnum);
+    long e_phnum = is32 ? getu16(bc, bb, Elf32.Ehdr.E_PHNUM) : getu16(bc, bb, Elf64.Ehdr.E_PHNUM);
 
     int e_phentsize =
-        is32 ? getu16(bc, bb, Elf32_Ehdr.e_phentsize) : getu16(bc, bb, Elf64_Ehdr.e_phentsize);
+        is32 ? getu16(bc, bb, Elf32.Ehdr.E_PHENTSIZE) : getu16(bc, bb, Elf64.Ehdr.E_PHENTSIZE);
 
     if (e_phnum == PN_XNUM) { // Overflowed into section[0].sh_info
 
-      long e_shoff = is32 ? getu32(bc, bb, Elf32_Ehdr.e_shoff) : get64(bc, bb, Elf64_Ehdr.e_shoff);
+      long e_shoff = is32 ? getu32(bc, bb, Elf32.Ehdr.E_SHOFF) : get64(bc, bb, Elf64.Ehdr.E_SHOFF);
 
       long sh_info =
           is32
-              ? getu32(bc, bb, e_shoff + Elf32_Shdr.sh_info)
-              : getu32(bc, bb, e_shoff + Elf64_Shdr.sh_info);
+              ? getu32(bc, bb, e_shoff + Elf32.Shdr.SH_INFO)
+              : getu32(bc, bb, e_shoff + Elf64.Shdr.SH_INFO);
 
       e_phnum = sh_info;
     }
@@ -167,14 +167,14 @@ public final class MinElf {
     for (long i = 0; i < e_phnum; ++i) {
       long p_type =
           is32
-              ? getu32(bc, bb, phdr + Elf32_Phdr.p_type)
-              : getu32(bc, bb, phdr + Elf64_Phdr.p_type);
+              ? getu32(bc, bb, phdr + Elf32.Phdr.P_TYPE)
+              : getu32(bc, bb, phdr + Elf64.Phdr.P_TYPE);
 
       if (p_type == PT_DYNAMIC) {
         long p_offset =
             is32
-                ? getu32(bc, bb, phdr + Elf32_Phdr.p_offset)
-                : get64(bc, bb, phdr + Elf64_Phdr.p_offset);
+                ? getu32(bc, bb, phdr + Elf32.Phdr.P_OFFSET)
+                : get64(bc, bb, phdr + Elf64.Phdr.P_OFFSET);
 
         dynStart = p_offset;
         break;
@@ -197,7 +197,7 @@ public final class MinElf {
     long ptr_DT_STRTAB = 0;
 
     do {
-      d_tag = is32 ? getu32(bc, bb, dyn + Elf32_Dyn.d_tag) : get64(bc, bb, dyn + Elf64_Dyn.d_tag);
+      d_tag = is32 ? getu32(bc, bb, dyn + Elf32.Dyn.D_TAG) : get64(bc, bb, dyn + Elf64.Dyn.D_TAG);
 
       if (d_tag == DT_NEEDED) {
         if (nr_DT_NEEDED == Integer.MAX_VALUE) {
@@ -207,7 +207,7 @@ public final class MinElf {
         nr_DT_NEEDED += 1;
       } else if (d_tag == DT_STRTAB) {
         ptr_DT_STRTAB =
-            is32 ? getu32(bc, bb, dyn + Elf32_Dyn.d_un) : get64(bc, bb, dyn + Elf64_Dyn.d_un);
+            is32 ? getu32(bc, bb, dyn + Elf32.Dyn.D_UN) : get64(bc, bb, dyn + Elf64.Dyn.D_UN);
       }
 
       dyn += is32 ? 8 : 16;
@@ -225,25 +225,25 @@ public final class MinElf {
     for (int i = 0; i < e_phnum; ++i) {
       long p_type =
           is32
-              ? getu32(bc, bb, phdr + Elf32_Phdr.p_type)
-              : getu32(bc, bb, phdr + Elf64_Phdr.p_type);
+              ? getu32(bc, bb, phdr + Elf32.Phdr.P_TYPE)
+              : getu32(bc, bb, phdr + Elf64.Phdr.P_TYPE);
 
       if (p_type == PT_LOAD) {
         long p_vaddr =
             is32
-                ? getu32(bc, bb, phdr + Elf32_Phdr.p_vaddr)
-                : get64(bc, bb, phdr + Elf64_Phdr.p_vaddr);
+                ? getu32(bc, bb, phdr + Elf32.Phdr.P_VADDR)
+                : get64(bc, bb, phdr + Elf64.Phdr.P_VADDR);
 
         long p_memsz =
             is32
-                ? getu32(bc, bb, phdr + Elf32_Phdr.p_memsz)
-                : get64(bc, bb, phdr + Elf64_Phdr.p_memsz);
+                ? getu32(bc, bb, phdr + Elf32.Phdr.P_MEMSZ)
+                : get64(bc, bb, phdr + Elf64.Phdr.P_MEMSZ);
 
         if (p_vaddr <= ptr_DT_STRTAB && ptr_DT_STRTAB < p_vaddr + p_memsz) {
           long p_offset =
               is32
-                  ? getu32(bc, bb, phdr + Elf32_Phdr.p_offset)
-                  : get64(bc, bb, phdr + Elf64_Phdr.p_offset);
+                  ? getu32(bc, bb, phdr + Elf32.Phdr.P_OFFSET)
+                  : get64(bc, bb, phdr + Elf64.Phdr.P_OFFSET);
 
           off_DT_STRTAB = p_offset + (ptr_DT_STRTAB - p_vaddr);
           break;
@@ -263,11 +263,11 @@ public final class MinElf {
     dyn = dynStart;
 
     do {
-      d_tag = is32 ? getu32(bc, bb, dyn + Elf32_Dyn.d_tag) : get64(bc, bb, dyn + Elf64_Dyn.d_tag);
+      d_tag = is32 ? getu32(bc, bb, dyn + Elf32.Dyn.D_TAG) : get64(bc, bb, dyn + Elf64.Dyn.D_TAG);
 
       if (d_tag == DT_NEEDED) {
         long d_val =
-            is32 ? getu32(bc, bb, dyn + Elf32_Dyn.d_un) : get64(bc, bb, dyn + Elf64_Dyn.d_un);
+            is32 ? getu32(bc, bb, dyn + Elf32.Dyn.D_UN) : get64(bc, bb, dyn + Elf64.Dyn.D_UN);
 
         needed[nr_DT_NEEDED] = getSz(bc, bb, off_DT_STRTAB + d_val);
         if (nr_DT_NEEDED == Integer.MAX_VALUE) {
