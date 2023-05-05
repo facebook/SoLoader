@@ -45,6 +45,8 @@ public class DirectApkSoSource extends SoSource {
 
   // <key: ld path, value: libs set>
   private final Map<String, Set<String>> mLibsInApkCache = new HashMap<>();
+  // <key: so name, value libs set>
+  private final Map<String, Set<String>> mDepsCache = new HashMap<>();
   private final Set<String> mDirectApkLdPaths;
 
   public DirectApkSoSource(Context context) {
@@ -66,14 +68,13 @@ public class DirectApkSoSource extends SoSource {
     }
 
     for (String directApkLdPath : mDirectApkLdPaths) {
-      final String apkPath = getApkPathFromLdPath(directApkLdPath);
       Set<String> libsInApk = mLibsInApkCache.get(directApkLdPath);
       if (TextUtils.isEmpty(directApkLdPath) || libsInApk == null || !libsInApk.contains(soName)) {
         LogUtil.v(SoLoader.TAG, soName + " not found on " + directApkLdPath);
         continue;
       }
 
-      loadDependencies(apkPath, soName, loadFlags, threadPolicy);
+      loadDependencies(directApkLdPath, soName, loadFlags, threadPolicy);
 
       try {
         final String soPath = directApkLdPath + File.separator + soName;
@@ -158,25 +159,13 @@ public class DirectApkSoSource extends SoSource {
   }
 
   private void loadDependencies(
-      String apkPath, String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
+      String directApkLdPath, String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
-    try (ZipFile mZipFile = new ZipFile(apkPath)) {
-      Enumeration<? extends ZipEntry> entries = mZipFile.entries();
-      while (entries.hasMoreElements()) {
-        ZipEntry entry = entries.nextElement();
-        if (entry != null && entry.getName().endsWith("/" + soName)) {
-          try (ElfByteChannel bc = new ElfZipFileChannel(mZipFile, entry)) {
-            for (String dependency : getDependencies(soName, bc)) {
-              if (dependency.startsWith("/")) {
-                continue;
-              }
-
-              SoLoader.loadLibraryBySoName(
-                  dependency, loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, threadPolicy);
-            }
-          }
-          break;
-        }
+    final Set<String> dependencies = getDepsFromCache(directApkLdPath, soName);
+    if (dependencies != null) {
+      for (String dependency : dependencies) {
+        SoLoader.loadLibraryBySoName(
+            dependency, loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, threadPolicy);
       }
     }
   }
@@ -204,7 +193,17 @@ public class DirectApkSoSource extends SoSource {
               && entry.getName().startsWith(subDir)
               && entry.getName().endsWith(".so")) {
             final String soName = entry.getName().substring(subDir.length() + 1);
-            appendLibsCache(directApkLdPath, soName);
+            appendLibsInApkCache(directApkLdPath, soName);
+            try (ElfByteChannel bc = new ElfZipFileChannel(mZipFile, entry)) {
+              for (String dependency : getDependencies(soName, bc)) {
+                if (dependency.startsWith("/")) {
+                  // Bionic dynamic linker could correctly resolving system dependencies, we don't
+                  // need to load them by ourselves.
+                  continue;
+                }
+                appendDepsCache(directApkLdPath, soName, dependency);
+              }
+            }
           }
         }
       }
@@ -221,11 +220,30 @@ public class DirectApkSoSource extends SoSource {
         .toString();
   }
 
-  private synchronized void appendLibsCache(String ldPath, String soName) {
-    if (!mLibsInApkCache.containsKey(ldPath)) {
-      mLibsInApkCache.put(ldPath, new HashSet<String>());
+  private void appendLibsInApkCache(String ldPath, String soName) {
+    synchronized (mLibsInApkCache) {
+      if (!mLibsInApkCache.containsKey(ldPath)) {
+        mLibsInApkCache.put(ldPath, new HashSet<String>());
+      }
+      mLibsInApkCache.get(ldPath).add(soName);
     }
-    mLibsInApkCache.get(ldPath).add(soName);
+  }
+
+  private void appendDepsCache(String directApkLdPath, String soName, String depSoName) {
+    synchronized (mDepsCache) {
+      final String soPath = directApkLdPath + soName;
+      if (!mDepsCache.containsKey(soPath)) {
+        mDepsCache.put(soPath, new HashSet<String>());
+      }
+      mDepsCache.get(soPath).add(depSoName);
+    }
+  }
+
+  private @Nullable Set<String> getDepsFromCache(String directApkLdPath, String soName) {
+    synchronized (mDepsCache) {
+      final String soPath = directApkLdPath + soName;
+      return mDepsCache.get(soPath);
+    }
   }
 
   private static String getApkPathFromLdPath(String ldPath) {
