@@ -26,15 +26,8 @@ import android.text.TextUtils;
 import com.facebook.soloader.nativeloader.NativeLoader;
 import com.facebook.soloader.nativeloader.SystemDelegate;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -561,97 +554,7 @@ public class SoLoader {
       return;
     }
 
-    final Runtime runtime = Runtime.getRuntime();
-    final Method nativeLoadRuntimeMethod = getNativeLoadRuntimeMethod();
-
-    final boolean hasNativeLoadMethod = nativeLoadRuntimeMethod != null;
-
-    final String localLdLibraryPath =
-        hasNativeLoadMethod ? SysUtil.Api14Utils.getClassLoaderLdLoadLibrary() : null;
-    final String localLdLibraryPathNoZips = makeNonZipPath(localLdLibraryPath);
-
-    sSoFileLoader =
-        new SoFileLoader() {
-          @Override
-          public void loadBytes(String pathName, ElfByteChannel bytes, int loadFlags) {
-            throw new UnsupportedOperationException();
-          }
-
-          @Override
-          public void load(final String pathToSoFile, final int loadFlags) {
-            String error = null;
-            if (hasNativeLoadMethod) {
-              final boolean inZip = (loadFlags & SOLOADER_LOOK_IN_ZIP) == SOLOADER_LOOK_IN_ZIP;
-              final String path = inZip ? localLdLibraryPath : localLdLibraryPathNoZips;
-              try {
-                synchronized (runtime) {
-                  error =
-                      (String)
-                          nativeLoadRuntimeMethod.invoke(
-                              runtime, pathToSoFile, SoLoader.class.getClassLoader(), path);
-                  if (error != null) {
-                    throw new UnsatisfiedLinkError(error);
-                  }
-                }
-              } catch (IllegalAccessException
-                  | IllegalArgumentException
-                  | InvocationTargetException e) {
-                error = "Error: Cannot load " + pathToSoFile;
-                throw new RuntimeException(error, e);
-              } finally {
-                if (error != null) {
-                  LogUtil.e(
-                      TAG,
-                      "Error when loading lib: "
-                          + error
-                          + " lib hash: "
-                          + getLibHash(pathToSoFile)
-                          + " search path is "
-                          + path);
-                }
-              }
-            } else {
-              System.load(pathToSoFile);
-            }
-          }
-
-          /** * Logs MD5 of lib that failed loading */
-          private String getLibHash(String libPath) {
-            String digestStr;
-            try {
-              File libFile = new File(libPath);
-              MessageDigest digest = MessageDigest.getInstance("MD5");
-              try (InputStream libInStream = new FileInputStream(libFile)) {
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                while ((bytesRead = libInStream.read(buffer)) > 0) {
-                  digest.update(buffer, 0, bytesRead);
-                }
-                digestStr = String.format("%32x", new BigInteger(1, digest.digest()));
-              }
-            } catch (IOException | SecurityException | NoSuchAlgorithmException e) {
-              digestStr = e.toString();
-            }
-            return digestStr;
-          }
-        };
-  }
-
-  private static @Nullable Method getNativeLoadRuntimeMethod() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Build.VERSION.SDK_INT > 27) {
-      return null;
-    }
-
-    try {
-      final Method method =
-          Runtime.class.getDeclaredMethod(
-              "nativeLoad", String.class, ClassLoader.class, String.class);
-      method.setAccessible(true);
-      return method;
-    } catch (final NoSuchMethodException | SecurityException e) {
-      LogUtil.w(TAG, "Cannot get nativeLoad method", e);
-      return null;
-    }
+    sSoFileLoader = new SoFileLoaderImpl();
   }
 
   private static int getAppType(Context context, int flags) {
@@ -1240,8 +1143,12 @@ public class SoLoader {
     }
 
     final String[] paths = localLdLibraryPath.split(":");
-    final ArrayList<String> pathsWithoutZip = new ArrayList<String>(paths.length);
+    final ArrayList<String> pathsWithoutZip = new ArrayList<>(paths.length);
     for (final String path : paths) {
+      // For ZIP files, the exclamation mark (!) is used to separate the archive path and the
+      // internal path to the directory containing the library files.
+      // For example, LD_LIBRARY_PATH might contain /foo/archive.zip!/inarchivelib, directory that
+      // we will skip scanning.
       if (path.contains("!")) {
         continue;
       }
