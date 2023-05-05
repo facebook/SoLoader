@@ -158,11 +158,11 @@ public final class SysUtil {
         // Determine the current process bitness and use that to filter
         // out incompatible ABIs from SUPPORTED_ABIS.
         if (is64Bit()) {
-          allowedAbis.add(MinElf.ISA.AARCH64.toString());
-          allowedAbis.add(MinElf.ISA.X86_64.toString());
+          allowedAbis.add(MinElf.ISA.AARCH64);
+          allowedAbis.add(MinElf.ISA.X86_64);
         } else {
-          allowedAbis.add(MinElf.ISA.ARM.toString());
-          allowedAbis.add(MinElf.ISA.X86.toString());
+          allowedAbis.add(MinElf.ISA.ARM);
+          allowedAbis.add(MinElf.ISA.X86);
         }
       } catch (ErrnoException e) {
         LogUtil.e(
@@ -219,11 +219,11 @@ public final class SysUtil {
       // Determine the current process bitness and use that to filter
       // out incompatible ABIs from SUPPORTED_ABIS.
       if (is64Bit()) {
-        allowedAbis.add(MinElf.ISA.AARCH64.toString());
-        allowedAbis.add(MinElf.ISA.X86_64.toString());
+        allowedAbis.add(MinElf.ISA.AARCH64);
+        allowedAbis.add(MinElf.ISA.X86_64);
       } else {
-        allowedAbis.add(MinElf.ISA.ARM.toString());
-        allowedAbis.add(MinElf.ISA.X86.toString());
+        allowedAbis.add(MinElf.ISA.ARM);
+        allowedAbis.add(MinElf.ISA.X86);
       }
       // Filter out the incompatible ABIs from the list of supported ABIs,
       // retaining the original order.

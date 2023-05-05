@@ -33,25 +33,12 @@ public final class MinElf {
 
   private static final String TAG = "MinElf";
 
-  public static enum ISA {
-    NOT_SO("not_so"),
-    X86("x86"),
-    ARM("armeabi-v7a"),
-    X86_64("x86_64"),
-    AARCH64("arm64-v8a"),
-    OTHERS("others");
-
-    private final String value;
-
-    ISA(final String value) {
-      this.value = value;
-    }
-
-    @Override
-    public String toString() {
-      return value;
-    }
-  };
+  public static interface ISA {
+    public static final String X86 = "x86";
+    public static final String ARM = "armeabi-v7a";
+    public static final String X86_64 = "x86_64";
+    public static final String AARCH64 = "arm64-v8a";
+  }
 
   public static final int ELF_MAGIC = 0x464c457f;
 
