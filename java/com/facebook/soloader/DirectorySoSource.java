@@ -164,14 +164,14 @@ public class DirectorySoSource extends SoSource {
     }
 
     try (ElfByteChannel bc = getChannel(soFile)) {
-      return getDependencies(soName, bc);
+      return NativeDeps.getDependencies(soName, bc);
     }
   }
 
   private void loadDependencies(
       String soName, ElfByteChannel bc, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
-    String[] dependencies = getDependencies(soName, bc);
+    String[] dependencies = NativeDeps.getDependencies(soName, bc);
     LogUtil.d(
         SoLoader.TAG, "Loading " + soName + "'s dependencies: " + Arrays.toString(dependencies));
     for (String dependency : dependencies) {
@@ -186,19 +186,6 @@ public class DirectorySoSource extends SoSource {
 
   protected ElfByteChannel getChannel(File soFile) throws IOException {
     return new ElfFileChannel(soFile);
-  }
-
-  protected String[] getDependencies(String soName, ElfByteChannel bc) throws IOException {
-    if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
-      Api18TraceUtils.beginTraceSection("SoLoader.getElfDependencies[", soName, "]");
-    }
-    try {
-      return NativeDeps.getDependencies(soName, bc);
-    } finally {
-      if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
-        Api18TraceUtils.endSection();
-      }
-    }
   }
 
   @Override

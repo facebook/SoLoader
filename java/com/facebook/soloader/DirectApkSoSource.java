@@ -137,19 +137,6 @@ public class DirectApkSoSource extends SoSource {
     return directApkPathSet;
   }
 
-  private static String[] getDependencies(String soName, ElfByteChannel bc) throws IOException {
-    if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
-      Api18TraceUtils.beginTraceSection("SoLoader.getElfDependencies[", soName, "]");
-    }
-    try {
-      return NativeDeps.getDependencies(soName, bc);
-    } finally {
-      if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
-        Api18TraceUtils.endSection();
-      }
-    }
-  }
-
   private static @Nullable String getFallbackApkLdPath(String apkPath) {
     final String[] supportedAbis = SysUtil.getSupportedAbis();
     if (!TextUtils.isEmpty(apkPath) && supportedAbis.length > 0) {
@@ -195,7 +182,7 @@ public class DirectApkSoSource extends SoSource {
             final String soName = entry.getName().substring(subDir.length() + 1);
             appendLibsInApkCache(directApkLdPath, soName);
             try (ElfByteChannel bc = new ElfZipFileChannel(mZipFile, entry)) {
-              for (String dependency : getDependencies(soName, bc)) {
+              for (String dependency : NativeDeps.getDependencies(soName, bc)) {
                 if (dependency.startsWith("/")) {
                   // Bionic dynamic linker could correctly resolving system dependencies, we don't
                   // need to load them by ourselves.

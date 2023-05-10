@@ -49,16 +49,20 @@ public final class NativeDeps {
   private static volatile boolean sUseDepsFileAsync = false;
   private static final ReentrantReadWriteLock sWaitForDepsFileLock = new ReentrantReadWriteLock();
 
-  public static String[] getDependencies(String soName, File elfFile) throws IOException {
-    String[] deps = awaitGetDepsFromPrecomputedDeps(soName);
-    if (deps != null) {
-      return deps;
+  public static String[] getDependencies(String soName, ElfByteChannel bc) throws IOException {
+    if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
+      Api18TraceUtils.beginTraceSection("soloader.NativeDeps.getDependencies[", soName, "]");
     }
-
-    return MinElf.extract_DT_NEEDED(elfFile);
+    try {
+      return getDependenciesImpl(soName, bc);
+    } finally {
+      if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
+        Api18TraceUtils.endSection();
+      }
+    }
   }
 
-  public static String[] getDependencies(String soName, ElfByteChannel bc) throws IOException {
+  public static String[] getDependenciesImpl(String soName, ElfByteChannel bc) throws IOException {
     String[] deps = awaitGetDepsFromPrecomputedDeps(soName);
     if (deps != null) {
       return deps;
