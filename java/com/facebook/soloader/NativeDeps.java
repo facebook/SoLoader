@@ -17,10 +17,12 @@
 package com.facebook.soloader;
 
 import android.content.Context;
+import android.os.StrictMode;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +50,22 @@ public final class NativeDeps {
 
   private static volatile boolean sUseDepsFileAsync = false;
   private static final ReentrantReadWriteLock sWaitForDepsFileLock = new ReentrantReadWriteLock();
+
+  public static void loadDependencies(
+      String soName, ElfByteChannel bc, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
+      throws IOException {
+    String[] dependencies = NativeDeps.getDependencies(soName, bc);
+    LogUtil.d(
+        SoLoader.TAG, "Loading " + soName + "'s dependencies: " + Arrays.toString(dependencies));
+    for (String dependency : dependencies) {
+      if (dependency.startsWith("/")) {
+        continue;
+      }
+
+      SoLoader.loadLibraryBySoName(
+          dependency, loadFlags | SoSource.LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, threadPolicy);
+    }
+  }
 
   public static String[] getDependencies(String soName, ElfByteChannel bc) throws IOException {
     if (SoLoader.SYSTRACE_LIBRARY_LOADING) {

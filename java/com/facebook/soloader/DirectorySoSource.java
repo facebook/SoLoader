@@ -104,7 +104,7 @@ public class DirectorySoSource extends SoSource {
       }
 
       if (shouldLoadDependencies) {
-        loadDependencies(soName, bc, loadFlags, threadPolicy);
+        NativeDeps.loadDependencies(soName, bc, loadFlags, threadPolicy);
       } else {
         LogUtil.d(SoLoader.TAG, "Not resolving dependencies for " + soName);
       }
@@ -165,22 +165,6 @@ public class DirectorySoSource extends SoSource {
 
     try (ElfByteChannel bc = getChannel(soFile)) {
       return NativeDeps.getDependencies(soName, bc);
-    }
-  }
-
-  private void loadDependencies(
-      String soName, ElfByteChannel bc, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
-      throws IOException {
-    String[] dependencies = NativeDeps.getDependencies(soName, bc);
-    LogUtil.d(
-        SoLoader.TAG, "Loading " + soName + "'s dependencies: " + Arrays.toString(dependencies));
-    for (String dependency : dependencies) {
-      if (dependency.startsWith("/")) {
-        continue;
-      }
-
-      SoLoader.loadLibraryBySoName(
-          dependency, loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, threadPolicy);
     }
   }
 
