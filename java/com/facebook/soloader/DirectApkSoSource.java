@@ -41,7 +41,7 @@ import javax.annotation.concurrent.ThreadSafe;
  *     android:extractNativeLibs</a>
  */
 @ThreadSafe
-public class DirectApkSoSource extends SoSource {
+public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
 
   // <key: ld path, value: libs set>
   private final Map<String, Set<String>> mLibsInApkCache = new HashMap<>();
@@ -235,5 +235,10 @@ public class DirectApkSoSource extends SoSource {
 
   private static String getApkPathFromLdPath(String ldPath) {
     return ldPath.substring(0, ldPath.indexOf('!'));
+  }
+
+  @Override
+  public SoSource recover(Context context) {
+    return new DirectApkSoSource(context);
   }
 }

@@ -833,7 +833,7 @@ public class SoLoader {
             LogUtil.w(
                 TAG,
                 "sApplicationSoSource updated during load: " + soName + ", attempting load again.");
-            updateDirectApkSoSource(sApplicationSoSource.getCurrentContext());
+            recoverSoSources(sApplicationSoSource.getCurrentContext());
             sSoSourcesVersion.getAndIncrement();
             retry = true;
           }
@@ -876,11 +876,11 @@ public class SoLoader {
     return;
   }
 
-  private static void updateDirectApkSoSource(Context currentContext) {
+  private static void recoverSoSources(Context currentContext) {
     if (sSoSources != null) {
       for (int i = 0; i < sSoSources.length; ++i) {
-        if (sSoSources[i] instanceof DirectApkSoSource) {
-          sSoSources[i] = new DirectApkSoSource(currentContext);
+        if (sSoSources[i] instanceof RecoverableSoSource) {
+          sSoSources[i] = ((RecoverableSoSource) sSoSources[i]).recover(currentContext);
         }
       }
     }
