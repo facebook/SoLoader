@@ -675,6 +675,15 @@ public class SoLoader {
     return libPath;
   }
 
+  public static SoSource[] cloneSoSources() {
+    sSoSourcesLock.readLock().lock();
+    try {
+      return (sSoSources == null) ? new SoSource[0] : sSoSources.clone();
+    } finally {
+      sSoSourcesLock.readLock().unlock();
+    }
+  }
+
   /**
    * Gets the dependencies of a library.
    *
