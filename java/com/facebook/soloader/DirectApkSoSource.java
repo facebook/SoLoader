@@ -148,7 +148,12 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
   private void loadDependencies(
       String directApkLdPath, String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
-    final Set<String> dependencies = getDepsFromCache(directApkLdPath, soName);
+    Set<String> dependencies = getDepsFromCache(directApkLdPath, soName);
+    if (dependencies == null) {
+      buildLibDepsCache(directApkLdPath, soName);
+      dependencies = getDepsFromCache(directApkLdPath, soName);
+    }
+
     if (dependencies != null) {
       for (String dependency : dependencies) {
         SoLoader.loadLibraryBySoName(
@@ -181,18 +186,34 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
               && entry.getName().endsWith(".so")) {
             final String soName = entry.getName().substring(subDir.length() + 1);
             appendLibsInApkCache(directApkLdPath, soName);
-            try (ElfByteChannel bc = new ElfZipFileChannel(mZipFile, entry)) {
-              for (String dependency : NativeDeps.getDependencies(soName, bc)) {
-                if (dependency.startsWith("/")) {
-                  // Bionic dynamic linker could correctly resolving system dependencies, we don't
-                  // need to load them by ourselves.
-                  continue;
-                }
-                appendDepsCache(directApkLdPath, soName, dependency);
-              }
-            }
           }
         }
+      }
+    }
+  }
+
+  private void buildLibDepsCache(String directApkLdPath, String soName) throws IOException {
+    try (ZipFile mZipFile = new ZipFile(getApkPathFromLdPath(directApkLdPath))) {
+      Enumeration<? extends ZipEntry> entries = mZipFile.entries();
+      while (entries.hasMoreElements()) {
+        ZipEntry entry = entries.nextElement();
+        if (entry != null && entry.getName().endsWith("/" + soName)) {
+          buildLibDepsCacheImpl(directApkLdPath, mZipFile, entry, soName);
+        }
+      }
+    }
+  }
+
+  private void buildLibDepsCacheImpl(
+      String directApkLdPath, ZipFile mZipFile, ZipEntry entry, String soName) throws IOException {
+    try (ElfByteChannel bc = new ElfZipFileChannel(mZipFile, entry)) {
+      for (String dependency : NativeDeps.getDependencies(soName, bc)) {
+        if (dependency.startsWith("/")) {
+          // Bionic dynamic linker could correctly resolving system dependencies, we don't
+          // need to load them by ourselves.
+          continue;
+        }
+        appendDepsCache(directApkLdPath, soName, dependency);
       }
     }
   }
