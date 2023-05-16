@@ -131,6 +131,10 @@ public class ApplicationSoSource extends SoSource {
 
   @Override
   public String toString() {
-    return soSource.toString();
+    return new StringBuilder()
+        .append("ApplicationSoSource[")
+        .append(soSource.toString())
+        .append("]")
+        .toString();
   }
 }
