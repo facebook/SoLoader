@@ -17,7 +17,6 @@
 package com.facebook.soloader;
 
 import android.content.Context;
-import android.os.Build;
 import android.os.StrictMode;
 import android.text.TextUtils;
 import java.io.File;
@@ -115,8 +114,7 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
 
   /*package*/ static Set<String> getDirectApkLdPaths(String apkPath) {
     Set<String> directApkPathSet = new HashSet<>();
-    final String classLoaderLdLibraryPath =
-        Build.VERSION.SDK_INT >= 14 ? SysUtil.Api14Utils.getClassLoaderLdLoadLibrary() : null;
+    final String classLoaderLdLibraryPath = SysUtil.getClassLoaderLdLoadLibrary();
 
     if (classLoaderLdLibraryPath != null) {
       final String[] paths = classLoaderLdLibraryPath.split(":");

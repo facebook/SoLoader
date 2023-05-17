@@ -1145,28 +1145,6 @@ public class SoLoader {
     }
   }
 
-  @Nullable
-  public static String makeNonZipPath(final String localLdLibraryPath) {
-    if (localLdLibraryPath == null) {
-      return null;
-    }
-
-    final String[] paths = localLdLibraryPath.split(":");
-    final ArrayList<String> pathsWithoutZip = new ArrayList<>(paths.length);
-    for (final String path : paths) {
-      // For ZIP files, the exclamation mark (!) is used to separate the archive path and the
-      // internal path to the directory containing the library files.
-      // For example, LD_LIBRARY_PATH might contain /foo/archive.zip!/inarchivelib, directory that
-      // we will skip scanning.
-      if (path.contains("!")) {
-        continue;
-      }
-      pathsWithoutZip.add(path);
-    }
-
-    return TextUtils.join(":", pathsWithoutZip);
-  }
-
   /* package */ static File unpackLibraryBySoName(String soName) throws IOException {
     sSoSourcesLock.readLock().lock();
     try {

@@ -16,7 +16,6 @@
 
 package com.facebook.soloader;
 
-import android.os.Build;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -33,49 +32,15 @@ public class SoFileLoaderImpl implements SoFileLoader {
   private static final String TAG = "SoFileLoaderImpl";
   private final Runtime mRuntime;
   @Nullable private final Method mNativeLoadRuntimeMethod;
-  private final boolean mHasNativeLoadMethod;
   @Nullable private final String mLocalLdLibraryPath;
   @Nullable private final String mLocalLdLibraryPathNoZips;
 
   public SoFileLoaderImpl() {
     mRuntime = Runtime.getRuntime();
-    mNativeLoadRuntimeMethod = getNativeLoadRuntimeMethod();
-    mHasNativeLoadMethod = mNativeLoadRuntimeMethod != null;
+    mNativeLoadRuntimeMethod = SysUtil.getNativeLoadRuntimeMethod();
     mLocalLdLibraryPath =
-        mHasNativeLoadMethod ? SysUtil.Api14Utils.getClassLoaderLdLoadLibrary() : null;
-    mLocalLdLibraryPathNoZips = SoLoader.makeNonZipPath(mLocalLdLibraryPath);
-  }
-
-  private static @Nullable Method getNativeLoadRuntimeMethod() {
-    // For API level 23+ dlopen looks through ZIP files on the LD_LIBRARY_PATH. This is unnecessary
-    // and dramatically slows down SO loading. Android supports loading different
-    // LD_LIBRARY_PATHs for each ClassLoader so it allows us to pass in a local override by calling
-    // into the "nativeLoad" native method that Android calls internally.
-    // We really don't need any of the internal Java logic for System.load() and this is a perf
-    // improvement.
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-      return null;
-    }
-
-    // However, the nativeLoad API is not available in the format we need (i.e. the one that allows
-    // us to
-    // override LD_LIBRARY_PATH) since API 28.
-    // https://android.googlesource.com/platform/libcore/+/refs/tags/android-9.0.0_r61/ojluni/src/main/java/java/lang/Runtime.java#1071
-    if (Build.VERSION.SDK_INT > 27) {
-      return null;
-    }
-
-    try {
-      // https://android.googlesource.com/platform/libcore/+/refs/tags/android-8.0.0_r45/ojluni/src/main/java/java/lang/Runtime.java#1103
-      final Method method =
-          Runtime.class.getDeclaredMethod(
-              "nativeLoad", String.class, ClassLoader.class, String.class);
-      method.setAccessible(true);
-      return method;
-    } catch (final NoSuchMethodException | SecurityException e) {
-      LogUtil.w(TAG, "Cannot get nativeLoad method", e);
-      return null;
-    }
+        (mNativeLoadRuntimeMethod != null) ? SysUtil.getClassLoaderLdLoadLibrary() : null;
+    mLocalLdLibraryPathNoZips = SysUtil.makeNonZipPath(mLocalLdLibraryPath);
   }
 
   @Override
@@ -85,7 +50,7 @@ public class SoFileLoaderImpl implements SoFileLoader {
 
   @Override
   public void load(final String pathToSoFile, final int loadFlags) {
-    if (!mHasNativeLoadMethod) {
+    if (mNativeLoadRuntimeMethod == null) {
       // nativeLoad() version with LD_LIBRARY_PATH override is not available, fallback to standard
       // loader.
       System.load(pathToSoFile);

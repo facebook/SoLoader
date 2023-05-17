@@ -27,6 +27,7 @@ import android.os.Parcel;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
+import android.text.TextUtils;
 import dalvik.system.BaseDexClassLoader;
 import java.io.DataOutput;
 import java.io.File;
@@ -464,27 +465,80 @@ public final class SysUtil {
     return fileName;
   }
 
+  public static @Nullable String makeNonZipPath(@Nullable final String localLdLibraryPath) {
+    if (localLdLibraryPath == null) {
+      return null;
+    }
+
+    final String[] paths = localLdLibraryPath.split(":");
+    final ArrayList<String> pathsWithoutZip = new ArrayList<>(paths.length);
+    for (final String path : paths) {
+      // For ZIP files, the exclamation mark (!) is used to separate the archive path and the
+      // internal path to the directory containing the library files.
+      // For example, LD_LIBRARY_PATH might contain /foo/archive.zip!/inarchivelib, directory that
+      // we will skip scanning.
+      if (path.contains("!")) {
+        continue;
+      }
+      pathsWithoutZip.add(path);
+    }
+
+    return TextUtils.join(":", pathsWithoutZip);
+  }
+
+  // BaseDexClassLoader was introduced in Android api level 14. While we're only using this
+  // method on 23-27, it might cause preverification failures and worse performance if your app is
+  // on an older Android version (api level < 13).
   @DoNotOptimize
-  @TargetApi(14)
-  public static class Api14Utils {
-    public static String getClassLoaderLdLoadLibrary() {
-      final ClassLoader classLoader = SoLoader.class.getClassLoader();
+  public static @Nullable String getClassLoaderLdLoadLibrary() {
+    final ClassLoader classLoader = SoLoader.class.getClassLoader();
 
-      if (classLoader != null && !(classLoader instanceof BaseDexClassLoader)) {
-        throw new IllegalStateException(
-            "ClassLoader "
-                + classLoader.getClass().getName()
-                + " should be of type BaseDexClassLoader");
-      }
-      try {
-        final BaseDexClassLoader baseDexClassLoader = (BaseDexClassLoader) classLoader;
-        final Method getLdLibraryPathMethod =
-            BaseDexClassLoader.class.getMethod("getLdLibraryPath");
+    if (classLoader != null && !(classLoader instanceof BaseDexClassLoader)) {
+      throw new IllegalStateException(
+          "ClassLoader "
+              + classLoader.getClass().getName()
+              + " should be of type BaseDexClassLoader");
+    }
+    try {
+      final BaseDexClassLoader baseDexClassLoader = (BaseDexClassLoader) classLoader;
+      final Method getLdLibraryPathMethod = BaseDexClassLoader.class.getMethod("getLdLibraryPath");
 
-        return (String) getLdLibraryPathMethod.invoke(baseDexClassLoader);
-      } catch (Exception e) {
-        throw new RuntimeException("Cannot call getLdLibraryPath", e);
-      }
+      return (String) getLdLibraryPathMethod.invoke(baseDexClassLoader);
+    } catch (Exception e) {
+      LogUtil.e(TAG, "Cannot call getLdLibraryPath", e);
+      return null;
+    }
+  }
+
+  @DoNotOptimize
+  public static @Nullable Method getNativeLoadRuntimeMethod() {
+    // For API level 23+ dlopen looks through ZIP files on the LD_LIBRARY_PATH. This is unnecessary
+    // and dramatically slows down SO loading. Android supports loading different
+    // LD_LIBRARY_PATHs for each ClassLoader so it allows us to pass in a local override by calling
+    // into the "nativeLoad" native method that Android calls internally.
+    // We really don't need any of the internal Java logic for System.load() and this is a perf
+    // improvement.
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+      return null;
+    }
+
+    // However, the nativeLoad API is not available in the format we need (i.e. the one that allows
+    // us to override LD_LIBRARY_PATH) since API 28 (Pie).
+    // https://android.googlesource.com/platform/libcore/+/refs/tags/android-9.0.0_r61/ojluni/src/main/java/java/lang/Runtime.java#1071
+    if (Build.VERSION.SDK_INT > 27) {
+      return null;
+    }
+
+    try {
+      // https://android.googlesource.com/platform/libcore/+/refs/tags/android-8.0.0_r45/ojluni/src/main/java/java/lang/Runtime.java#1103
+      final Method method =
+          Runtime.class.getDeclaredMethod(
+              "nativeLoad", String.class, ClassLoader.class, String.class);
+      method.setAccessible(true);
+      return method;
+    } catch (Exception e) {
+      LogUtil.w(TAG, "Cannot get nativeLoad method", e);
+      return null;
     }
   }
 }
