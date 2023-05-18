@@ -837,6 +837,7 @@ public class SoLoader {
       } catch (UnsatisfiedLinkError e) {
         final int currentVersion = sSoSourcesVersion.get();
         sSoSourcesLock.writeLock().lock();
+        Context currentContext = null;
         try {
           if (sApplicationSoSource != null && sApplicationSoSource.checkAndMaybeUpdate()) {
             LogUtil.w(
@@ -853,6 +854,9 @@ public class SoLoader {
             sSoSourcesVersion.getAndIncrement();
             retry = true;
           }
+          if (sApplicationSoSource != null) {
+            currentContext = sApplicationSoSource.getCurrentContext();
+          }
         } catch (IOException ex) {
           throw new RuntimeException(ex);
         } finally {
@@ -861,7 +865,12 @@ public class SoLoader {
 
         if (sSoSourcesVersion.get() == currentVersion) {
           // nothing changed in soSource, Propagate original error
-          throw e;
+          if (currentContext == null
+              || new File(currentContext.getApplicationInfo().sourceDir).exists()) {
+            throw e;
+          } else {
+            throw new NoBaseApkException(e);
+          }
         }
       }
     } while (retry);
