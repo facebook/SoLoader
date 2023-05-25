@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -96,6 +97,10 @@ public class SoLoader {
    * reading it.
    */
   private static final ReentrantReadWriteLock sSoSourcesLock = new ReentrantReadWriteLock();
+
+  /** Mutable reference to a context aware of all the installed splits and current base apk path. */
+  /* package */ static final AtomicReference<Context> sContextHolder =
+      new AtomicReference<Context>();
 
   /**
    * Ordered list of sources to consult when trying to load a shared library or one of its
@@ -272,7 +277,7 @@ public class SoLoader {
           flags |= (SOLOADER_DISABLE_BACKUP_SOSOURCE | SOLOADER_ENABLE_DIRECT_SOSOURCE);
         }
 
-        initSoLoader(soFileLoader);
+        initSoLoader(context, soFileLoader);
         initSoSources(context, flags, denyList);
         LogUtil.v(TAG, "Init SoLoader delegate");
         NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
@@ -366,7 +371,7 @@ public class SoLoader {
           // packaged directly in the application (e.g. ASAN libraries alongside
           // a wrap.sh script [1]), so make sure we can load them.
           // [1] https://developer.android.com/ndk/guides/wrap-script
-          addApplicationSoSource(context, soSources, getApplicationSoSourceFlags());
+          addApplicationSoSource(soSources, getApplicationSoSourceFlags());
           sBackupSoSources = null;
           LogUtil.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
@@ -374,7 +379,7 @@ public class SoLoader {
           if ((flags & SOLOADER_ENABLE_DIRECT_SOSOURCE) != 0) {
             addDirectApkSoSource(context, soSources);
           }
-          addApplicationSoSource(context, soSources, getApplicationSoSourceFlags());
+          addApplicationSoSource(soSources, getApplicationSoSourceFlags());
           AddBackupSoSource(context, soSources, ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
         }
       }
@@ -439,8 +444,7 @@ public class SoLoader {
   }
 
   /** Add a DirectorySoSource for the application's nativeLibraryDir . */
-  private static void addApplicationSoSource(
-      Context context, ArrayList<SoSource> soSources, int flags) {
+  private static void addApplicationSoSource(ArrayList<SoSource> soSources, int flags) {
 
     // On old versions of Android, Bionic doesn't add our library directory to its
     // internal search path, and the system doesn't resolve dependencies between
@@ -451,7 +455,7 @@ public class SoLoader {
       flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
     }
 
-    sApplicationSoSource = new ApplicationSoSource(context, flags);
+    sApplicationSoSource = new ApplicationSoSource(sContextHolder, flags);
     LogUtil.d(TAG, "adding application source: " + sApplicationSoSource.toString());
     soSources.add(0, sApplicationSoSource);
   }
@@ -545,7 +549,23 @@ public class SoLoader {
     }
   }
 
-  private static synchronized void initSoLoader(@Nullable SoFileLoader soFileLoader) {
+  private static synchronized void initSoLoader(
+      @Nullable Context context, @Nullable SoFileLoader soFileLoader) {
+    if (context != null) {
+      Context applicationContext = context.getApplicationContext();
+
+      if (applicationContext == null) {
+        applicationContext = context;
+        LogUtil.w(
+            TAG,
+            "context.getApplicationContext returned null, holding reference to original context."
+                + "ApplicationSoSource fallbacks to: "
+                + context.getApplicationInfo().nativeLibraryDir);
+      }
+
+      sContextHolder.set(applicationContext);
+    }
+
     if (soFileLoader == null && sSoFileLoader != null) {
       return;
     }
@@ -620,12 +640,17 @@ public class SoLoader {
         sLoadingLibraries.clear();
         sSoFileLoader = null;
         sApplicationSoSource = null;
+        sContextHolder.set(null);
       }
       setSoSources(null);
     }
 
     /* package */ static void setApplicationSoSource(ApplicationSoSource source) {
       sApplicationSoSource = source;
+    }
+
+    /* package */ static void setContext(Context context) {
+      sContextHolder.set(context);
     }
   }
 
@@ -837,13 +862,12 @@ public class SoLoader {
       } catch (UnsatisfiedLinkError e) {
         final int currentVersion = sSoSourcesVersion.get();
         sSoSourcesLock.writeLock().lock();
-        Context currentContext = null;
         try {
           if (sApplicationSoSource != null && sApplicationSoSource.checkAndMaybeUpdate()) {
             LogUtil.w(
                 TAG,
                 "sApplicationSoSource updated during load: " + soName + ", attempting load again.");
-            recoverSoSources(sApplicationSoSource.getCurrentContext());
+            recoverSoSources(sContextHolder.get());
             sSoSourcesVersion.getAndIncrement();
             retry = true;
           }
@@ -854,9 +878,6 @@ public class SoLoader {
             sSoSourcesVersion.getAndIncrement();
             retry = true;
           }
-          if (sApplicationSoSource != null) {
-            currentContext = sApplicationSoSource.getCurrentContext();
-          }
         } catch (IOException ex) {
           throw new RuntimeException(ex);
         } finally {
@@ -865,8 +886,8 @@ public class SoLoader {
 
         if (sSoSourcesVersion.get() == currentVersion) {
           // nothing changed in soSource, Propagate original error
-          if (currentContext == null
-              || new File(currentContext.getApplicationInfo().sourceDir).exists()) {
+          if (sContextHolder.get() == null
+              || new File(sContextHolder.get().getApplicationInfo().sourceDir).exists()) {
             throw e;
           } else {
             throw new NoBaseApkException(e);
@@ -1128,17 +1149,10 @@ public class SoLoader {
           for (int i = 0; i < sSoSources.length; ++i) {
             sb.append("\n\tSoSource ").append(i).append(": ").append(sSoSources[i].toString());
           }
-          if (sApplicationSoSource != null) {
-            try {
-              Context updatedContext = sApplicationSoSource.getUpdatedContext();
-              File updatedNativeLibDir =
-                  ApplicationSoSource.getNativeLibDirFromContext(updatedContext);
-              sb.append("\n\tNative lib dir: ")
-                  .append(updatedNativeLibDir.getAbsolutePath())
-                  .append("\n");
-            } catch (Exception e) {
-              LogUtil.w(TAG, "Can not find the package during doLoadLibraryBySoName", e);
-            }
+          if (sContextHolder.get() != null) {
+            sb.append("\n\tNative lib dir: ")
+                .append(sContextHolder.get().getApplicationInfo().nativeLibraryDir)
+                .append("\n");
           }
           sSoSourcesLock.readLock().unlock();
         }

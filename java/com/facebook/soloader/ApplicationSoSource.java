@@ -22,29 +22,24 @@ import android.os.StrictMode;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
 /** {@link SoSource} that wraps a DirectorySoSource for the application's nativeLibraryDir. */
 public class ApplicationSoSource extends SoSource {
 
-  private Context applicationContext;
+  // AtomicReference acts as a shared mutable reference that can be updated by
+  // ApplicationSoSource's recovery mechanism.
+  private final AtomicReference<Context> contextHolder;
   private int flags;
   private DirectorySoSource soSource;
 
-  public ApplicationSoSource(Context context, int flags) {
-    applicationContext = context.getApplicationContext();
-    if (applicationContext == null) {
-      LogUtil.w(
-          SoLoader.TAG,
-          "context.getApplicationContext returned null, holding reference to original context."
-              + "ApplicationSoSource fallbacks to: "
-              + context.getApplicationInfo().nativeLibraryDir);
-      applicationContext = context;
-    }
+  public ApplicationSoSource(AtomicReference<Context> contextHolder, int flags) {
+    this.contextHolder = contextHolder;
     this.flags = flags;
     soSource =
         new DirectorySoSource(
-            new File(applicationContext.getApplicationInfo().nativeLibraryDir), flags);
+            new File(contextHolder.get().getApplicationInfo().nativeLibraryDir), flags);
   }
 
   /**
@@ -68,7 +63,7 @@ public class ApplicationSoSource extends SoSource {
         flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
         soSource = new DirectorySoSource(updatedNativeLibDir, flags);
         soSource.prepare(flags);
-        applicationContext = updatedContext;
+        contextHolder.set(updatedContext);
         return true;
       }
     } catch (PackageManager.NameNotFoundException e) {
@@ -78,14 +73,10 @@ public class ApplicationSoSource extends SoSource {
   }
 
   public Context getUpdatedContext() throws PackageManager.NameNotFoundException {
-    return applicationContext.createPackageContext(applicationContext.getPackageName(), 0);
+    return contextHolder.get().createPackageContext(contextHolder.get().getPackageName(), 0);
   }
 
-  public Context getCurrentContext() {
-    return applicationContext;
-  }
-
-  public static File getNativeLibDirFromContext(Context context) {
+  private static File getNativeLibDirFromContext(Context context) {
     return new File(context.getApplicationInfo().nativeLibraryDir);
   }
 
