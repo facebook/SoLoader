@@ -17,63 +17,21 @@
 package com.facebook.soloader;
 
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.os.StrictMode;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
 /** {@link SoSource} that wraps a DirectorySoSource for the application's nativeLibraryDir. */
-public class ApplicationSoSource extends SoSource {
+public class ApplicationSoSource extends SoSource implements RecoverableSoSource {
 
-  // AtomicReference acts as a shared mutable reference that can be updated by
-  // ApplicationSoSource's recovery mechanism.
-  private final AtomicReference<Context> contextHolder;
-  private int flags;
+  private final int flags;
   private DirectorySoSource soSource;
 
-  public ApplicationSoSource(AtomicReference<Context> contextHolder, int flags) {
-    this.contextHolder = contextHolder;
+  public ApplicationSoSource(Context context, int flags) {
     this.flags = flags;
-    soSource =
-        new DirectorySoSource(
-            new File(contextHolder.get().getApplicationInfo().nativeLibraryDir), flags);
-  }
-
-  /**
-   * check to make sure there haven't been any changes to the nativeLibraryDir since the last check,
-   * if there have been changes, update the context and soSource
-   *
-   * @return true if the nativeLibraryDir was updated
-   * @throws IOException IOException
-   */
-  public boolean checkAndMaybeUpdate() throws IOException {
-    File nativeLibDir = soSource.soDirectory;
-    try {
-      Context updatedContext = getUpdatedContext();
-      File updatedNativeLibDir = getNativeLibDirFromContext(updatedContext);
-      if (!nativeLibDir.equals(updatedNativeLibDir)) {
-        LogUtil.d(
-            SoLoader.TAG,
-            "Native library directory updated from " + nativeLibDir + " to " + updatedNativeLibDir);
-        // update flags to resolve dependencies since the system does not properly resolve
-        // dependencies when the location has moved
-        flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
-        soSource = new DirectorySoSource(updatedNativeLibDir, flags);
-        soSource.prepare(flags);
-        contextHolder.set(updatedContext);
-        return true;
-      }
-    } catch (PackageManager.NameNotFoundException e) {
-      LogUtil.w(SoLoader.TAG, "Can not find the package during checkAndMaybeUpdate ", e);
-    }
-    return false;
-  }
-
-  public Context getUpdatedContext() throws PackageManager.NameNotFoundException {
-    return contextHolder.get().createPackageContext(contextHolder.get().getPackageName(), 0);
+    this.soSource = new DirectorySoSource(getNativeLibDirFromContext(context), flags);
   }
 
   private static File getNativeLibDirFromContext(Context context) {
@@ -127,5 +85,13 @@ public class ApplicationSoSource extends SoSource {
         .append(soSource.toString())
         .append("]")
         .toString();
+  }
+
+  @Override
+  public SoSource recover(Context context) {
+    soSource =
+        new DirectorySoSource(
+            getNativeLibDirFromContext(context), flags | DirectorySoSource.RESOLVE_DEPENDENCIES);
+    return this;
   }
 }

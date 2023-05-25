@@ -17,7 +17,10 @@ fb_core_android_library(
 )
 
 LOADER_SRCS = glob(
-    ["*.java"],
+    [
+        "*.java",
+        "recovery/*.java",
+    ],
     exclude = [
         "MergedSoMapping.java",
         "DoNotOptimize.java",

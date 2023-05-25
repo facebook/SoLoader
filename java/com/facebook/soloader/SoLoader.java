@@ -25,6 +25,9 @@ import android.os.StrictMode;
 import android.text.TextUtils;
 import com.facebook.soloader.nativeloader.NativeLoader;
 import com.facebook.soloader.nativeloader.SystemDelegate;
+import com.facebook.soloader.recovery.DefaultRecoveryStrategyFactory;
+import com.facebook.soloader.recovery.RecoveryStrategy;
+import com.facebook.soloader.recovery.RecoveryStrategyFactory;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -37,7 +40,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -83,7 +85,7 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class SoLoader {
 
-  /* package */ static final String TAG = "SoLoader";
+  public static final String TAG = "SoLoader";
   /* package */ static final boolean DEBUG = false;
   /* package */ static final boolean SYSTRACE_LIBRARY_LOADING;
   /* package */ @Nullable static SoFileLoader sSoFileLoader;
@@ -99,8 +101,7 @@ public class SoLoader {
   private static final ReentrantReadWriteLock sSoSourcesLock = new ReentrantReadWriteLock();
 
   /** Mutable reference to a context aware of all the installed splits and current base apk path. */
-  /* package */ static final AtomicReference<Context> sContextHolder =
-      new AtomicReference<Context>();
+  /* package */ static final ContextHolder sContextHolder = new ContextHolder();
 
   /**
    * Ordered list of sources to consult when trying to load a shared library or one of its
@@ -118,13 +119,9 @@ public class SoLoader {
   @Nullable
   private static UnpackingSoSource[] sBackupSoSources;
 
-  /**
-   * A SoSource for the Context.ApplicationInfo.nativeLibsDir that can be updated if the application
-   * moves this directory
-   */
-  @GuardedBy("sSoSourcesLock")
+  @GuardedBy("SoLoader.class")
   @Nullable
-  private static ApplicationSoSource sApplicationSoSource;
+  private static RecoveryStrategyFactory sRecoveryStrategyFactory = null;
 
   /** Records the sonames (e.g., "libdistract.so") of shared libraries we've loaded. */
   @GuardedBy("SoLoader.class")
@@ -373,7 +370,7 @@ public class SoLoader {
           // [1] https://developer.android.com/ndk/guides/wrap-script
           addApplicationSoSource(soSources, getApplicationSoSourceFlags());
           sBackupSoSources = null;
-          LogUtil.d(TAG, "adding exo package source: " + SO_STORE_NAME_MAIN);
+          LogUtil.d(TAG, "Adding exo package source: " + SO_STORE_NAME_MAIN);
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
         } else {
           if ((flags & SOLOADER_ENABLE_DIRECT_SOSOURCE) != 0) {
@@ -455,9 +452,9 @@ public class SoLoader {
       flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
     }
 
-    sApplicationSoSource = new ApplicationSoSource(sContextHolder, flags);
-    LogUtil.d(TAG, "adding application source: " + sApplicationSoSource.toString());
-    soSources.add(0, sApplicationSoSource);
+    SoSource applicationSoSource = new ApplicationSoSource(sContextHolder.get(), flags);
+    LogUtil.d(TAG, "Adding application source: " + applicationSoSource.toString());
+    soSources.add(0, applicationSoSource);
   }
 
   /** Add the SoSources for recovering the dso if the file is corrupted or missed */
@@ -564,6 +561,7 @@ public class SoLoader {
       }
 
       sContextHolder.set(applicationContext);
+      sRecoveryStrategyFactory = new DefaultRecoveryStrategyFactory(sContextHolder);
     }
 
     if (soFileLoader == null && sSoFileLoader != null) {
@@ -639,14 +637,10 @@ public class SoLoader {
         sLoadedLibraries.clear();
         sLoadingLibraries.clear();
         sSoFileLoader = null;
-        sApplicationSoSource = null;
         sContextHolder.set(null);
+        sRecoveryStrategyFactory = null;
       }
       setSoSources(null);
-    }
-
-    /* package */ static void setApplicationSoSource(ApplicationSoSource source) {
-      sApplicationSoSource = source;
     }
 
     /* package */ static void setContext(Context context) {
@@ -852,77 +846,36 @@ public class SoLoader {
       @Nullable String mergedLibName,
       int loadFlags,
       @Nullable StrictMode.ThreadPolicy oldPolicy) {
-    boolean ret = false;
-    boolean retry;
-    boolean waitedForUnpacking = false;
-    do {
-      retry = false;
+    @Nullable RecoveryStrategy recovery = null;
+    while (true) {
       try {
-        ret = loadLibraryBySoNameImpl(soName, shortName, mergedLibName, loadFlags, oldPolicy);
+        return loadLibraryBySoNameImpl(soName, shortName, mergedLibName, loadFlags, oldPolicy);
       } catch (UnsatisfiedLinkError e) {
-        final int currentVersion = sSoSourcesVersion.get();
         sSoSourcesLock.writeLock().lock();
         try {
-          if (sApplicationSoSource != null && sApplicationSoSource.checkAndMaybeUpdate()) {
-            LogUtil.w(
-                TAG,
-                "sApplicationSoSource updated during load: " + soName + ", attempting load again.");
-            recoverSoSources(sContextHolder.get());
-            sSoSourcesVersion.getAndIncrement();
-            retry = true;
+          if (recovery == null) {
+            recovery = getRecoveryStrategy();
           }
-
-          if (!waitedForUnpacking) {
-            waitForUnpackingSoSources();
-            waitedForUnpacking = true;
+          if (recovery != null && recovery.recover(e, sSoSources)) {
             sSoSourcesVersion.getAndIncrement();
-            retry = true;
+            continue;
           }
-        } catch (IOException ex) {
-          throw new RuntimeException(ex);
         } finally {
           sSoSourcesLock.writeLock().unlock();
         }
 
-        if (sSoSourcesVersion.get() == currentVersion) {
-          // nothing changed in soSource, Propagate original error
-          if (sContextHolder.get() == null
-              || new File(sContextHolder.get().getApplicationInfo().sourceDir).exists()) {
-            throw e;
-          } else {
-            throw new NoBaseApkException(e);
-          }
-        }
+        throw e;
       }
-    } while (retry);
-    return ret;
+    }
   }
 
-  /* Wait for any UnpackingSoSources to finish unpacking. */
-  private static void waitForUnpackingSoSources() {
-    if (sSoSources == null) {
-      return;
-    }
-
-    for (int i = 0; i < sSoSources.length; ++i) {
-      if (!(sSoSources[i] instanceof UnpackingSoSource)) {
-        continue;
-      }
-
-      UnpackingSoSource source = (UnpackingSoSource) sSoSources[i];
-      source.waitForUnpacking();
-    }
-    return;
+  private static synchronized @Nullable RecoveryStrategy getRecoveryStrategy() {
+    return sRecoveryStrategyFactory == null ? null : sRecoveryStrategyFactory.get();
   }
 
-  private static void recoverSoSources(Context currentContext) {
-    if (sSoSources != null) {
-      for (int i = 0; i < sSoSources.length; ++i) {
-        if (sSoSources[i] instanceof RecoverableSoSource) {
-          sSoSources[i] = ((RecoverableSoSource) sSoSources[i]).recover(currentContext);
-        }
-      }
-    }
+  /* protected */ static synchronized void setRecoveryStrategyFactory(
+      RecoveryStrategyFactory factory) {
+    sRecoveryStrategyFactory = factory;
   }
 
   private static boolean loadLibraryBySoNameImpl(
@@ -1146,15 +1099,18 @@ public class SoLoader {
           // load failure wasn't caused by dependent libraries.
           // Print the sources and current native library directory
           sSoSourcesLock.readLock().lock();
-          for (int i = 0; i < sSoSources.length; ++i) {
-            sb.append("\n\tSoSource ").append(i).append(": ").append(sSoSources[i].toString());
+          try {
+            for (int i = 0; i < sSoSources.length; ++i) {
+              sb.append("\n\tSoSource ").append(i).append(": ").append(sSoSources[i].toString());
+            }
+            if (sContextHolder.get() != null) {
+              sb.append("\n\tNative lib dir: ")
+                  .append(sContextHolder.get().getApplicationInfo().nativeLibraryDir)
+                  .append("\n");
+            }
+          } finally {
+            sSoSourcesLock.readLock().unlock();
           }
-          if (sContextHolder.get() != null) {
-            sb.append("\n\tNative lib dir: ")
-                .append(sContextHolder.get().getApplicationInfo().nativeLibraryDir)
-                .append("\n");
-          }
-          sSoSourcesLock.readLock().unlock();
         }
         sb.append(" result: ").append(result);
         final String message = sb.toString();
