@@ -21,52 +21,52 @@ import android.content.pm.PackageManager;
 import com.facebook.soloader.ContextHolder;
 import com.facebook.soloader.LogUtil;
 import com.facebook.soloader.RecoverableSoSource;
-import com.facebook.soloader.SoLoader;
 import com.facebook.soloader.SoSource;
 
 public class RefreshContext implements RecoveryStrategy {
-  private final ContextHolder mContextHolder;
+  private static final String TAG = "soloader.recovery.RefereshContext";
 
-  public RefreshContext(ContextHolder contextHolder) {
+  private final ContextHolder mContextHolder;
+  private final BaseApkPathHistory mBaseApkPathHistory;
+  private final int mInitialHistorySize;
+
+  public RefreshContext(ContextHolder contextHolder, BaseApkPathHistory baseApkPathHistory) {
     mContextHolder = contextHolder;
+    mBaseApkPathHistory = baseApkPathHistory;
+    mBaseApkPathHistory.recordPathIfNew(getBaseApkPath(contextHolder.get()));
+    mInitialHistorySize = baseApkPathHistory.size();
   }
 
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
     Context oldContext = mContextHolder.get();
-
-    if (isBaseApkPathStale(oldContext)) {
-      LogUtil.w(SoLoader.TAG, "Application info was updated dynamically");
+    if (mBaseApkPathHistory.recordPathIfNew(getBaseApkPath(oldContext))) {
+      LogUtil.w(TAG, "Application info was updated dynamically");
       updateContext(oldContext, soSources);
       return true;
     }
 
     try {
       Context newContext = getUpdatedContext();
-      if (isBaseApkPathStale(newContext)) {
+      if (mBaseApkPathHistory.recordPathIfNew(getBaseApkPath(newContext))) {
+        LogUtil.w(TAG, "Updating context to package context");
         updateContext(newContext, soSources);
         return true;
       }
     } catch (PackageManager.NameNotFoundException e) {
-      LogUtil.w(SoLoader.TAG, "Can not find the package ", e);
+      LogUtil.w(TAG, "Can not find the package ", e);
+    }
+
+    if (mInitialHistorySize != mBaseApkPathHistory.size()) {
+      LogUtil.w(TAG, "Context was updated (perhaps by another thread)");
+      return true;
     }
 
     return false;
   }
 
-  private boolean isBaseApkPathStale(Context newContext) {
-    return !mContextHolder.getCachedBaseApkPath().equals(newContext.getApplicationInfo().sourceDir);
-  }
-
   private void updateContext(Context newContext, SoSource[] soSources) {
-    LogUtil.w(
-        SoLoader.TAG,
-        "Updating context, base apk path changes from "
-            + mContextHolder.getCachedBaseApkPath()
-            + " to "
-            + newContext.getApplicationInfo().sourceDir);
     mContextHolder.set(newContext);
-
     for (int i = 0; i < soSources.length; ++i) {
       if (soSources[i] instanceof RecoverableSoSource) {
         RecoverableSoSource soSource = (RecoverableSoSource) soSources[i];
@@ -78,5 +78,9 @@ public class RefreshContext implements RecoveryStrategy {
   private Context getUpdatedContext() throws PackageManager.NameNotFoundException {
     Context oldContext = mContextHolder.get();
     return oldContext.createPackageContext(oldContext.getPackageName(), 0);
+  }
+
+  private static String getBaseApkPath(Context context) {
+    return context.getApplicationInfo().sourceDir;
   }
 }

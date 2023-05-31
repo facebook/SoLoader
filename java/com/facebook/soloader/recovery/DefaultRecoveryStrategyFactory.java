@@ -20,9 +20,11 @@ import com.facebook.soloader.ContextHolder;
 
 public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
   private final ContextHolder mContextHolder;
+  private final BaseApkPathHistory mBaseApkPathHistory;
 
   public DefaultRecoveryStrategyFactory(ContextHolder contextHolder) {
     mContextHolder = contextHolder;
+    mBaseApkPathHistory = new BaseApkPathHistory(5);
   }
 
   @Override
@@ -34,7 +36,7 @@ public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
         // succeed. WaitForUnpackingSoSources is a strategy that always succeeds, so we don't need
         // an explicit SimpleRetry.
         new WaitForUnpackingSoSources(),
-        new RefreshContext(mContextHolder),
-        new CheckBaseApkExists(mContextHolder));
+        new RefreshContext(mContextHolder, mBaseApkPathHistory),
+        new CheckBaseApkExists(mContextHolder, mBaseApkPathHistory));
   }
 }

@@ -23,4 +23,8 @@ public class NoBaseApkException extends RuntimeException {
   public NoBaseApkException(Throwable cause) {
     super(cause);
   }
+
+  public NoBaseApkException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

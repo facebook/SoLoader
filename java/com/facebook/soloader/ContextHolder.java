@@ -30,10 +30,6 @@ public class ContextHolder {
   @Nullable
   private Context mContext = null;
 
-  @GuardedBy("this")
-  @Nullable
-  private String mBaseApkPath = null;
-
   public ContextHolder() {}
 
   public ContextHolder(Context context) {
@@ -42,7 +38,6 @@ public class ContextHolder {
 
   public synchronized void set(@Nullable Context context) {
     mContext = context;
-    mBaseApkPath = context == null ? null : context.getApplicationInfo().sourceDir;
   }
 
   public synchronized Context get() {
@@ -50,12 +45,5 @@ public class ContextHolder {
       throw new IllegalStateException("ContextHolder not initialized, cannot get context");
     }
     return mContext;
-  }
-
-  public synchronized String getCachedBaseApkPath() {
-    if (mBaseApkPath == null) {
-      throw new IllegalStateException("ContextHolder not initialized, cannot get base apk path");
-    }
-    return mBaseApkPath;
   }
 }
