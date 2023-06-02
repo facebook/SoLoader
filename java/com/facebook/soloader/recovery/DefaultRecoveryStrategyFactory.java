@@ -25,6 +25,7 @@ public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
   public DefaultRecoveryStrategyFactory(ContextHolder contextHolder) {
     mContextHolder = contextHolder;
     mBaseApkPathHistory = new BaseApkPathHistory(5);
+    mBaseApkPathHistory.recordPathIfNew(contextHolder.get().getApplicationInfo().sourceDir);
   }
 
   @Override

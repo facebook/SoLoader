@@ -33,7 +33,6 @@ public class RefreshContext implements RecoveryStrategy {
   public RefreshContext(ContextHolder contextHolder, BaseApkPathHistory baseApkPathHistory) {
     mContextHolder = contextHolder;
     mBaseApkPathHistory = baseApkPathHistory;
-    mBaseApkPathHistory.recordPathIfNew(getBaseApkPath(contextHolder.get()));
     mInitialHistorySize = baseApkPathHistory.size();
   }
 
