@@ -34,7 +34,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /** {@link SoSource} that extracts libraries from an APK to the filesystem. */
-public abstract class UnpackingSoSource extends DirectorySoSource {
+public abstract class UnpackingSoSource extends DirectorySoSource implements AsyncInitSoSource {
 
   private static final String TAG = "fb-UnpackingSoSource";
 
@@ -474,7 +474,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource {
     };
   }
 
-  public void waitForUnpacking() {
+  @Override
+  public void waitUntilInitCompleted() {
     File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
     FileLocker lock = null;
     try {

@@ -34,9 +34,9 @@ public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
         // The very first recovery strategy should be to just retry. It is possible that one of the
         // SoSources was recovered in a recursive call to load library dependencies and as a result
         // no recovery steps will succeed now, but another attempt to load the current library would
-        // succeed. WaitForUnpackingSoSources is a strategy that always succeeds, so we don't need
-        // an explicit SimpleRetry.
-        new WaitForUnpackingSoSources(),
+        // succeed. WaitForAsyncInit is a strategy that always succeeds, so we don't need an
+        // explicit SimpleRetry.
+        new WaitForAsyncInit(),
         new RefreshContext(mContextHolder, mBaseApkPathHistory),
         new CheckBaseApkExists(mContextHolder, mBaseApkPathHistory));
   }

@@ -16,16 +16,16 @@
 
 package com.facebook.soloader.recovery;
 
+import com.facebook.soloader.AsyncInitSoSource;
 import com.facebook.soloader.SoSource;
-import com.facebook.soloader.UnpackingSoSource;
 
-public class WaitForUnpackingSoSources implements RecoveryStrategy {
+public class WaitForAsyncInit implements RecoveryStrategy {
   @Override
   public boolean recover(UnsatisfiedLinkError e, SoSource[] soSources) {
     for (SoSource soSource : soSources) {
-      if (soSource instanceof UnpackingSoSource) {
-        UnpackingSoSource uss = (UnpackingSoSource) soSource;
-        uss.waitForUnpacking();
+      if (soSource instanceof AsyncInitSoSource) {
+        AsyncInitSoSource uss = (AsyncInitSoSource) soSource;
+        uss.waitUntilInitCompleted();
       }
     }
     return true;
