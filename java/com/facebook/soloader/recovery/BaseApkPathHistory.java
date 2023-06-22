@@ -18,6 +18,7 @@ package com.facebook.soloader.recovery;
 
 import com.facebook.soloader.LogUtil;
 import com.facebook.soloader.SoLoader;
+import java.io.File;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -61,7 +62,12 @@ public class BaseApkPathHistory {
     for (int i = 0; i < mRecentPaths.length; ++i) {
       int index = mCounter - i - 1;
       if (index >= 0) {
-        sb.append("\n").append(mRecentPaths[index % mRecentPaths.length]);
+        String path = mRecentPaths[index % mRecentPaths.length];
+        sb.append("\n")
+            .append(path)
+            .append(" (")
+            .append(new File(path).exists() ? "exists" : "does not exist")
+            .append(")");
       }
     }
   }
