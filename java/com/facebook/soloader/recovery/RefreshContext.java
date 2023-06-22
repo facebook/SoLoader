@@ -22,6 +22,7 @@ import com.facebook.soloader.ContextHolder;
 import com.facebook.soloader.LogUtil;
 import com.facebook.soloader.RecoverableSoSource;
 import com.facebook.soloader.SoSource;
+import java.io.File;
 
 public class RefreshContext implements RecoveryStrategy {
   private static final String TAG = "soloader.recovery.RefereshContext";
@@ -39,17 +40,13 @@ public class RefreshContext implements RecoveryStrategy {
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
     Context oldContext = mContextHolder.get();
-    if (mBaseApkPathHistory.recordPathIfNew(getBaseApkPath(oldContext), "dynamic-update")) {
-      LogUtil.w(TAG, "Application info was updated dynamically");
-      updateContext(oldContext, soSources);
+    if (tryRecover(oldContext, soSources, "dynamic-update")) {
       return true;
     }
 
     try {
       Context newContext = getUpdatedContext();
-      if (mBaseApkPathHistory.recordPathIfNew(getBaseApkPath(newContext), "pm-context")) {
-        LogUtil.w(TAG, "Updating context to package context");
-        updateContext(newContext, soSources);
+      if (tryRecover(newContext, soSources, "pm-context")) {
         return true;
       }
     } catch (PackageManager.NameNotFoundException e) {
@@ -61,6 +58,16 @@ public class RefreshContext implements RecoveryStrategy {
       return true;
     }
 
+    return false;
+  }
+
+  private boolean tryRecover(Context candidate, SoSource[] soSources, String tag) {
+    String baseApkPath = getBaseApkPath(candidate);
+    if (new File(baseApkPath).exists() && mBaseApkPathHistory.recordPathIfNew(baseApkPath, tag)) {
+      LogUtil.w(TAG, "Updating context using " + tag + " strategy");
+      updateContext(candidate, soSources);
+      return true;
+    }
     return false;
   }
 
