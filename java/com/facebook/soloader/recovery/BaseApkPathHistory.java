@@ -25,7 +25,10 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public class BaseApkPathHistory {
   @GuardedBy("this")
-  private final String[] mRecentPaths;
+  private final String[] mPaths;
+
+  @GuardedBy("this")
+  private final String[] mTags;
 
   @GuardedBy("this")
   private int mCounter;
@@ -35,12 +38,17 @@ public class BaseApkPathHistory {
       throw new IllegalArgumentException();
     }
 
-    mRecentPaths = new String[length];
+    mPaths = new String[length];
+    mTags = new String[length];
     mCounter = 0;
   }
 
-  public synchronized boolean recordPathIfNew(String path) {
-    for (String oldPath : mRecentPaths) {
+  public boolean recordPathIfNew(String path) {
+    return recordPathIfNew(path, "no tag");
+  }
+
+  public synchronized boolean recordPathIfNew(String path, String tag) {
+    for (String oldPath : mPaths) {
       if (path.equals(oldPath)) {
         return false;
       }
@@ -50,7 +58,9 @@ public class BaseApkPathHistory {
     report(sb);
     LogUtil.w(SoLoader.TAG, sb.toString());
 
-    mRecentPaths[mCounter++ % mRecentPaths.length] = path;
+    mPaths[mCounter % mPaths.length] = path;
+    mTags[mCounter % mTags.length] = tag;
+    mCounter++;
     return true;
   }
 
@@ -59,13 +69,16 @@ public class BaseApkPathHistory {
     if (mCounter > 0) {
       sb.append(" Most recent ones:");
     }
-    for (int i = 0; i < mRecentPaths.length; ++i) {
+    for (int i = 0; i < mPaths.length; ++i) {
       int index = mCounter - i - 1;
       if (index >= 0) {
-        String path = mRecentPaths[index % mRecentPaths.length];
+        String path = mPaths[index % mPaths.length];
+        String tag = mTags[index % mTags.length];
         sb.append("\n")
             .append(path)
             .append(" (")
+            .append(tag)
+            .append(", ")
             .append(new File(path).exists() ? "exists" : "does not exist")
             .append(")");
       }

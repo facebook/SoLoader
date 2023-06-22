@@ -39,7 +39,7 @@ public class RefreshContext implements RecoveryStrategy {
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
     Context oldContext = mContextHolder.get();
-    if (mBaseApkPathHistory.recordPathIfNew(getBaseApkPath(oldContext))) {
+    if (mBaseApkPathHistory.recordPathIfNew(getBaseApkPath(oldContext), "dynamic-update")) {
       LogUtil.w(TAG, "Application info was updated dynamically");
       updateContext(oldContext, soSources);
       return true;
@@ -47,7 +47,7 @@ public class RefreshContext implements RecoveryStrategy {
 
     try {
       Context newContext = getUpdatedContext();
-      if (mBaseApkPathHistory.recordPathIfNew(getBaseApkPath(newContext))) {
+      if (mBaseApkPathHistory.recordPathIfNew(getBaseApkPath(newContext), "pm-context")) {
         LogUtil.w(TAG, "Updating context to package context");
         updateContext(newContext, soSources);
         return true;
