@@ -39,7 +39,8 @@ public class CheckBaseApkExists implements RecoveryStrategy {
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
     String baseApkPath = mContextHolder.get().getApplicationInfo().sourceDir;
     if (!new File(baseApkPath).exists()) {
-      StringBuilder sb = new StringBuilder("Base apk does not exist: ").append(baseApkPath);
+      StringBuilder sb =
+          new StringBuilder("Base apk does not exist: ").append(baseApkPath).append(". ");
       mBaseApkPathHistory.report(sb);
       throw new NoBaseApkException(sb.toString(), error);
     }
