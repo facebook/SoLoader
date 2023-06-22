@@ -114,11 +114,6 @@ public class SoLoader {
   @GuardedBy("sSoSourcesLock")
   private static final AtomicInteger sSoSourcesVersion = new AtomicInteger(0);
 
-  /** A backup SoSources to try if a lib file is corrupted */
-  @GuardedBy("sSoSourcesLock")
-  @Nullable
-  private static UnpackingSoSource[] sBackupSoSources;
-
   @GuardedBy("SoLoader.class")
   @Nullable
   private static RecoveryStrategyFactory sRecoveryStrategyFactory = null;
@@ -369,7 +364,6 @@ public class SoLoader {
           // a wrap.sh script [1]), so make sure we can load them.
           // [1] https://developer.android.com/ndk/guides/wrap-script
           addApplicationSoSource(soSources, getApplicationSoSourceFlags());
-          sBackupSoSources = null;
           LogUtil.d(TAG, "Adding exo package source: " + SO_STORE_NAME_MAIN);
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
         } else {
@@ -377,7 +371,7 @@ public class SoLoader {
             addDirectApkSoSource(context, soSources);
           }
           addApplicationSoSource(soSources, getApplicationSoSourceFlags());
-          AddBackupSoSource(context, soSources, ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
+          addBackupSoSource(context, soSources, ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
         }
       }
 
@@ -458,10 +452,9 @@ public class SoLoader {
   }
 
   /** Add the SoSources for recovering the dso if the file is corrupted or missed */
-  private static void AddBackupSoSource(
+  private static void addBackupSoSource(
       Context context, ArrayList<SoSource> soSources, int apkSoSourceFlags) throws IOException {
     if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
-      sBackupSoSources = null;
       // Clean up backups
       final File backupDir = UnpackingSoSource.getSoStorePath(context, SO_STORE_NAME_MAIN);
       try {
@@ -481,7 +474,6 @@ public class SoLoader {
 
     addBackupSoSourceFromSplitApk(context, apkSoSourceFlags, backupSources);
 
-    sBackupSoSources = backupSources.toArray(new UnpackingSoSource[backupSources.size()]);
     soSources.addAll(0, backupSources);
   }
 
@@ -1028,7 +1020,6 @@ public class SoLoader {
       String soName, int loadFlags, @Nullable StrictMode.ThreadPolicy oldPolicy)
       throws UnsatisfiedLinkError {
 
-    int result = SoSource.LOAD_RESULT_NOT_FOUND;
     sSoSourcesLock.readLock().lock();
     try {
       if (sSoSources == null) {
@@ -1051,32 +1042,25 @@ public class SoLoader {
       Api18TraceUtils.beginTraceSection("SoLoader.loadLibrary[", soName, "]");
     }
 
-    Throwable error = null;
     try {
       sSoSourcesLock.readLock().lock();
       try {
-        for (int i = 0; result == SoSource.LOAD_RESULT_NOT_FOUND && i < sSoSources.length; ++i) {
-          SoSource currentSource = sSoSources[i];
-          result = currentSource.loadLibrary(soName, loadFlags, oldPolicy);
-          if (result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE && sBackupSoSources != null) {
-            // Let's try from the backup source
-            LogUtil.d(TAG, "Trying backup SoSource for " + soName);
-            for (UnpackingSoSource backupSoSource : sBackupSoSources) {
-              backupSoSource.prepare(soName);
-              int resultFromBackup = backupSoSource.loadLibrary(soName, loadFlags, oldPolicy);
-              if (resultFromBackup == SoSource.LOAD_RESULT_LOADED) {
-                result = resultFromBackup;
-                break;
-              }
-            }
-            break;
+        for (SoSource source : sSoSources) {
+          if (source.loadLibrary(soName, loadFlags, oldPolicy) != SoSource.LOAD_RESULT_NOT_FOUND) {
+            return;
           }
         }
+        // Load failure has not been caused by dependent libraries, the library itself was not
+        // found. Print the sources and current native library directory
+        throw SoLoaderDSONotFoundError.create(soName, sContextHolder.get(), sSoSources);
+      } catch (IOException err) {
+        // General SoLoaderULError
+        SoLoaderULError error = new SoLoaderULError(soName);
+        error.initCause(err);
+        throw error;
       } finally {
         sSoSourcesLock.readLock().unlock();
       }
-    } catch (Throwable t) {
-      error = t;
     } finally {
       if (SYSTRACE_LIBRARY_LOADING) {
         Api18TraceUtils.endSection();
@@ -1084,42 +1068,6 @@ public class SoLoader {
 
       if (restoreOldPolicy) {
         StrictMode.setThreadPolicy(oldPolicy);
-      }
-      if (result == SoSource.LOAD_RESULT_NOT_FOUND
-          || result == SoSource.LOAD_RESULT_CORRUPTED_LIB_FILE) {
-        StringBuilder sb = new StringBuilder().append("couldn't find DSO to load: ").append(soName);
-        if (error != null) {
-          String cause = error.getMessage();
-          if (cause == null) {
-            cause = error.toString();
-          }
-          sb.append(" caused by: ").append(cause);
-          error.printStackTrace();
-        } else {
-          // load failure wasn't caused by dependent libraries.
-          // Print the sources and current native library directory
-          sSoSourcesLock.readLock().lock();
-          try {
-            for (int i = 0; i < sSoSources.length; ++i) {
-              sb.append("\n\tSoSource ").append(i).append(": ").append(sSoSources[i].toString());
-            }
-            if (sContextHolder.get() != null) {
-              sb.append("\n\tNative lib dir: ")
-                  .append(sContextHolder.get().getApplicationInfo().nativeLibraryDir)
-                  .append("\n");
-            }
-          } finally {
-            sSoSourcesLock.readLock().unlock();
-          }
-        }
-        sb.append(" result: ").append(result);
-        final String message = sb.toString();
-        LogUtil.e(TAG, message);
-        UnsatisfiedLinkError err = new UnsatisfiedLinkError(message);
-        if (error != null) {
-          err.initCause(error);
-        }
-        throw err;
       }
     }
   }

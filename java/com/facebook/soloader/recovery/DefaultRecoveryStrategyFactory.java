@@ -38,6 +38,8 @@ public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
         // explicit SimpleRetry.
         new WaitForAsyncInit(),
         new RefreshContext(mContextHolder, mBaseApkPathHistory),
+        new ReunpackSoSources(),
+        new WaitForAsyncInit(),
         new CheckBaseApkExists(mContextHolder, mBaseApkPathHistory));
   }
 }

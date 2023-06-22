@@ -37,9 +37,6 @@ public abstract class SoSource {
    */
   public static final int LOAD_RESULT_IMPLICITLY_PROVIDED = 2;
 
-  /** This SoSource tried to load the library but it seems that the file is corrupted. */
-  public static final int LOAD_RESULT_CORRUPTED_LIB_FILE = 3;
-
   /** Allow loadLibrary to implicitly provide the library instead of actually loading it. */
   public static final int LOAD_FLAG_ALLOW_IMPLICIT_PROVISION = 1;
 

@@ -589,7 +589,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   }
 
   /** Prepare this SoSource extracting a corrupted library. */
-  protected synchronized void prepare(String soName) throws IOException {
+  public synchronized void prepare(String soName) throws IOException {
     // Only one thread at a time can try to recover a corrupted lib from the same source
     Object lock = getLibraryLock(soName);
     synchronized (lock) {

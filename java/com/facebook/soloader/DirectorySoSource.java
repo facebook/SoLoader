@@ -116,15 +116,8 @@ public class DirectorySoSource extends SoSource {
           // The shared object does not exist in the file system, only in memory
           SoLoader.sSoFileLoader.loadBytes(soFile.getAbsolutePath(), bc, loadFlags);
         }
-
       } catch (UnsatisfiedLinkError e) {
-        if (e.getMessage().contains("bad ELF magic")) {
-          LogUtil.d(SoLoader.TAG, "Corrupted lib file detected");
-          // Swallow exception. Higher layers will try again from a backup source
-          return LOAD_RESULT_CORRUPTED_LIB_FILE;
-        } else {
-          throw e;
-        }
+        throw SoLoaderULErrorFactory.create(soName, e);
       }
     } finally {
       if (bc != null) {
