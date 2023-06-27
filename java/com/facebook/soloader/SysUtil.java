@@ -424,17 +424,17 @@ public final class SysUtil {
     return false;
   }
 
-  public static @Nullable FileLocker getOrCreateLockOnDir(
-      File soDirectory, File lockFileName, boolean blocking) throws IOException {
+  public static @Nullable FileLocker getOrCreateLockOnDir(File soDirectory, File lockFileName)
+      throws IOException {
     boolean notWritable = false;
     try {
-      return getFileLocker(lockFileName, blocking);
+      return getFileLocker(lockFileName);
     } catch (FileNotFoundException e) {
       notWritable = true;
       if (!soDirectory.setWritable(true)) {
         throw e;
       }
-      return getFileLocker(lockFileName, blocking);
+      return getFileLocker(lockFileName);
     } finally {
       if (notWritable && !soDirectory.setWritable(false)) {
         LogUtil.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
@@ -442,13 +442,8 @@ public final class SysUtil {
     }
   }
 
-  private static @Nullable FileLocker getFileLocker(File lockFileName, boolean blocking)
-      throws IOException {
-    if (blocking) {
-      return FileLocker.lock(lockFileName);
-    } else {
-      return FileLocker.tryLock(lockFileName);
-    }
+  private static @Nullable FileLocker getFileLocker(File lockFileName) throws IOException {
+    return FileLocker.lock(lockFileName);
   }
 
   /**

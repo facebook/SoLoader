@@ -72,7 +72,7 @@ public final class NativeDepsUnpacker {
     }
 
     File lockFile = new File(dir, LOCK_FILE_NAME);
-    try (FileLocker lock = SysUtil.getOrCreateLockOnDir(dir, lockFile, true)) {
+    try (FileLocker lock = SysUtil.getOrCreateLockOnDir(dir, lockFile)) {
       byte state = readState(dir);
 
       if (state == STATE_CLEAN && apkChanged(context, dir)) {

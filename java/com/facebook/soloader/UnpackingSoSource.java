@@ -480,7 +480,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     FileLocker lock = null;
     try {
       try {
-        lock = getOrCreateLock(lockFileName, true /* blocking */);
+        lock = getOrCreateLock(lockFileName);
       } catch (IOException ioe) {
         LogUtil.w(TAG, "Encountered exception during wait for unpacking", ioe);
       } finally {
@@ -521,9 +521,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     return depsBlock;
   }
 
-  protected @Nullable FileLocker getOrCreateLock(File lockFileName, boolean blocking)
-      throws IOException {
-    return SysUtil.getOrCreateLockOnDir(soDirectory, lockFileName, blocking);
+  protected @Nullable FileLocker getOrCreateLock(File lockFileName) throws IOException {
+    return SysUtil.getOrCreateLockOnDir(soDirectory, lockFileName);
   }
 
   /** Verify or refresh the state of the shared library store. */
@@ -540,7 +539,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
 
       // LOCK_FILE_NAME is used to synchronize changes in the dso store.
       File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
-      lock = getOrCreateLock(lockFileName, true);
+      lock = getOrCreateLock(lockFileName);
 
       LogUtil.v(TAG, "locked dso store " + soDirectory);
 
