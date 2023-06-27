@@ -52,7 +52,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
   }
 
   @Override
-  protected Unpacker makeUnpacker(byte state) throws IOException {
+  protected Unpacker makeUnpacker() throws IOException {
     return new ZipUnpacker(this);
   }
 

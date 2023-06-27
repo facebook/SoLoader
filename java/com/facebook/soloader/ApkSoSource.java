@@ -56,7 +56,7 @@ public class ApkSoSource extends ExtractFromZipSoSource {
   }
 
   @Override
-  protected Unpacker makeUnpacker(byte state) throws IOException {
+  protected Unpacker makeUnpacker() throws IOException {
     return new ApkUnpacker(this);
   }
 
