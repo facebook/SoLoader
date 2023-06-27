@@ -38,9 +38,29 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
 
   private static final String TAG = "fb-UnpackingSoSource";
 
+  /** File that contains state information (STATE_DIRTY or STATE_CLEAN). */
   private static final String STATE_FILE_NAME = "dso_state";
+
+  /**
+   * File used to synchronize changes in the dso store. For example, it is helpful to acquire this
+   * lock to wait for other unpacking sources.
+   */
   private static final String LOCK_FILE_NAME = "dso_lock";
+
+  /**
+   * File containing an opaque blob of bytes that represents all the dependencies of a SoSource. For
+   * example for a plain ExtractFromZipSource you'd have a simple list of (name, hash) pairs like
+   * (com.facebook.soloader.ExtractFromZipSoSource$ZipDso@9d65e11a,pseudo-zip-hash-1-lib/arm64-v8a/foo-64.so-7720-1820-260126021)
+   */
   private static final String DEPS_FILE_NAME = "dso_deps";
+
+  /**
+   * Actual file containing DSO dependencies information as described by the DSO manifest structure.
+   * For a general UnpackingSoSource it simply encodes a list of pairs (name, hash) which specifies
+   * what the DSOs to be unpacked are. This is used for now to do a deeper check and understand what
+   * libraries have changed and only unpack those that are not up-to-date.
+   * TODO(T155772778)(@adicatana)
+   */
   private static final String MANIFEST_FILE_NAME = "dso_manifest";
 
   private static final byte STATE_DIRTY = 0;
@@ -369,9 +389,28 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  protected boolean refreshLocked(final FileLocker lock, final int flags, final byte[] deps)
-      throws IOException {
+  private static boolean forceRefresh(int flags) {
+    return (flags & SoSource.PREPARE_FLAG_FORCE_REFRESH) != 0;
+  }
+
+  private static boolean rewriteStateAsync(int flags) {
+    return (flags & PREPARE_FLAG_ALLOW_ASYNC_INIT) != 0;
+  }
+
+  /**
+   * Checks the state of the dso store related files (dso_manifest, dso_deps) and based on that
+   * tries to unpack libraries and update with the new state on device.
+   *
+   * @param lock - Lock that's already been acquired over the state of the dso store
+   * @param flags - * @param flags To pass PREPARE_FLAG_FORCE_REFRESH and/or
+   *     PREPARE_FLAG_ALLOW_ASYNC_INIT. PREPARE_FLAG_FORCE_REFRESH will force a re-unpack,
+   *     PREPARE_FLAG_ALLOW_ASYNC_INIT will spawn threads to do some background work.
+   * @return Unpacking was successful and the on-device dso store state updated accordingly.
+   * @throws IOException
+   */
+  private boolean refreshLocked(final FileLocker lock, final int flags) throws IOException {
     final File stateFileName = new File(soDirectory, STATE_FILE_NAME);
+    final byte[] recomputedDeps = getDepsBlock();
     byte state;
     try (RandomAccessFile stateFile = new RandomAccessFile(stateFileName, "rw")) {
       try {
@@ -382,16 +421,18 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
         }
       } catch (EOFException ex) {
         state = STATE_DIRTY;
+        LogUtil.v(
+            TAG, "dso store " + soDirectory + " regeneration interrupted: " + ex.getMessage());
       }
     }
 
-    if (depsChanged(deps)) {
+    if (depsChanged(recomputedDeps)) {
       LogUtil.v(TAG, "deps mismatch on deps store: regenerating");
       state = STATE_DIRTY;
     }
 
     DsoManifest desiredManifest = null;
-    if (state == STATE_DIRTY || ((flags & SoSource.PREPARE_FLAG_FORCE_REFRESH) != 0)) {
+    if (state == STATE_DIRTY || forceRefresh(flags)) {
       LogUtil.v(TAG, "so store dirty: regenerating");
       writeState(stateFileName, STATE_DIRTY);
 
@@ -408,62 +449,51 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
 
     final DsoManifest manifest = desiredManifest;
+    Runnable syncer =
+        new Runnable() {
+          @Override
+          public void run() {
+            try {
+              try {
+                LogUtil.v(TAG, "starting syncer worker");
 
-    final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
-    Runnable syncer = createSyncer(lock, deps, stateFileName, depsFileName, manifest, false);
-    if ((flags & PREPARE_FLAG_ALLOW_ASYNC_INIT) != 0) {
+                // N.B. We can afford to write the deps file and the manifest file without
+                // synchronization or fsyncs because we've marked the DSO store STATE_DIRTY, which
+                // will cause us to ignore all intermediate state when regenerating it.  That is,
+                // it's okay for the depsFile or manifestFile blocks to hit the disk before the
+                // actual DSO data file blocks as long as both hit the disk before we reset
+                // STATE_CLEAN.
+                final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
+                try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
+                  depsFile.write(recomputedDeps);
+                  depsFile.setLength(depsFile.getFilePointer());
+                }
+
+                File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
+                try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
+                  manifest.write(manifestFile);
+                }
+
+                SysUtil.fsyncRecursive(soDirectory);
+                writeState(stateFileName, STATE_CLEAN);
+              } finally {
+                LogUtil.v(
+                    TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
+                lock.close();
+              }
+            } catch (IOException ex) {
+              throw new RuntimeException(ex);
+            }
+          }
+        };
+
+    if (rewriteStateAsync(flags)) {
       new Thread(syncer, "SoSync:" + soDirectory.getName()).start();
     } else {
       syncer.run();
     }
 
     return true;
-  }
-
-  private Runnable createSyncer(
-      final FileLocker lock,
-      final byte[] deps,
-      final File stateFileName,
-      final File depsFileName,
-      final DsoManifest manifest,
-      final Boolean quietly) {
-    return new Runnable() {
-      @Override
-      public void run() {
-        try {
-          try {
-            LogUtil.v(TAG, "starting syncer worker");
-
-            // N.B. We can afford to write the deps file and the manifest file without
-            // synchronization or fsyncs because we've marked the DSO store STATE_DIRTY, which
-            // will cause us to ignore all intermediate state when regenerating it.  That is,
-            // it's okay for the depsFile or manifestFile blocks to hit the disk before the
-            // actual DSO data file blocks as long as both hit the disk before we reset
-            // STATE_CLEAN.
-
-            try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
-              depsFile.write(deps);
-              depsFile.setLength(depsFile.getFilePointer());
-            }
-
-            File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
-            try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
-              manifest.write(manifestFile);
-            }
-
-            SysUtil.fsyncRecursive(soDirectory);
-            writeState(stateFileName, STATE_CLEAN);
-          } finally {
-            LogUtil.v(TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
-            lock.close();
-          }
-        } catch (IOException ex) {
-          if (!quietly) {
-            throw new RuntimeException(ex);
-          }
-        }
-      }
-    };
   }
 
   @Override
@@ -538,7 +568,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       // If another process holds the instance lock, it means that it already
       // initialized the so source and libraries might be getting loaded in that
       // process, so we can't refresh the so source.
-      if (refreshLocked(lock, flags, getDepsBlock())) {
+      if (refreshLocked(lock, flags)) {
         lock = null; // Lock transferred to syncer thread
       } else {
         LogUtil.i(TAG, "dso store is up-to-date: " + soDirectory);
