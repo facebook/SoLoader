@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -67,52 +66,62 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
       mSoSource = soSource;
     }
 
-    final ZipDso[] ensureDsos() {
-      if (mDsos == null) {
-        Set<String> librariesAbiSet = new LinkedHashSet<>();
-        HashMap<String, ZipDso> providedLibraries = new HashMap<>();
-        Pattern zipSearchPattern = Pattern.compile(mZipSearchPattern);
-        String[] supportedAbis = SysUtil.getSupportedAbis();
-        Enumeration<? extends ZipEntry> entries = mZipFile.entries();
-        while (entries.hasMoreElements()) {
-          ZipEntry entry = entries.nextElement();
-          Matcher m = zipSearchPattern.matcher(entry.getName());
-          if (m.matches()) {
-            String libraryAbi = m.group(1);
-            String soName = m.group(2);
-            int abiScore = SysUtil.findAbiScore(supportedAbis, libraryAbi);
-            if (abiScore >= 0) {
-              librariesAbiSet.add(libraryAbi);
-              ZipDso so = providedLibraries.get(soName);
-              if (so == null || abiScore < so.abiScore) {
-                providedLibraries.put(soName, new ZipDso(soName, entry, abiScore));
-              }
-            }
-          }
-        }
-
-        mSoSource.setSoSourceAbis(librariesAbiSet.toArray(new String[librariesAbiSet.size()]));
-
-        ZipDso[] dsos = providedLibraries.values().toArray(new ZipDso[providedLibraries.size()]);
-        Arrays.sort(dsos);
-        int nrFilteredDsos = 0;
-        for (int i = 0; i < dsos.length; ++i) {
-          ZipDso zd = dsos[i];
-          if (shouldExtract(zd.backingEntry, zd.name)) {
-            nrFilteredDsos += 1;
-          } else {
-            dsos[i] = null;
-          }
-        }
-        ZipDso[] filteredDsos = new ZipDso[nrFilteredDsos];
-        for (int i = 0, j = 0; i < dsos.length; ++i) {
-          ZipDso zd = dsos[i];
-          if (zd != null) {
-            filteredDsos[j++] = zd;
-          }
-        }
-        mDsos = filteredDsos;
+    /**
+     * If the list of zip DSOs is not created, generate that by iterating through all zip entries
+     * and doing pattern matching against a zipped libs pattern.
+     *
+     * @return mDsos
+     */
+    final ZipDso[] ensureDsosInitialised() {
+      if (mDsos != null) {
+        return mDsos;
       }
+      LinkedHashSet<String> librariesAbiSet = new LinkedHashSet<>();
+      HashMap<String, ZipDso> providedLibraries = new HashMap<>();
+      Pattern zipSearchPattern = Pattern.compile(mZipSearchPattern);
+      String[] supportedAbis = SysUtil.getSupportedAbis();
+      Enumeration<? extends ZipEntry> entries = mZipFile.entries();
+      while (entries.hasMoreElements()) {
+        ZipEntry entry = entries.nextElement();
+        Matcher m = zipSearchPattern.matcher(entry.getName());
+        if (!m.matches()) {
+          continue;
+        }
+        String libraryAbi = m.group(1);
+        String soName = m.group(2);
+        int abiScore = SysUtil.findAbiScore(supportedAbis, libraryAbi);
+        if (abiScore < 0) {
+          continue;
+        }
+        librariesAbiSet.add(libraryAbi);
+        ZipDso so = providedLibraries.get(soName);
+        if (so == null || abiScore < so.abiScore) {
+          providedLibraries.put(soName, new ZipDso(soName, entry, abiScore));
+        }
+      }
+
+      mSoSource.setSoSourceAbis(librariesAbiSet.toArray(new String[librariesAbiSet.size()]));
+
+      ZipDso[] dsos = providedLibraries.values().toArray(new ZipDso[providedLibraries.size()]);
+      Arrays.sort(dsos);
+      int nrFilteredDsos = 0;
+      for (int i = 0; i < dsos.length; ++i) {
+        ZipDso zd = dsos[i];
+        if (shouldExtract(zd.backingEntry, zd.name)) {
+          nrFilteredDsos += 1;
+        } else {
+          dsos[i] = null;
+        }
+      }
+      ZipDso[] filteredDsos = new ZipDso[nrFilteredDsos];
+      for (int i = 0, j = 0; i < dsos.length; ++i) {
+        ZipDso zd = dsos[i];
+        if (zd == null) {
+          continue;
+        }
+        filteredDsos[j++] = zd;
+      }
+      mDsos = filteredDsos;
       return mDsos;
     }
 
@@ -134,7 +143,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
     @Override
     public final DsoManifest getDsoManifest() throws IOException {
-      return new DsoManifest(ensureDsos());
+      return new DsoManifest(ensureDsosInitialised());
     }
 
     @Override
@@ -148,13 +157,13 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
       @Override
       public boolean hasNext() {
-        ensureDsos();
+        ensureDsosInitialised();
         return mCurrentDso < mDsos.length;
       }
 
       @Override
       public InputDso next() throws IOException {
-        ensureDsos();
+        ensureDsosInitialised();
         ZipDso zipDso = mDsos[mCurrentDso++];
         InputStream is = mZipFile.getInputStream(zipDso.backingEntry);
         try {
@@ -170,7 +179,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     }
   }
 
-  private static final class ZipDso extends Dso implements Comparable {
+  private static final class ZipDso extends Dso implements Comparable<ZipDso> {
 
     final ZipEntry backingEntry;
     final int abiScore;
@@ -182,14 +191,41 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     }
 
     private static String makePseudoHash(ZipEntry ze) {
-      return String.format( // Yuck, but no real metadata
-          "pseudo-zip-hash-1-%s-%s-%s-%s",
-          ze.getName(), ze.getSize(), ze.getCompressedSize(), ze.getCrc());
+      // No real metadata
+      return new StringBuilder("pseudo-zip-hash-1-")
+          .append(ze.getName())
+          .append("-")
+          .append(ze.getSize())
+          .append("-")
+          .append(ze.getCompressedSize())
+          .append("-")
+          .append(ze.getCrc())
+          .toString();
     }
 
     @Override
-    public int compareTo(Object other) {
-      return name.compareTo(((ZipDso) other).name);
+    public int compareTo(ZipDso other) {
+      return name.compareTo(other.name);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (this == other) {
+        return true;
+      }
+      if (other == null || getClass() != other.getClass()) {
+        return false;
+      }
+
+      ZipDso that = (ZipDso) other;
+
+      return backingEntry.equals(that.backingEntry) && abiScore == that.abiScore;
+    }
+
+    @Override
+    public int hashCode() {
+      int result = abiScore;
+      return 31 * result + backingEntry.hashCode();
     }
   }
 }
