@@ -73,62 +73,74 @@ public class ApkSoSource extends ExtractFromZipSoSource {
 
     @Override
     protected boolean shouldExtract(ZipEntry ze, String soName) {
-      String msg = "";
-      boolean result = false;
+      StringBuilder msg = new StringBuilder();
+      boolean shouldExtract = false;
       String zipPath = ze.getName();
       if (soName.equals(mCorruptedLib)) {
         mCorruptedLib = null;
-        msg = String.format("allowing consideration of corrupted lib %s", soName);
-        result = true;
+        msg.append("allowing consideration of corrupted lib ").append(soName);
+        shouldExtract = true;
       } else if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
-        msg = "allowing consideration of " + zipPath + ": self-extraction preferred";
-        result = true;
+        msg.append("allowing consideration of ")
+            .append(zipPath)
+            .append(": self-extraction preferred");
+        shouldExtract = true;
       } else {
         boolean validPath = true;
         File sysLibFile = new File(mLibDir, soName);
         try {
           if (!sysLibFile.getCanonicalPath().startsWith(mLibDir.getCanonicalPath())) {
             validPath = false;
-            msg =
-                String.format(
-                    "not allowing consideration of %s: %s not in lib dir", zipPath, soName);
-            result = false;
+            msg.append("not allowing consideration of ")
+                .append(zipPath)
+                .append(": ")
+                .append(soName)
+                .append(" not in lib dir ");
+            shouldExtract = false;
           }
         } catch (IOException e) {
           validPath = false;
-          result = false;
-          msg =
-              String.format(
-                  "not allowing consideration of %s: %s, IOException when constructing path: %s",
-                  zipPath, soName, e.toString());
+          shouldExtract = false;
+          msg.append("not allowing consideration of ")
+              .append(zipPath)
+              .append(": ")
+              .append(soName)
+              .append(", IOException when constructing path")
+              .append(e.toString());
         }
 
         if (validPath) {
           if (!sysLibFile.isFile()) {
-            msg =
-                String.format(
-                    "allowing consideration of %s: %s not in system lib dir", zipPath, soName);
-            result = true;
+            msg.append("allowing consideration of ")
+                .append(zipPath)
+                .append(": ")
+                .append(soName)
+                .append(" not in system lib dir");
+            shouldExtract = true;
           } else {
             long sysLibLength = sysLibFile.length();
             long apkLibLength = ze.getSize();
 
             if (sysLibLength != apkLibLength) {
-              msg =
-                  String.format(
-                      "allowing consideration of %s: sysdir file length is %s, but "
-                          + "the file is %s bytes long in the APK",
-                      sysLibFile, sysLibLength, apkLibLength);
-              result = true;
+              msg.append("allowing consideration of ")
+                  .append(sysLibFile)
+                  .append(": sysdir file length is ")
+                  .append(sysLibLength)
+                  .append(", but the file is ")
+                  .append(apkLibLength)
+                  .append(" bytes long in the APK");
+              shouldExtract = true;
             } else {
-              msg = "not allowing consideration of " + zipPath + ": deferring to libdir";
-              result = false;
+              msg.append("not allowing consideration of ")
+                  .append(zipPath)
+                  .append(": deferring to libdir");
+              shouldExtract = false;
             }
           }
         }
       }
-      LogUtil.d(TAG, msg);
-      return result;
+      LogUtil.d(TAG, msg.toString());
+      return shouldExtract;
     }
   }
 
