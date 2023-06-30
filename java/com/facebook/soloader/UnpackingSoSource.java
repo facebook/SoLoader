@@ -433,9 +433,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
 
     DsoManifest desiredManifest = null;
     if (state == STATE_DIRTY || forceRefresh(flags)) {
+      state = STATE_DIRTY;
       LogUtil.v(TAG, "so store dirty: regenerating");
-      writeState(stateFileName, STATE_DIRTY);
-
+      writeState(stateFileName, state);
       try (Unpacker u = makeUnpacker()) {
         desiredManifest = u.getDsoManifest();
         try (InputDsoIterator idi = u.openDsoIterator()) {
