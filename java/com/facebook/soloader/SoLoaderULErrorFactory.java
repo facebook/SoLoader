@@ -22,9 +22,9 @@ import java.util.regex.Pattern;
 public class SoLoaderULErrorFactory {
   public static SoLoaderULError create(String soName, UnsatisfiedLinkError e) {
     SoLoaderULError err;
-    if (e.getMessage() != null && e.getMessage().contains("bad ELF magic")) {
+    if (e.getMessage() != null && e.getMessage().contains("ELF")) {
       LogUtil.d(SoLoader.TAG, "Corrupted lib file detected");
-      err = new SoLoaderCorruptedLibFileError(soName, "bad ELF magic");
+      err = new SoLoaderCorruptedLibFileError(soName, e.getMessage());
     } else if (corruptedLibName(soName)) {
       LogUtil.d(SoLoader.TAG, "Corrupted lib name detected");
       err = new SoLoaderCorruptedLibNameError(soName, "corrupted lib name");
