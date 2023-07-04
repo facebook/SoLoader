@@ -24,10 +24,10 @@ public class SoLoaderULErrorFactory {
     SoLoaderULError err;
     if (e.getMessage() != null && e.getMessage().contains("ELF")) {
       LogUtil.d(SoLoader.TAG, "Corrupted lib file detected");
-      err = new SoLoaderCorruptedLibFileError(soName, e.getMessage());
+      err = new SoLoaderCorruptedLibFileError(soName, e.toString());
     } else if (corruptedLibName(soName)) {
       LogUtil.d(SoLoader.TAG, "Corrupted lib name detected");
-      err = new SoLoaderCorruptedLibNameError(soName, "corrupted lib name");
+      err = new SoLoaderCorruptedLibNameError(soName, "corrupted lib name: " + e.toString());
     } else {
       // General ULE exception
       err = new SoLoaderULError(soName);

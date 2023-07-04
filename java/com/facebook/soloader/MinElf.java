@@ -117,7 +117,11 @@ public final class MinElf {
     bb.order(ByteOrder.LITTLE_ENDIAN);
     long magic = getu32(bc, bb, Elf32.Ehdr.E_IDENT);
     if (magic != ELF_MAGIC) {
-      throw new ElfError("file is not ELF: 0x" + Long.toHexString(magic));
+      throw new ElfError(
+          "file is not ELF: magic is 0x"
+              + Long.toHexString(magic)
+              + ", it should be "
+              + Long.toHexString(ELF_MAGIC));
     }
 
     boolean is32 = (getu8(bc, bb, Elf32.Ehdr.E_IDENT + 0x4) == 1);
@@ -324,9 +328,9 @@ public final class MinElf {
     return (short) (bb.get() & 0xFF); // signed -> unsigned
   }
 
-  private static class ElfError extends RuntimeException {
-    ElfError(String why) {
-      super(why);
+  protected static class ElfError extends UnsatisfiedLinkError {
+    ElfError(String error) {
+      super(error);
     }
   }
 }

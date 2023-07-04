@@ -86,7 +86,11 @@ public final class NativeDeps {
       return deps;
     }
 
-    return MinElf.extract_DT_NEEDED(bc);
+    try {
+      return MinElf.extract_DT_NEEDED(bc);
+    } catch (MinElf.ElfError err) {
+      throw SoLoaderULErrorFactory.create(soName, err);
+    }
   }
 
   @Nullable
