@@ -325,44 +325,16 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  private void regenerate(byte state, DsoManifest desiredManifest, InputDsoIterator dsoIterator)
+  private void regenerate(DsoManifest desiredManifest, InputDsoIterator dsoIterator)
       throws IOException {
     LogUtil.v(TAG, "regenerating DSO store " + getClass().getName());
     File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
     try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
-      DsoManifest existingManifest = null;
-      if (state == STATE_CLEAN) {
-        try {
-          existingManifest = DsoManifest.read(manifestFile);
-        } catch (Exception ex) {
-          LogUtil.i(TAG, "error reading existing DSO manifest", ex);
-        }
-      }
-
-      if (existingManifest == null) {
-        existingManifest = new DsoManifest(new Dso[0]);
-      }
-
       deleteUnmentionedFiles(desiredManifest.dsos);
       byte[] ioBuffer = new byte[32 * 1024];
       while (dsoIterator.hasNext()) {
         try (InputDso iDso = dsoIterator.next()) {
-          boolean obsolete = true;
-          for (int i = 0; obsolete && i < existingManifest.dsos.length; ++i) {
-            String iDsoName = iDso.getDso().name;
-            if (existingManifest.dsos[i].name.equals(iDsoName)
-                && existingManifest.dsos[i].hash.equals(iDso.getDso().hash)) {
-              obsolete = false;
-            }
-          }
-          File dsoFile = new File(soDirectory, iDso.getFileName());
-          if (!dsoFile.exists()) {
-            // so file exists, but file name changed
-            obsolete = true;
-          }
-          if (obsolete) {
-            extractDso(iDso, ioBuffer);
-          }
+          extractDso(iDso, ioBuffer);
         }
       }
     }
@@ -433,13 +405,12 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
 
     DsoManifest desiredManifest = null;
     if (state == STATE_DIRTY || forceRefresh(flags)) {
-      state = STATE_DIRTY;
       LogUtil.v(TAG, "so store dirty: regenerating");
-      writeState(stateFileName, state);
+      writeState(stateFileName, STATE_DIRTY);
       try (Unpacker u = makeUnpacker()) {
         desiredManifest = u.getDsoManifest();
         try (InputDsoIterator idi = u.openDsoIterator()) {
-          regenerate(state, desiredManifest, idi);
+          regenerate(desiredManifest, idi);
         }
       }
     }
