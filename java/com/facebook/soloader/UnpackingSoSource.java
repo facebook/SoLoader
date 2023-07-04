@@ -20,7 +20,6 @@ import android.content.Context;
 import android.os.Parcel;
 import android.os.StrictMode;
 import java.io.Closeable;
-import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.File;
@@ -53,15 +52,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
    * (com.facebook.soloader.ExtractFromZipSoSource$ZipDso@9d65e11a,pseudo-zip-hash-1-lib/arm64-v8a/foo-64.so-7720-1820-260126021)
    */
   private static final String DEPS_FILE_NAME = "dso_deps";
-
-  /**
-   * Actual file containing DSO dependencies information as described by the DSO manifest structure.
-   * For a general UnpackingSoSource it simply encodes a list of pairs (name, hash) which specifies
-   * what the DSOs to be unpacked are. This is used for now to do a deeper check and understand what
-   * libraries have changed and only unpack those that are not up-to-date.
-   * TODO(T155772778)(@adicatana)
-   */
-  private static final String MANIFEST_FILE_NAME = "dso_manifest";
 
   private static final byte STATE_DIRTY = 0;
   private static final byte STATE_CLEAN = 1;
@@ -115,39 +105,10 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   }
 
   public static final class DsoManifest {
-
     public final Dso[] dsos;
 
     public DsoManifest(Dso[] dsos) {
       this.dsos = dsos;
-    }
-
-    /** @return Dso manifest, or {@code null} if manifest is corrupt or illegible. */
-    static final DsoManifest read(DataInput xdi) throws IOException {
-      int version = xdi.readByte();
-      if (version != MANIFEST_VERSION) {
-        throw new RuntimeException("wrong dso manifest version");
-      }
-
-      int nrDso = xdi.readInt();
-      if (nrDso < 0) {
-        throw new RuntimeException("illegal number of shared libraries");
-      }
-
-      Dso[] dsos = new Dso[nrDso];
-      for (int i = 0; i < nrDso; ++i) {
-        dsos[i] = new Dso(xdi.readUTF(), xdi.readUTF());
-      }
-      return new DsoManifest(dsos);
-    }
-
-    public final void write(DataOutput xdo) throws IOException {
-      xdo.writeByte(MANIFEST_VERSION);
-      xdo.writeInt(dsos.length);
-      for (int i = 0; i < dsos.length; ++i) {
-        xdo.writeUTF(dsos[i].name);
-        xdo.writeUTF(dsos[i].hash);
-      }
     }
   }
 
@@ -249,27 +210,27 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       throw new IOException("unable to list directory " + soDirectory);
     }
 
-    for (int i = 0; i < existingFiles.length; ++i) {
-      String fileName = existingFiles[i];
+    for (String fileName : existingFiles) {
       if (fileName.equals(STATE_FILE_NAME)
           || fileName.equals(LOCK_FILE_NAME)
-          || fileName.equals(DEPS_FILE_NAME)
-          || fileName.equals(MANIFEST_FILE_NAME)) {
+          || fileName.equals(DEPS_FILE_NAME)) {
         continue;
       }
 
       boolean found = false;
-      for (int j = 0; !found && j < dsos.length; ++j) {
-        if ((dsos[j].name).equals(getSoNameFromFileName(fileName))) {
+      for (Dso dso : dsos) {
+        if (dso.name.equals(fileName)) {
           found = true;
+          break;
         }
       }
-
-      if (!found) {
-        File fileNameToDelete = new File(soDirectory, fileName);
-        LogUtil.v(TAG, "deleting unaccounted-for file " + fileNameToDelete);
-        SysUtil.dumbDeleteRecursive(fileNameToDelete);
+      if (found) {
+        continue;
       }
+
+      File fileNameToDelete = new File(soDirectory, fileName);
+      LogUtil.v(TAG, "deleting unaccounted-for file " + fileNameToDelete);
+      SysUtil.dumbDeleteRecursive(fileNameToDelete);
     }
   }
 
@@ -325,17 +286,12 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  private void regenerate(DsoManifest desiredManifest, InputDsoIterator dsoIterator)
-      throws IOException {
+  private void regenerate(InputDsoIterator dsoIterator) throws IOException {
     LogUtil.v(TAG, "regenerating DSO store " + getClass().getName());
-    File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
-    try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
-      deleteUnmentionedFiles(desiredManifest.dsos);
-      byte[] ioBuffer = new byte[32 * 1024];
-      while (dsoIterator.hasNext()) {
-        try (InputDso iDso = dsoIterator.next()) {
-          extractDso(iDso, ioBuffer);
-        }
+    byte[] ioBuffer = new byte[32 * 1024];
+    while (dsoIterator.hasNext()) {
+      try (InputDso iDso = dsoIterator.next()) {
+        extractDso(iDso, ioBuffer);
       }
     }
     LogUtil.v(TAG, "Finished regenerating DSO store " + getClass().getName());
@@ -409,8 +365,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       writeState(stateFileName, STATE_DIRTY);
       try (Unpacker u = makeUnpacker()) {
         desiredManifest = u.getDsoManifest();
+        deleteUnmentionedFiles(desiredManifest.dsos);
         try (InputDsoIterator idi = u.openDsoIterator()) {
-          regenerate(desiredManifest, idi);
+          regenerate(idi);
         }
       }
     }
@@ -419,7 +376,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       return false; // No sync needed
     }
 
-    final DsoManifest manifest = desiredManifest;
     Runnable syncer =
         new Runnable() {
           @Override
@@ -438,11 +394,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
                 try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
                   depsFile.write(recomputedDeps);
                   depsFile.setLength(depsFile.getFilePointer());
-                }
-
-                File manifestFileName = new File(soDirectory, MANIFEST_FILE_NAME);
-                try (RandomAccessFile manifestFile = new RandomAccessFile(manifestFileName, "rw")) {
-                  manifest.write(manifestFile);
                 }
 
                 SysUtil.fsyncRecursive(soDirectory);
