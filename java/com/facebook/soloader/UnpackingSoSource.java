@@ -226,16 +226,10 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
 
   private void extractDso(InputDso iDso, byte[] ioBuffer) throws IOException {
     LogUtil.i(TAG, "extracting DSO " + iDso.getDso().name);
-    try {
-      if (!soDirectory.setWritable(true)) {
-        throw new IOException("cannot make directory writable for us: " + soDirectory);
-      }
-      extractDsoImpl(iDso, ioBuffer);
-    } finally {
-      if (!soDirectory.setWritable(false)) {
-        LogUtil.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
-      }
+    if (!soDirectory.canWrite()) {
+      throw new IOException(soDirectory + " not writable.");
     }
+    extractDsoImpl(iDso, ioBuffer);
   }
 
   private void extractDsoImpl(InputDso iDso, byte[] ioBuffer) throws IOException {
@@ -294,6 +288,10 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   protected boolean depsChanged(final byte[] deps) {
     final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
     try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
+      if (depsFile.length() == 0) {
+        return true;
+      }
+
       byte[] existingDeps = new byte[(int) depsFile.length()];
       if (depsFile.read(existingDeps) != existingDeps.length) {
         LogUtil.v(TAG, "short read of so store deps file: marking unclean");
@@ -344,13 +342,13 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       }
     }
 
-    if (depsChanged(recomputedDeps)) {
+    if (forceRefresh(flags) || depsChanged(recomputedDeps)) {
       LogUtil.v(TAG, "deps mismatch on deps store: regenerating");
       state = STATE_DIRTY;
     }
 
     Dso[] desiredDsos = null;
-    if (state == STATE_DIRTY || forceRefresh(flags)) {
+    if (state == STATE_DIRTY) {
       LogUtil.v(TAG, "so store dirty: regenerating");
       writeState(stateFileName, STATE_DIRTY);
       try (Unpacker u = makeUnpacker()) {
@@ -463,10 +461,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   protected void prepare(int flags) throws IOException {
     SysUtil.mkdirOrThrow(soDirectory);
 
-    final boolean dirCanWrite = soDirectory.canWrite();
     FileLocker lock = null;
     try {
-      if (!dirCanWrite && !soDirectory.setWritable(true)) {
+      if (!soDirectory.canWrite() && !soDirectory.setWritable(true)) {
         LogUtil.w(TAG, "error adding " + soDirectory.getCanonicalPath() + " write permission");
       }
 
@@ -485,7 +482,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
         LogUtil.i(TAG, "dso store is up-to-date: " + soDirectory);
       }
     } finally {
-      if (!dirCanWrite && !soDirectory.setWritable(false)) {
+      if (soDirectory.canWrite() && !soDirectory.setWritable(false)) {
         LogUtil.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
       }
 
