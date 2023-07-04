@@ -56,8 +56,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   private static final byte STATE_DIRTY = 0;
   private static final byte STATE_CLEAN = 1;
 
-  private static final byte MANIFEST_VERSION = 1;
-
   protected final Context mContext;
   @Nullable protected String mCorruptedLib;
 
@@ -101,14 +99,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     public Dso(String name, String hash) {
       this.name = name;
       this.hash = hash;
-    }
-  }
-
-  public static final class DsoManifest {
-    public final Dso[] dsos;
-
-    public DsoManifest(Dso[] dsos) {
-      this.dsos = dsos;
     }
   }
 
@@ -178,7 +168,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   }
 
   protected abstract static class Unpacker implements Closeable {
-    public abstract DsoManifest getDsoManifest() throws IOException;
+    public abstract Dso[] getDsos() throws IOException;
 
     public abstract InputDsoIterator openDsoIterator() throws IOException;
 
@@ -326,8 +316,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   }
 
   /**
-   * Checks the state of the dso store related files (dso_manifest, dso_deps) and based on that
-   * tries to unpack libraries and update with the new state on device.
+   * Checks the state of the dso store related files (dso_deps) and based on that tries to unpack
+   * libraries and update with the new state on device.
    *
    * @param lock - Lock that's already been acquired over the state of the dso store
    * @param flags - * @param flags To pass PREPARE_FLAG_FORCE_REFRESH and/or
@@ -359,20 +349,20 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       state = STATE_DIRTY;
     }
 
-    DsoManifest desiredManifest = null;
+    Dso[] desiredDsos = null;
     if (state == STATE_DIRTY || forceRefresh(flags)) {
       LogUtil.v(TAG, "so store dirty: regenerating");
       writeState(stateFileName, STATE_DIRTY);
       try (Unpacker u = makeUnpacker()) {
-        desiredManifest = u.getDsoManifest();
-        deleteUnmentionedFiles(desiredManifest.dsos);
+        desiredDsos = u.getDsos();
+        deleteUnmentionedFiles(desiredDsos);
         try (InputDsoIterator idi = u.openDsoIterator()) {
           regenerate(idi);
         }
       }
     }
 
-    if (desiredManifest == null) {
+    if (desiredDsos == null) {
       return false; // No sync needed
     }
 
@@ -384,10 +374,10 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
               try {
                 LogUtil.v(TAG, "starting syncer worker");
 
-                // N.B. We can afford to write the deps file and the manifest file without
+                // N.B. We can afford to write the deps file and without
                 // synchronization or fsyncs because we've marked the DSO store STATE_DIRTY, which
                 // will cause us to ignore all intermediate state when regenerating it.  That is,
-                // it's okay for the depsFile or manifestFile blocks to hit the disk before the
+                // it's okay for the depsFile blocks to hit the disk before the
                 // actual DSO data file blocks as long as both hit the disk before we reset
                 // STATE_CLEAN.
                 final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
@@ -441,9 +431,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   /**
    * Return an opaque blob of bytes that represents all the dependencies of this SoSource; if this
    * block differs from one we've previously saved, we go through the heavyweight refresh process
-   * that involves calling {@link Unpacker#getDsoManifest} and {@link Unpacker#openDsoIterator}.
+   * that involves calling {@link Unpacker#openDsoIterator}.
    *
-   * <p>Subclasses should override this method if {@link Unpacker#getDsoManifest} is expensive.
+   * <p>Subclasses should override this method if {@link Unpacker#getDsos} is expensive.
    *
    * @return dependency block
    */
@@ -452,12 +442,11 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     // changes beneath us.
     Parcel parcel = Parcel.obtain();
     try (Unpacker u = makeUnpacker()) {
-      Dso[] dsos = u.getDsoManifest().dsos;
-      parcel.writeByte(MANIFEST_VERSION);
+      Dso[] dsos = u.getDsos();
       parcel.writeInt(dsos.length);
-      for (int i = 0; i < dsos.length; ++i) {
-        parcel.writeString(dsos[i].name);
-        parcel.writeString(dsos[i].hash);
+      for (Dso dso : dsos) {
+        parcel.writeString(dso.name);
+        parcel.writeString(dso.hash);
       }
     }
     byte[] depsBlock = parcel.marshall();

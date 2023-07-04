@@ -142,8 +142,8 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     }
 
     @Override
-    public final DsoManifest getDsoManifest() throws IOException {
-      return new DsoManifest(ensureDsosInitialised());
+    public final Dso[] getDsos() throws IOException {
+      return ensureDsosInitialised();
     }
 
     @Override

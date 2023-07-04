@@ -18,7 +18,6 @@ package com.facebook.soloader;
 
 import android.content.Context;
 import com.facebook.soloader.UnpackingSoSource.Dso;
-import com.facebook.soloader.UnpackingSoSource.DsoManifest;
 import com.facebook.soloader.UnpackingSoSource.InputDso;
 import com.facebook.soloader.UnpackingSoSource.InputDsoIterator;
 import java.io.BufferedReader;
@@ -107,8 +106,8 @@ public final class ExoSoSource extends UnpackingSoSource {
     }
 
     @Override
-    public DsoManifest getDsoManifest() throws IOException {
-      return new DsoManifest(mDsos);
+    public Dso[] getDsos() throws IOException {
+      return mDsos;
     }
 
     @Override
