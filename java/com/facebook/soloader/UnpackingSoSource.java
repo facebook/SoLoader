@@ -21,7 +21,6 @@ import android.os.Parcel;
 import android.os.StrictMode;
 import java.io.Closeable;
 import java.io.DataOutput;
-import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -327,36 +326,39 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   private boolean refreshLocked(final FileLocker lock, final int flags) throws IOException {
     final File stateFileName = new File(soDirectory, STATE_FILE_NAME);
     final byte[] recomputedDeps = getDepsBlock();
-    byte state;
-    try (RandomAccessFile stateFile = new RandomAccessFile(stateFileName, "rw")) {
-      try {
-        state = stateFile.readByte();
-        if (state != STATE_CLEAN) {
-          LogUtil.v(TAG, "dso store " + soDirectory + " regeneration interrupted: wiping clean");
-          state = STATE_DIRTY;
+    // By default, if we're forcing a refresh or dependencies have changed the state is dirty
+    byte state = STATE_DIRTY;
+    if (!forceRefresh(flags) && !depsChanged(recomputedDeps)) {
+      try (RandomAccessFile stateFile = new RandomAccessFile(stateFileName, "rw")) {
+        // If the stateFile is not one byte don't even bother reading from it
+        if (stateFile.length() == 1) {
+          try {
+            byte onDiskState = stateFile.readByte();
+            if (onDiskState == STATE_CLEAN) {
+              LogUtil.v(
+                  TAG, "dso store " + soDirectory + " regeneration not needed: state file clean");
+              state = onDiskState;
+            }
+          } catch (IOException ex) {
+            LogUtil.v(
+                TAG, "dso store " + soDirectory + " regeneration interrupted: " + ex.getMessage());
+          }
         }
-      } catch (EOFException ex) {
-        state = STATE_DIRTY;
-        LogUtil.v(
-            TAG, "dso store " + soDirectory + " regeneration interrupted: " + ex.getMessage());
       }
     }
 
-    if (forceRefresh(flags) || depsChanged(recomputedDeps)) {
-      LogUtil.v(TAG, "deps mismatch on deps store: regenerating");
-      state = STATE_DIRTY;
+    if (state == STATE_CLEAN) {
+      return false; // No unpacking needed
     }
 
+    LogUtil.v(TAG, "so store dirty: regenerating");
+    writeState(stateFileName, STATE_DIRTY);
     Dso[] desiredDsos = null;
-    if (state == STATE_DIRTY) {
-      LogUtil.v(TAG, "so store dirty: regenerating");
-      writeState(stateFileName, STATE_DIRTY);
-      try (Unpacker u = makeUnpacker()) {
-        desiredDsos = u.getDsos();
-        deleteUnmentionedFiles(desiredDsos);
-        try (InputDsoIterator idi = u.openDsoIterator()) {
-          regenerate(idi);
-        }
+    try (Unpacker u = makeUnpacker()) {
+      desiredDsos = u.getDsos();
+      deleteUnmentionedFiles(desiredDsos);
+      try (InputDsoIterator idi = u.openDsoIterator()) {
+        regenerate(idi);
       }
     }
 
