@@ -16,18 +16,29 @@
 
 package com.facebook.soloader.recovery;
 
+import com.facebook.soloader.ApkSoSource;
 import com.facebook.soloader.LogUtil;
 import com.facebook.soloader.SoLoader;
 import com.facebook.soloader.SoLoaderULError;
 import com.facebook.soloader.SoSource;
 import com.facebook.soloader.UnpackingSoSource;
 import java.io.IOException;
+import java.util.ArrayList;
+import javax.annotation.Nullable;
 
 /**
  * RecoveryStrategy that detects cases when SoLoader failed to load a corrupted library, case in
  * which we try to re-unpack the libraries.
  */
 public class ReunpackSoSources implements RecoveryStrategy {
+
+  private void tryReunpacking(@Nullable String soName, UnpackingSoSource uss) throws IOException {
+    if (soName != null) {
+      uss.prepare(soName);
+    } else {
+      uss.prepareForceRefresh();
+    }
+  }
 
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
@@ -44,19 +55,30 @@ public class ReunpackSoSources implements RecoveryStrategy {
             + error.getMessage()
             + ((soName == null) ? "" : (", retrying for specific library " + soName)));
 
+    // Since app-critical code can be found inside ApkSoSources, let's make sure that code gets
+    // re-unpacked first.
+    ArrayList<UnpackingSoSource> nonApkUnpackingSoSources = new ArrayList<>(soSources.length);
     try {
       for (SoSource soSource : soSources) {
-        if (soSource instanceof UnpackingSoSource) {
-          UnpackingSoSource uss = (UnpackingSoSource) soSource;
-          if (soName != null) {
-            uss.prepare(soName);
-          } else {
-            uss.prepareForceRefresh();
-          }
+        if (!(soSource instanceof UnpackingSoSource)) {
+          continue;
         }
+        UnpackingSoSource uss = (UnpackingSoSource) soSource;
+        if (!(uss instanceof ApkSoSource)) {
+          nonApkUnpackingSoSources.add(uss);
+          continue;
+        }
+        // Re-unpack the ApkSoSource libraries first
+        tryReunpacking(soName, uss);
       }
-    } catch (IOException e) {
-      LogUtil.e(SoLoader.TAG, "Encountered an IOException during unpacking " + e.getMessage());
+      for (UnpackingSoSource uss : nonApkUnpackingSoSources) {
+        // Re-unpack from other UnpackingSoSources as well
+        tryReunpacking(soName, uss);
+      }
+    } catch (Exception e) {
+      // Catch a general error and log it, rather than failing during recovery and crashing the app
+      // in a different way.
+      LogUtil.e(SoLoader.TAG, "Encountered an Exception during unpacking ", e);
       return false;
     }
 
