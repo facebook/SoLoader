@@ -852,6 +852,9 @@ public class SoLoader {
             sSoSourcesVersion.getAndIncrement();
             continue;
           }
+        } catch (Exception recoveryException) {
+          LogUtil.e(TAG, "Got an exception during the recovery", recoveryException);
+          throw e;
         } finally {
           sSoSourcesLock.writeLock().unlock();
         }
