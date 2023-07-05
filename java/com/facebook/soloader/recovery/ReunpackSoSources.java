@@ -31,20 +31,28 @@ public class ReunpackSoSources implements RecoveryStrategy {
 
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
-    if (!(error instanceof SoLoaderULError)) {
-      return false;
+    String soName = null;
+    if (error instanceof SoLoaderULError) {
+      SoLoaderULError err = (SoLoaderULError) error;
+
+      soName = err.getSoName();
     }
-    SoLoaderULError err = (SoLoaderULError) error;
 
     LogUtil.d(
         SoLoader.TAG,
-        "Reunpacking UnpackingSoSources for " + err.getSoName() + " due to " + err.getMessage());
+        "Reunpacking UnpackingSoSources due to "
+            + error.getMessage()
+            + ((soName == null) ? "" : (", retrying for specific library " + soName)));
 
     try {
       for (SoSource soSource : soSources) {
         if (soSource instanceof UnpackingSoSource) {
           UnpackingSoSource uss = (UnpackingSoSource) soSource;
-          uss.prepare(err.getSoName());
+          if (soName != null) {
+            uss.prepare(soName);
+          } else {
+            uss.prepareForceRefresh();
+          }
         }
       }
     } catch (IOException e) {

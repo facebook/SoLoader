@@ -530,6 +530,11 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
+  /** Prepare this SoSource by force extracting a corrupted library. */
+  public void prepareForceRefresh() throws IOException {
+    prepare(SoSource.PREPARE_FLAG_FORCE_REFRESH);
+  }
+
   @Override
   public int loadLibrary(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
