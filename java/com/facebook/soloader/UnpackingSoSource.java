@@ -366,14 +366,16 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       return false; // No sync needed
     }
 
+    // Task to update the on-device state of the DSO store. Can be run in a different thread if the
+    // appropriate flag is passed (PREPARE_FLAG_ALLOW_ASYNC_INIT). Note that the syncer is
+    // responsible of releasing the store lock.
     Runnable syncer =
         new Runnable() {
           @Override
           public void run() {
+            LogUtil.v(TAG, "starting syncer worker");
             try {
               try {
-                LogUtil.v(TAG, "starting syncer worker");
-
                 // N.B. We can afford to write the deps file and without
                 // synchronization or fsyncs because we've marked the DSO store STATE_DIRTY, which
                 // will cause us to ignore all intermediate state when regenerating it.  That is,
@@ -411,21 +413,11 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   @Override
   public void waitUntilInitCompleted() {
     File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
-    FileLocker lock = null;
-    try {
-      try {
-        lock = getOrCreateLock(lockFileName);
-      } catch (IOException ioe) {
-        LogUtil.w(TAG, "Encountered exception during wait for unpacking", ioe);
-      } finally {
-        if (lock != null) {
-          lock.close();
-        }
-      }
-    } catch (IOException ioe) {
-      LogUtil.w(TAG, "Encountered exception during wait for unpacking trying to close lock", ioe);
+    try (FileLocker lock = SysUtil.getOrCreateLockOnDir(soDirectory, lockFileName)) {
+      // The lock file should be held by other processes trying to unpack libraries or recovering
+    } catch (Exception e) {
+      LogUtil.w(TAG, "Encountered exception during wait for unpacking trying to close lock", e);
     }
-    return;
   }
 
   /**
@@ -454,46 +446,40 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     return depsBlock;
   }
 
-  protected @Nullable FileLocker getOrCreateLock(File lockFileName) throws IOException {
-    return SysUtil.getOrCreateLockOnDir(soDirectory, lockFileName);
-  }
-
   /** Verify or refresh the state of the shared library store. */
   @Override
   protected void prepare(int flags) throws IOException {
     SysUtil.mkdirOrThrow(soDirectory);
 
-    FileLocker lock = null;
     try {
       if (!soDirectory.canWrite() && !soDirectory.setWritable(true)) {
         LogUtil.w(TAG, "error adding " + soDirectory.getCanonicalPath() + " write permission");
       }
 
-      // LOCK_FILE_NAME is used to synchronize changes in the dso store.
-      File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
-      lock = getOrCreateLock(lockFileName);
+      FileLocker lock = null;
+      try {
+        // LOCK_FILE_NAME is used to synchronize changes in the dso store.
+        File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
+        lock = SysUtil.getOrCreateLockOnDir(soDirectory, lockFileName);
+        LogUtil.v(TAG, "locked dso store " + soDirectory);
 
-      LogUtil.v(TAG, "locked dso store " + soDirectory);
-
-      // If another process holds the instance lock, it means that it already
-      // initialized the so source and libraries might be getting loaded in that
-      // process, so we can't refresh the so source.
-      if (refreshLocked(lock, flags)) {
-        lock = null; // Lock transferred to syncer thread
-      } else {
-        LogUtil.i(TAG, "dso store is up-to-date: " + soDirectory);
+        if (refreshLocked(lock, flags)) {
+          lock = null; // Lock transferred to syncer thread
+        } else {
+          LogUtil.i(TAG, "dso store is up-to-date: " + soDirectory);
+        }
+      } finally {
+        if (lock != null) {
+          LogUtil.v(TAG, "releasing dso store lock for " + soDirectory);
+          lock.close();
+        } else {
+          LogUtil.v(
+              TAG, "not releasing dso store lock for " + soDirectory + " (syncer thread started)");
+        }
       }
     } finally {
       if (soDirectory.canWrite() && !soDirectory.setWritable(false)) {
         LogUtil.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
-      }
-
-      if (lock != null) {
-        LogUtil.v(TAG, "releasing dso store lock for " + soDirectory);
-        lock.close();
-      } else {
-        LogUtil.v(
-            TAG, "not releasing dso store lock for " + soDirectory + " (syncer thread started)");
       }
     }
   }
