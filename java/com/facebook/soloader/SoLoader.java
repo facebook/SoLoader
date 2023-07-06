@@ -852,13 +852,23 @@ public class SoLoader {
             sSoSourcesVersion.getAndIncrement();
             continue;
           }
+        } catch (NoBaseApkException noBaseApkException) {
+          // If we failed during recovery, we only want to throw the recovery exception for the case
+          // when the base APK path does not exist, everything else should preserve the initial
+          // error.
+          LogUtil.e(TAG, "Base APK not found during recovery", noBaseApkException);
+          throw noBaseApkException;
         } catch (Exception recoveryException) {
-          LogUtil.e(TAG, "Got an exception during the recovery", recoveryException);
+          LogUtil.e(
+              TAG,
+              "Got an exception during recovery, will throw the initial error instead",
+              recoveryException);
           throw e;
         } finally {
           sSoSourcesLock.writeLock().unlock();
         }
 
+        // No recovery mechanism worked, throwing initial error
         throw e;
       }
     }
