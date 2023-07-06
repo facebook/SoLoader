@@ -18,7 +18,7 @@ package com.facebook.soloader;
 
 import android.content.Context;
 
-@DoNotOptimize
+@DoNotStripAny
 public class SoLoaderDSONotFoundError extends SoLoaderULError {
 
   public SoLoaderDSONotFoundError(String soName) {

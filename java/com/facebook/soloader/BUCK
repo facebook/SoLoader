@@ -24,6 +24,7 @@ LOADER_SRCS = glob(
     exclude = [
         "MergedSoMapping.java",
         "DoNotOptimize.java",
+        "DoNotStripAny.java",
     ],
 )
 
@@ -72,7 +73,10 @@ fb_java_library(
 
 fb_java_library(
     name = "annotation",
-    srcs = ["DoNotOptimize.java"],
+    srcs = [
+        "DoNotOptimize.java",
+        "DoNotStripAny.java",
+    ],
     required_for_source_only_abi = True,
     visibility = [
         "PUBLIC",

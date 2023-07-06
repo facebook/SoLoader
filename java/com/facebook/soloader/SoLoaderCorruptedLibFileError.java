@@ -16,7 +16,7 @@
 
 package com.facebook.soloader;
 
-@DoNotOptimize
+@DoNotStripAny
 public class SoLoaderCorruptedLibFileError extends SoLoaderULError {
 
   public SoLoaderCorruptedLibFileError(String soName) {

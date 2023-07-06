@@ -19,6 +19,7 @@ package com.facebook.soloader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@DoNotStripAny
 public class SoLoaderULErrorFactory {
   public static SoLoaderULError create(String soName, UnsatisfiedLinkError e) {
     SoLoaderULError err;

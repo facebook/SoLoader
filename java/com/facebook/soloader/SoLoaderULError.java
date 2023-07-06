@@ -16,7 +16,7 @@
 
 package com.facebook.soloader;
 
-@DoNotOptimize
+@DoNotStripAny
 public class SoLoaderULError extends UnsatisfiedLinkError {
 
   private String mSoName;

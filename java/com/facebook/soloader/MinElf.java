@@ -328,6 +328,7 @@ public final class MinElf {
     return (short) (bb.get() & 0xFF); // signed -> unsigned
   }
 
+  @DoNotStripAny
   protected static class ElfError extends UnsatisfiedLinkError {
     ElfError(String error) {
       super(error);

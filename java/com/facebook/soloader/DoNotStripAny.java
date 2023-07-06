@@ -16,14 +16,16 @@
 
 package com.facebook.soloader;
 
-@DoNotStripAny
-public class SoLoaderCorruptedLibNameError extends SoLoaderULError {
+import static java.lang.annotation.RetentionPolicy.CLASS;
 
-  public SoLoaderCorruptedLibNameError(String soName) {
-    super(soName);
-  }
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
-  public SoLoaderCorruptedLibNameError(String soName, String error) {
-    super(soName, error);
-  }
-}
+/**
+ * A hint (which may or may not be observed) to any optimizers in our tool chain that we don't want
+ * annotated elements to be removed or renamed.
+ */
+@Target({ElementType.TYPE, ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR})
+@Retention(CLASS)
+public @interface DoNotStripAny {}
