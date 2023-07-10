@@ -57,7 +57,7 @@ public class SoFileLoaderImpl implements SoFileLoader {
       return;
     }
 
-    String error = null;
+    String errorMessage = null;
     boolean inZip = (loadFlags & SoLoader.SOLOADER_LOOK_IN_ZIP) == SoLoader.SOLOADER_LOOK_IN_ZIP;
     String ldLibraryPath = inZip ? mLocalLdLibraryPath : mLocalLdLibraryPathNoZips;
     try {
@@ -65,23 +65,26 @@ public class SoFileLoaderImpl implements SoFileLoader {
       // LD_LIBRARY_PATH in use regardless of how many ClassLoaders are in the system
       // https://android.googlesource.com/platform/libcore/+/refs/tags/android-8.0.0_r45/ojluni/src/main/java/java/lang/Runtime.java#1103
       synchronized (mRuntime) {
-        error =
+        errorMessage =
             (String)
                 mNativeLoadRuntimeMethod.invoke(
                     mRuntime, pathToSoFile, SoLoader.class.getClassLoader(), ldLibraryPath);
-        if (error != null) {
-          throw new UnsatisfiedLinkError(error);
+        if (errorMessage != null) {
+          errorMessage = "nativeLoad() returned error for " + pathToSoFile + ": " + errorMessage;
+          throw new SoLoaderULError(pathToSoFile, errorMessage);
         }
       }
     } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-      error = "Error: Cannot load " + pathToSoFile;
-      throw new RuntimeException(error, e);
+      // Throw an SoLoaderULError to try to recover from the state
+      errorMessage =
+          "nativeLoad() error during invocation for " + pathToSoFile + ": " + errorMessage;
+      throw new RuntimeException(errorMessage);
     } finally {
-      if (error != null) {
+      if (errorMessage != null) {
         LogUtil.e(
             TAG,
             "Error when loading library: "
-                + error
+                + errorMessage
                 + ", library hash is "
                 + getLibHash(pathToSoFile)
                 + ", LD_LIBRARY_PATH is "
