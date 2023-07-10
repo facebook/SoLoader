@@ -183,10 +183,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  protected String getSoNameFromFileName(String fileName) {
-    return fileName;
-  }
-
   /** Delete files not mentioned in the given DSO list. */
   private void deleteUnmentionedFiles(Dso[] dsos) throws IOException {
     String[] existingFiles = soDirectory.list();

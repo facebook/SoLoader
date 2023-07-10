@@ -84,47 +84,31 @@ public class DirectorySoSource extends SoSource {
 
     File soFile = getSoFileByName(soName);
     if (soFile == null) {
-      LogUtil.v(SoLoader.TAG, soName + " not found on " + libDir.getCanonicalPath());
+      LogUtil.v(SoLoader.TAG, soName + " file not found on " + libDir.getCanonicalPath());
       return LOAD_RESULT_NOT_FOUND;
-    } else {
-      LogUtil.d(SoLoader.TAG, soName + " found on " + libDir.getCanonicalPath());
     }
+
+    LogUtil.d(SoLoader.TAG, soName + " file found on " + libDir.getCanonicalPath());
     if ((loadFlags & LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) != 0
         && (flags & ON_LD_LIBRARY_PATH) != 0) {
       LogUtil.d(SoLoader.TAG, soName + " loaded implicitly");
       return LOAD_RESULT_IMPLICITLY_PROVIDED;
     }
 
-    ElfByteChannel bc = null;
     boolean shouldLoadDependencies = (flags & RESOLVE_DEPENDENCIES) != 0;
-    boolean shouldLoadFromFile = soFile.getName().equals(soName);
-    try {
-      if (shouldLoadDependencies || !shouldLoadFromFile) {
-        bc = getChannel(soFile);
-      }
-
-      if (shouldLoadDependencies) {
+    if (shouldLoadDependencies) {
+      try (ElfByteChannel bc = new ElfFileChannel(soFile)) {
         NativeDeps.loadDependencies(soName, bc, loadFlags, threadPolicy);
-      } else {
-        LogUtil.d(SoLoader.TAG, "Not resolving dependencies for " + soName);
       }
-
-      try {
-        if (shouldLoadFromFile) {
-          SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
-        } else {
-          // The shared object does not exist in the file system, only in memory
-          SoLoader.sSoFileLoader.loadBytes(soFile.getAbsolutePath(), bc, loadFlags);
-        }
-      } catch (UnsatisfiedLinkError e) {
-        throw SoLoaderULErrorFactory.create(soName, e);
-      }
-    } finally {
-      if (bc != null) {
-        bc.close();
-      }
+    } else {
+      LogUtil.d(SoLoader.TAG, "Not resolving dependencies for " + soName);
     }
 
+    try {
+      SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
+    } catch (UnsatisfiedLinkError e) {
+      throw SoLoaderULErrorFactory.create(soName, e);
+    }
     return LOAD_RESULT_LOADED;
   }
 
@@ -156,13 +140,9 @@ public class DirectorySoSource extends SoSource {
       return null;
     }
 
-    try (ElfByteChannel bc = getChannel(soFile)) {
+    try (ElfFileChannel bc = new ElfFileChannel(soFile)) {
       return NativeDeps.getDependencies(soName, bc);
     }
-  }
-
-  protected ElfByteChannel getChannel(File soFile) throws IOException {
-    return new ElfFileChannel(soFile);
   }
 
   @Override

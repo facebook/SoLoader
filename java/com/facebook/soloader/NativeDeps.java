@@ -54,7 +54,7 @@ public final class NativeDeps {
   public static void loadDependencies(
       String soName, ElfByteChannel bc, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
-    String[] dependencies = NativeDeps.getDependencies(soName, bc);
+    String[] dependencies = getDependencies(soName, bc);
     LogUtil.d(
         SoLoader.TAG, "Loading " + soName + "'s dependencies: " + Arrays.toString(dependencies));
     for (String dependency : dependencies) {
@@ -72,24 +72,17 @@ public final class NativeDeps {
       Api18TraceUtils.beginTraceSection("soloader.NativeDeps.getDependencies[", soName, "]");
     }
     try {
-      return getDependenciesImpl(soName, bc);
+      String[] deps = awaitGetDepsFromPrecomputedDeps(soName);
+      if (deps != null) {
+        return deps;
+      }
+      return MinElf.extract_DT_NEEDED(bc);
+    } catch (MinElf.ElfError err) {
+      throw SoLoaderULErrorFactory.create(soName, err);
     } finally {
       if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
         Api18TraceUtils.endSection();
       }
-    }
-  }
-
-  public static String[] getDependenciesImpl(String soName, ElfByteChannel bc) throws IOException {
-    String[] deps = awaitGetDepsFromPrecomputedDeps(soName);
-    if (deps != null) {
-      return deps;
-    }
-
-    try {
-      return MinElf.extract_DT_NEEDED(bc);
-    } catch (MinElf.ElfError err) {
-      throw SoLoaderULErrorFactory.create(soName, err);
     }
   }
 
@@ -98,17 +91,15 @@ public final class NativeDeps {
     if (sInitialized) {
       return tryGetDepsFromPrecomputedDeps(soName);
     }
-
-    if (sUseDepsFileAsync) {
-      sWaitForDepsFileLock.readLock().lock();
-      try {
-        return tryGetDepsFromPrecomputedDeps(soName);
-      } finally {
-        sWaitForDepsFileLock.readLock().unlock();
-      }
+    if (!sUseDepsFileAsync) {
+      return null;
     }
-
-    return null;
+    sWaitForDepsFileLock.readLock().lock();
+    try {
+      return tryGetDepsFromPrecomputedDeps(soName);
+    } finally {
+      sWaitForDepsFileLock.readLock().unlock();
+    }
   }
 
   /**
@@ -447,7 +438,7 @@ public final class NativeDeps {
       deps.add(dep);
     }
 
-    if (deps.size() == 0) {
+    if (deps.isEmpty()) {
       // If a library has no dependencies, then we don't know its
       // dependencies, it was just listed in the native deps file because
       // another library depends on this library.
