@@ -18,7 +18,6 @@ package com.facebook.soloader;
 
 import android.content.Context;
 import android.os.Parcel;
-import android.os.StrictMode;
 import java.io.Closeable;
 import java.io.DataOutput;
 import java.io.File;
@@ -27,8 +26,6 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.io.SyncFailedException;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import javax.annotation.Nullable;
 
 /** {@link SoSource} that extracts libraries from an APK to the filesystem. */
@@ -59,8 +56,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   @Nullable protected String mCorruptedLib;
 
   @Nullable private String[] mAbis;
-
-  private final Map<String, Object> mLibsBeingLoaded = new HashMap<>();
 
   protected UnpackingSoSource(Context context, String name) {
     super(getSoStorePath(context, name), RESOLVE_DEPENDENCIES);
@@ -484,17 +479,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  private Object getLibraryLock(String soName) {
-    synchronized (mLibsBeingLoaded) {
-      Object lock = mLibsBeingLoaded.get(soName);
-      if (lock == null) {
-        lock = new Object();
-        mLibsBeingLoaded.put(soName, lock);
-      }
-      return lock;
-    }
-  }
-
   @Override
   @Nullable
   public String getLibraryPath(String soName) throws IOException {
@@ -506,29 +490,13 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   }
 
   /** Prepare this SoSource extracting a corrupted library. */
-  public synchronized void prepare(String soName) throws IOException {
-    // Only one thread at a time can try to recover a corrupted lib from the same source
-    Object lock = getLibraryLock(soName);
-    synchronized (lock) {
-      // While recovering, do not allow loading the same lib from another thread
-      mCorruptedLib = soName;
-      prepare(SoSource.PREPARE_FLAG_FORCE_REFRESH);
-    }
+  public void prepare(String soName) throws IOException {
+    mCorruptedLib = soName;
+    prepareForceRefresh();
   }
 
   /** Prepare this SoSource by force extracting a corrupted library. */
   public void prepareForceRefresh() throws IOException {
     prepare(SoSource.PREPARE_FLAG_FORCE_REFRESH);
-  }
-
-  @Override
-  public int loadLibrary(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
-      throws IOException {
-    Object lock = getLibraryLock(soName);
-    synchronized (lock) {
-      // Holds a lock on the specific library being loaded to avoid trying to recover it in another
-      // thread while loading
-      return loadLibraryFrom(soName, loadFlags, soDirectory, threadPolicy);
-    }
   }
 }
