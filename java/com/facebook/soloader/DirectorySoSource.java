@@ -88,7 +88,8 @@ public class DirectorySoSource extends SoSource {
       return LOAD_RESULT_NOT_FOUND;
     }
 
-    LogUtil.d(SoLoader.TAG, soName + " file found on " + libDir.getCanonicalPath());
+    String soFileCanonicalPath = soFile.getCanonicalPath();
+    LogUtil.d(SoLoader.TAG, soName + " file found at " + soFileCanonicalPath);
     if ((loadFlags & LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) != 0
         && (flags & ON_LD_LIBRARY_PATH) != 0) {
       LogUtil.d(SoLoader.TAG, soName + " loaded implicitly");
@@ -105,7 +106,7 @@ public class DirectorySoSource extends SoSource {
     }
 
     try {
-      SoLoader.sSoFileLoader.load(soFile.getAbsolutePath(), loadFlags);
+      SoLoader.sSoFileLoader.load(soFileCanonicalPath, loadFlags);
     } catch (UnsatisfiedLinkError e) {
       throw SoLoaderULErrorFactory.create(soName, e);
     }
@@ -153,7 +154,18 @@ public class DirectorySoSource extends SoSource {
 
   @Override
   public void addToLdLibraryPath(Collection<String> paths) {
-    paths.add(soDirectory.getAbsolutePath());
+    try {
+      paths.add(soDirectory.getCanonicalPath());
+    } catch (IOException ex) {
+      LogUtil.e(
+          SoLoader.TAG,
+          "Failed to get canonical path for "
+              + soDirectory.getName()
+              + " due to "
+              + ex.toString()
+              + ", falling to the absolute one");
+      paths.add(soDirectory.getAbsolutePath());
+    }
   }
 
   @Override
