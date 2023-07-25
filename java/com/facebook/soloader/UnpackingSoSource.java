@@ -305,6 +305,27 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
+  /**
+   * Checks whether a library on disk is corrupt by checking file existence and hash.
+   *
+   * @param dso Library we expect
+   * @param dsoFile Library file on disk to check
+   * @return True iff library file is corrupted or invalid or nonexistent
+   */
+  private boolean libraryIsCorrupted(Dso dso, File dsoFile) {
+    if (!dsoFile.exists()) {
+      return true;
+    }
+
+    String expectedHash = dso.hash;
+    String actualHash = computeFileHash(dsoFile);
+    if (!expectedHash.equals(actualHash)) {
+      return true;
+    }
+
+    return false;
+  }
+
   protected boolean depsChanged(final byte[] existingDeps, final byte[] deps) {
     return !Arrays.equals(existingDeps, deps);
   }
