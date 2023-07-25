@@ -95,8 +95,10 @@ public final class ExoSoSource extends UnpackingSoSource {
             }
 
             String backingFileBaseName = line.substring(sep + 1);
-            providedLibraries.add(
-                new FileDso(soName, backingFileBaseName, new File(abiDir, backingFileBaseName)));
+            String hash =
+                backingFileBaseName.substring(
+                    backingFileBaseName.indexOf('-'), backingFileBaseName.indexOf(".so"));
+            providedLibraries.add(new FileDso(soName, hash, new File(abiDir, backingFileBaseName)));
           }
         }
       }
