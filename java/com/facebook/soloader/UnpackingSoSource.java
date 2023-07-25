@@ -21,10 +21,14 @@ import android.os.Parcel;
 import java.io.Closeable;
 import java.io.DataOutput;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.io.SyncFailedException;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import javax.annotation.Nullable;
 
@@ -269,6 +273,32 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       }
     }
     LogUtil.v(TAG, "Finished regenerating DSO store " + getClass().getName());
+  }
+
+  private static String getSha256(File file) {
+    MessageDigest sha256Digest;
+    try {
+      sha256Digest = MessageDigest.getInstance("SHA-256");
+    } catch (NoSuchAlgorithmException e) {
+      LogUtil.w(TAG, "Failed to calculate hash for " + file.getName(), e);
+      return "-1";
+    }
+
+    try (FileInputStream fis = new FileInputStream(file);
+        DigestInputStream dis = new DigestInputStream(fis, sha256Digest)) {
+      byte[] buffer = new byte[8192];
+      while (dis.read(buffer) != -1) {}
+
+      byte[] hashBytes = sha256Digest.digest();
+      StringBuilder sb = new StringBuilder(hashBytes.length * 2);
+      for (byte b : hashBytes) {
+        sb.append(String.format("%02x", b));
+      }
+      return sb.toString();
+    } catch (IOException e) {
+      LogUtil.w(TAG, "Failed to calculate hash for " + file.getName(), e);
+      return "-1";
+    }
   }
 
   protected boolean depsChanged(final byte[] existingDeps, final byte[] deps) {
