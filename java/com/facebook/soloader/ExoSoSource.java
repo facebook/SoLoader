@@ -25,6 +25,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -34,6 +36,11 @@ public final class ExoSoSource extends UnpackingSoSource {
 
   public ExoSoSource(Context context, String name) {
     super(context, name);
+  }
+
+  @Override
+  protected MessageDigest getHashingAlgorithm() throws NoSuchAlgorithmException {
+    return MessageDigest.getInstance("SHA-1");
   }
 
   @Override

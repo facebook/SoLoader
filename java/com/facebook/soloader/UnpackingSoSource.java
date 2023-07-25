@@ -275,21 +275,25 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     LogUtil.v(TAG, "Finished regenerating DSO store " + getClass().getName());
   }
 
-  private static String getSha256(File file) {
-    MessageDigest sha256Digest;
+  protected MessageDigest getHashingAlgorithm() throws NoSuchAlgorithmException {
+    return MessageDigest.getInstance("SHA-256");
+  }
+
+  private String computeFileHash(File file) {
+    MessageDigest md;
     try {
-      sha256Digest = MessageDigest.getInstance("SHA-256");
+      md = getHashingAlgorithm();
     } catch (NoSuchAlgorithmException e) {
       LogUtil.w(TAG, "Failed to calculate hash for " + file.getName(), e);
       return "-1";
     }
 
     try (FileInputStream fis = new FileInputStream(file);
-        DigestInputStream dis = new DigestInputStream(fis, sha256Digest)) {
+        DigestInputStream dis = new DigestInputStream(fis, md)) {
       byte[] buffer = new byte[8192];
       while (dis.read(buffer) != -1) {}
 
-      byte[] hashBytes = sha256Digest.digest();
+      byte[] hashBytes = md.digest();
       StringBuilder sb = new StringBuilder(hashBytes.length * 2);
       for (byte b : hashBytes) {
         sb.append(String.format("%02x", b));
