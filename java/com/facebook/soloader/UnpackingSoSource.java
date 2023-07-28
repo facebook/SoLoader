@@ -220,20 +220,21 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
 
   private void extractDso(InputDso iDso, byte[] ioBuffer) throws IOException {
     LogUtil.i(TAG, "extracting DSO " + iDso.getDso().name);
-    if (!soDirectory.canWrite()) {
-      throw new IOException(soDirectory + " not writable.");
-    }
-    extractDsoImpl(iDso, ioBuffer);
-  }
-
-  private void extractDsoImpl(InputDso iDso, byte[] ioBuffer) throws IOException {
     File dsoFileName = new File(soDirectory, iDso.getFileName());
+
+    if (dsoFileName.exists() && !dsoFileName.setWritable(true)) {
+      throw new IOException(
+          "error adding write permission to: "
+              + dsoFileName
+              + " under "
+              + soDirectory
+              + " (is writable: "
+              + soDirectory.canWrite()
+              + ")");
+    }
+
     RandomAccessFile dsoFile = null;
     try {
-      if (dsoFileName.exists() && !dsoFileName.setWritable(true)) {
-        LogUtil.w(TAG, "error adding write permission to: " + dsoFileName);
-      }
-
       try {
         dsoFile = new RandomAccessFile(dsoFileName, "rw");
       } catch (IOException ex) {
@@ -255,11 +256,18 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       SysUtil.dumbDeleteRecursive(dsoFileName);
       throw e;
     } finally {
-      if (!dsoFileName.setWritable(false)) {
-        LogUtil.w(TAG, "error removing " + dsoFileName + " write permission");
-      }
       if (dsoFile != null) {
         dsoFile.close();
+      }
+      if (!dsoFileName.setWritable(false)) {
+        throw new IOException(
+            "error removing "
+                + dsoFileName
+                + " write permission from directory "
+                + soDirectory
+                + " (writable: "
+                + soDirectory.canWrite()
+                + ")");
       }
     }
   }
@@ -497,16 +505,16 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   protected void prepare(int flags) throws IOException {
     SysUtil.mkdirOrThrow(soDirectory);
 
-    try {
-      if (!soDirectory.canWrite() && !soDirectory.setWritable(true)) {
-        LogUtil.w(TAG, "error adding " + soDirectory.getCanonicalPath() + " write permission");
-      }
+    if (!soDirectory.canWrite() && !soDirectory.setWritable(true)) {
+      throw new IOException("error adding " + soDirectory.getCanonicalPath() + " write permission");
+    }
 
+    try {
       FileLocker lock = null;
       try {
         // LOCK_FILE_NAME is used to synchronize changes in the dso store.
         File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
-        lock = SysUtil.getOrCreateLockOnDir(soDirectory, lockFileName);
+        lock = SysUtil.getFileLocker(lockFileName);
         LogUtil.v(TAG, "locked dso store " + soDirectory);
 
         if (refreshLocked(lock, flags)) {
@@ -525,7 +533,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       }
     } finally {
       if (soDirectory.canWrite() && !soDirectory.setWritable(false)) {
-        LogUtil.w(TAG, "error removing " + soDirectory.getCanonicalPath() + " write permission");
+        throw new IOException(
+            "error removing " + soDirectory.getCanonicalPath() + " write permission");
       }
     }
   }

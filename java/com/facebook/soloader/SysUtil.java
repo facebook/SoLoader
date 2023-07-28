@@ -442,7 +442,7 @@ public final class SysUtil {
     }
   }
 
-  private static @Nullable FileLocker getFileLocker(File lockFileName) throws IOException {
+  public static FileLocker getFileLocker(File lockFileName) throws IOException {
     return FileLocker.lock(lockFileName);
   }
 
