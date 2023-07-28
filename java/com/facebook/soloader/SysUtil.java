@@ -36,6 +36,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.io.SyncFailedException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -330,6 +331,8 @@ public final class SysUtil {
     } else {
       try (RandomAccessFile file = new RandomAccessFile(fileName, "r")) {
         file.getFD().sync();
+      } catch (SyncFailedException e) {
+        LogUtil.e(TAG, "Syncing failed for " + fileName + ": " + e.getMessage());
       }
     }
   }
