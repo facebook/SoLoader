@@ -19,12 +19,11 @@ package com.facebook.soloader.recovery;
 import com.facebook.soloader.ApkSoSource;
 import com.facebook.soloader.LogUtil;
 import com.facebook.soloader.SoLoader;
+import com.facebook.soloader.SoLoaderDSONotFoundError;
 import com.facebook.soloader.SoLoaderULError;
 import com.facebook.soloader.SoSource;
 import com.facebook.soloader.UnpackingSoSource;
-import java.io.IOException;
 import java.util.ArrayList;
-import javax.annotation.Nullable;
 
 /**
  * RecoveryStrategy that detects cases when SoLoader failed to load a corrupted library, case in
@@ -32,24 +31,23 @@ import javax.annotation.Nullable;
  */
 public class ReunpackSoSources implements RecoveryStrategy {
 
-  private void tryReunpacking(@Nullable String soName, UnpackingSoSource uss) throws IOException {
-    if (soName != null) {
-      uss.prepare(soName);
-    } else {
-      uss.prepareForceRefresh();
-    }
-  }
-
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
     String soName = null;
-    if (error instanceof SoLoaderULError) {
-      SoLoaderULError err = (SoLoaderULError) error;
-
-      soName = err.getSoName();
+    if (!(error instanceof SoLoaderULError)) {
+      // Only recover from SoLoaderULE errors
+      return false;
     }
 
-    LogUtil.d(
+    if (error instanceof SoLoaderDSONotFoundError) {
+      // Do not attempt to recover if DSO is not found
+      return false;
+    }
+
+    SoLoaderULError err = (SoLoaderULError) error;
+    soName = err.getSoName();
+
+    LogUtil.e(
         SoLoader.TAG,
         "Reunpacking UnpackingSoSources due to "
             + error.getMessage()
@@ -69,11 +67,11 @@ public class ReunpackSoSources implements RecoveryStrategy {
           continue;
         }
         // Re-unpack the ApkSoSource libraries first
-        tryReunpacking(soName, uss);
+        uss.prepare(soName);
       }
       for (UnpackingSoSource uss : nonApkUnpackingSoSources) {
         // Re-unpack from other UnpackingSoSources as well
-        tryReunpacking(soName, uss);
+        uss.prepare(soName);
       }
     } catch (Exception e) {
       // Catch a general error and log it, rather than failing during recovery and crashing the app
