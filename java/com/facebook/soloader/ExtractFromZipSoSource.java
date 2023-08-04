@@ -185,22 +185,9 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     final int abiScore;
 
     ZipDso(String name, ZipEntry backingEntry, int abiScore) {
-      super(name, makePseudoHash(backingEntry));
+      super(name, String.valueOf(backingEntry.getCrc()));
       this.backingEntry = backingEntry;
       this.abiScore = abiScore;
-    }
-
-    private static String makePseudoHash(ZipEntry ze) {
-      // No real metadata
-      return new StringBuilder("pseudo-zip-hash-1-")
-          .append(ze.getName())
-          .append("-")
-          .append(ze.getSize())
-          .append("-")
-          .append(ze.getCompressedSize())
-          .append("-")
-          .append(ze.getCrc())
-          .toString();
     }
 
     @Override
