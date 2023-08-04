@@ -287,7 +287,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     return MessageDigest.getInstance("SHA-256");
   }
 
-  private String computeFileHash(File file) {
+  protected String computeFileHash(File file) {
     MessageDigest md;
     try {
       md = getHashingAlgorithm();

@@ -18,6 +18,7 @@ package com.facebook.soloader;
 
 import android.content.Context;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -26,12 +27,15 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import javax.annotation.Nullable;
 
 /** {@link SoSource} that extracts libraries from a zip file to the filesystem. */
 public class ExtractFromZipSoSource extends UnpackingSoSource {
+  private static final String TAG = "soloader.ExtractFromZipSoSource";
 
   protected final File mZipFileName;
   protected final String mZipSearchPattern;
@@ -176,6 +180,22 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
           }
         }
       }
+    }
+  }
+
+  @Override
+  protected String computeFileHash(File file) {
+    try (InputStream inputStream = new FileInputStream(file)) {
+      Checksum checksum = new CRC32();
+      byte[] buffer = new byte[1024];
+      int length;
+      while ((length = inputStream.read(buffer)) != -1) {
+        checksum.update(buffer, 0, length);
+      }
+      return String.valueOf(checksum.getValue());
+    } catch (IOException e) {
+      LogUtil.w(TAG, "Failed to compute file hash ", e);
+      return "";
     }
   }
 
