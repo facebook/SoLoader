@@ -521,8 +521,15 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       try {
         // LOCK_FILE_NAME is used to synchronize changes in the dso store.
         File lockFileName = new File(soDirectory, LOCK_FILE_NAME);
-        lock = SysUtil.getFileLocker(lockFileName);
+        lock = SysUtil.getOrCreateLockOnDir(soDirectory, lockFileName);
         LogUtil.v(TAG, "locked dso store " + soDirectory);
+
+        // There might've been another process that revoked the write permission while we
+        // waited for the lock.
+        if (!soDirectory.canWrite() && !soDirectory.setWritable(true)) {
+          throw new IOException(
+              "error adding " + soDirectory.getCanonicalPath() + " write permission");
+        }
 
         if (refreshLocked(lock, flags)) {
           lock = null; // Lock transferred to syncer thread
