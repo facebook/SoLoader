@@ -470,7 +470,14 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     try (FileLocker lock = SysUtil.getOrCreateLockOnDir(soDirectory, lockFileName)) {
       // The lock file should be held by other processes trying to unpack libraries or recovering
     } catch (Exception e) {
-      LogUtil.w(TAG, "Encountered exception during wait for unpacking trying to close lock", e);
+      LogUtil.e(
+          TAG,
+          "Encountered exception during wait for unpacking trying to acquire file lock for "
+              + getClass().getName()
+              + " ("
+              + soDirectory
+              + "): ",
+          e);
     }
   }
 

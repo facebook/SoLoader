@@ -56,28 +56,53 @@ public class ReunpackSoSources implements RecoveryStrategy {
     // Since app-critical code can be found inside ApkSoSources, let's make sure that code gets
     // re-unpacked first.
     ArrayList<UnpackingSoSource> nonApkUnpackingSoSources = new ArrayList<>(soSources.length);
-    try {
-      for (SoSource soSource : soSources) {
-        if (!(soSource instanceof UnpackingSoSource)) {
-          continue;
-        }
-        UnpackingSoSource uss = (UnpackingSoSource) soSource;
-        if (!(uss instanceof ApkSoSource)) {
-          nonApkUnpackingSoSources.add(uss);
-          continue;
-        }
+    for (SoSource soSource : soSources) {
+      if (!(soSource instanceof UnpackingSoSource)) {
+        continue;
+      }
+      UnpackingSoSource uss = (UnpackingSoSource) soSource;
+      if (!(uss instanceof ApkSoSource)) {
+        nonApkUnpackingSoSources.add(uss);
+        continue;
+      }
+      LogUtil.e(SoLoader.TAG, "Runpacking ApkSoSource " + uss.getClass().getName());
+      try {
         // Re-unpack the ApkSoSource libraries first
         uss.prepare(soName);
+      } catch (Exception e) {
+        // Catch a general error and log it, rather than failing during recovery and crashing the
+        // app
+        // in a different way.
+        LogUtil.e(
+            SoLoader.TAG,
+            "Encountered an exception while reunpacking ApkSoSource "
+                + uss.getClass().getName()
+                + " for library "
+                + soName
+                + ": ",
+            e);
+        return false;
       }
-      for (UnpackingSoSource uss : nonApkUnpackingSoSources) {
+    }
+    for (UnpackingSoSource uss : nonApkUnpackingSoSources) {
+      LogUtil.e(SoLoader.TAG, "Runpacking " + uss.getClass().getName());
+      try {
         // Re-unpack from other UnpackingSoSources as well
         uss.prepare(soName);
+      } catch (Exception e) {
+        // Catch a general error and log it, rather than failing during recovery and crashing the
+        // app
+        // in a different way.
+        LogUtil.e(
+            SoLoader.TAG,
+            "Encountered an exception while reunpacking "
+                + uss.getClass().getName()
+                + " for library "
+                + soName
+                + ": ",
+            e);
+        return false;
       }
-    } catch (Exception e) {
-      // Catch a general error and log it, rather than failing during recovery and crashing the app
-      // in a different way.
-      LogUtil.e(SoLoader.TAG, "Encountered an Exception during unpacking ", e);
-      return false;
     }
 
     return true;
