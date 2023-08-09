@@ -19,7 +19,6 @@ package com.facebook.soloader;
 import android.content.Context;
 import android.os.Parcel;
 import java.io.Closeable;
-import java.io.DataOutput;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -100,51 +99,21 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  protected static interface InputDso extends Closeable {
-
-    public void write(DataOutput out, byte[] ioBuffer) throws IOException;
-
-    public Dso getDso();
-
-    public String getFileName();
-
-    public int available() throws IOException;
-
-    public InputStream getStream();
-  };
-
-  public static class InputDsoStream implements InputDso {
+  protected static final class InputDso implements Closeable {
     private final Dso dso;
     private final InputStream content;
 
-    public InputDsoStream(Dso dso, InputStream content) {
+    public InputDso(Dso dso, InputStream content) {
       this.dso = dso;
       this.content = content;
     }
 
-    @Override
-    public void write(DataOutput out, byte[] ioBuffer) throws IOException {
-      SysUtil.copyBytes(out, content, Integer.MAX_VALUE, ioBuffer);
-    }
-
-    @Override
     public Dso getDso() {
       return dso;
     }
 
-    @Override
-    public String getFileName() {
-      return dso.name;
-    }
-
-    @Override
     public int available() throws IOException {
       return content.available();
-    }
-
-    @Override
-    public InputStream getStream() {
-      return content;
     }
 
     @Override
@@ -220,8 +189,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
 
   private void extractDso(InputDso iDso, byte[] ioBuffer) throws IOException {
     LogUtil.i(TAG, "extracting DSO " + iDso.getDso().name);
-    File dsoFileName = new File(soDirectory, iDso.getFileName());
-
+    File dsoFileName = new File(soDirectory, iDso.getDso().name);
     if (dsoFileName.exists() && !dsoFileName.setWritable(true)) {
       throw new IOException(
           "error adding write permission to: "
@@ -247,7 +215,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       if (sizeHint > 1) {
         SysUtil.fallocateIfSupported(dsoFile.getFD(), sizeHint);
       }
-      iDso.write(dsoFile, ioBuffer);
+      SysUtil.copyBytes(dsoFile, iDso.content, Integer.MAX_VALUE, ioBuffer);
       dsoFile.setLength(dsoFile.getFilePointer()); // In case we shortened file
       if (!dsoFileName.setExecutable(true /* allow exec... */, false /* ...for everyone */)) {
         throw new IOException("cannot make file executable: " + dsoFileName);

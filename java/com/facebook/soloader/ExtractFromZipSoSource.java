@@ -171,7 +171,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
         ZipDso zipDso = mDsos[mCurrentDso++];
         InputStream is = mZipFile.getInputStream(zipDso.backingEntry);
         try {
-          InputDso ret = new InputDsoStream(zipDso, is);
+          InputDso ret = new InputDso(zipDso, is);
           is = null; // Transfer ownership
           return ret;
         } finally {

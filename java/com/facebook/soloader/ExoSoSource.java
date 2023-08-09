@@ -137,7 +137,7 @@ public final class ExoSoSource extends UnpackingSoSource {
         FileDso fileDso = mDsos[mCurrentDso++];
         FileInputStream dsoFile = new FileInputStream(fileDso.backingFile);
         try {
-          InputDso ret = new InputDsoStream(fileDso, dsoFile);
+          InputDso ret = new InputDso(fileDso, dsoFile);
           dsoFile = null; // Ownership transferred
           return ret;
         } finally {

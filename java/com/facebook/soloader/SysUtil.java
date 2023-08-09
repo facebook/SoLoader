@@ -29,7 +29,6 @@ import android.system.Os;
 import android.system.OsConstants;
 import android.text.TextUtils;
 import dalvik.system.BaseDexClassLoader;
-import java.io.DataOutput;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileNotFoundException;
@@ -303,7 +302,7 @@ public final class SysUtil {
    * @param buffer IO buffer to use
    * @return Number of bytes actually copied
    */
-  static int copyBytes(DataOutput os, InputStream is, int byteLimit, byte[] buffer)
+  static int copyBytes(RandomAccessFile os, InputStream is, int byteLimit, byte[] buffer)
       throws IOException {
     // Yes, this method is exactly the same as the above, just with a different type for `os'.
     int bytesCopied = 0;
