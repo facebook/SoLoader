@@ -345,18 +345,14 @@ public class SoLoader {
       sFlags = flags;
 
       ArrayList<SoSource> soSources = new ArrayList<>();
-      AddSystemLibSoSource(soSources, denyList);
+      addSystemLibSoSource(soSources, denyList);
 
-      //
       // We can only proceed forward if we have a Context. The prominent case
       // where we don't have a Context is barebones dalvikvm instantiations. In
       // that case, the caller is responsible for providing a correct LD_LIBRARY_PATH.
-      //
 
       if (context != null) {
-        //
         // Prepend our own SoSource for our own DSOs.
-        //
 
         if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
           // Even for an exopackage, there might be some native libraries
@@ -502,7 +498,7 @@ public class SoLoader {
    * @param soSources target soSource list
    * @param denyList Skip load libs from current soSource, due to the linker namespace restriction
    */
-  private static void AddSystemLibSoSource(ArrayList<SoSource> soSources, String[] denyList) {
+  private static void addSystemLibSoSource(ArrayList<SoSource> soSources, String[] denyList) {
     String systemLibPaths =
         SysUtil.is64Bit() ? "/system/lib64:/vendor/lib64" : "/system/lib:/vendor/lib";
 
