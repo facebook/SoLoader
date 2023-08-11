@@ -34,7 +34,7 @@ public class WaitForAsyncInit implements RecoveryStrategy {
     LogUtil.e(
         SoLoader.TAG,
         "Waiting on SoSources due to "
-            + e.getMessage()
+            + e
             + ((soName == null) ? "" : (", retrying for specific library " + soName)));
 
     for (SoSource soSource : soSources) {

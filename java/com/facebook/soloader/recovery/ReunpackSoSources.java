@@ -50,7 +50,7 @@ public class ReunpackSoSources implements RecoveryStrategy {
     LogUtil.e(
         SoLoader.TAG,
         "Reunpacking UnpackingSoSources due to "
-            + error.getMessage()
+            + error
             + ((soName == null) ? "" : (", retrying for specific library " + soName)));
 
     // Since app-critical code can be found inside ApkSoSources, let's make sure that code gets
