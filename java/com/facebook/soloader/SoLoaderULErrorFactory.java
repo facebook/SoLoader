@@ -31,7 +31,7 @@ public class SoLoaderULErrorFactory {
       err = new SoLoaderCorruptedLibNameError(soName, "corrupted lib name: " + e.toString());
     } else {
       // General ULE exception
-      err = new SoLoaderULError(soName);
+      err = new SoLoaderULError(soName, e.toString());
     }
     err.initCause(e);
     return err;
