@@ -255,9 +255,11 @@ public class SoLoader {
       Context context, int flags, @Nullable SoFileLoader soFileLoader, String[] denyList)
       throws IOException {
     if (isInitialized()) {
+      LogUtil.w(TAG, "SoLoader already initialized");
       return;
     }
 
+    LogUtil.w(TAG, "Initializing SoLoader");
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
       isEnabled = initEnableConfig(context);
@@ -278,6 +280,7 @@ public class SoLoader {
         LogUtil.v(TAG, "Init System Loader delegate");
         NativeLoader.initIfUninitialized(new SystemDelegate());
       }
+      LogUtil.w(TAG, "SoLoader initialized");
     } finally {
       StrictMode.setThreadPolicy(oldPolicy);
     }
@@ -1028,12 +1031,12 @@ public class SoLoader {
   private static void doLoadLibraryBySoName(
       String soName, int loadFlags, @Nullable StrictMode.ThreadPolicy oldPolicy)
       throws UnsatisfiedLinkError {
-
     sSoSourcesLock.readLock().lock();
     try {
       if (sSoSources == null) {
-        LogUtil.e(TAG, "Could not load: " + soName + " because no SO source exists");
-        throw new UnsatisfiedLinkError("couldn't find DSO to load: " + soName);
+        LogUtil.e(TAG, "Could not load: " + soName + " because SoLoader is not initialized");
+        throw new UnsatisfiedLinkError(
+            "SoLoader not initialized, couldn't find DSO to load: " + soName);
       }
     } finally {
       sSoSourcesLock.readLock().unlock();
