@@ -221,13 +221,14 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
         throw new IOException("cannot make file executable: " + dsoFileName);
       }
     } catch (IOException e) {
+      LogUtil.e(TAG, "error extracting dsos: " + e);
       SysUtil.dumbDeleteRecursive(dsoFileName);
       throw e;
     } finally {
       if (dsoFile != null) {
         dsoFile.close();
       }
-      if (!dsoFileName.setWritable(false)) {
+      if (dsoFileName.exists() && !dsoFileName.setWritable(false)) {
         throw new IOException(
             "error removing "
                 + dsoFileName
