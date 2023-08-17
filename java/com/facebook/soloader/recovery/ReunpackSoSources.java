@@ -68,7 +68,7 @@ public class ReunpackSoSources implements RecoveryStrategy {
       LogUtil.e(SoLoader.TAG, "Runpacking ApkSoSource " + uss.getClass().getName());
       try {
         // Re-unpack the ApkSoSource libraries first
-        uss.prepare(soName);
+        uss.prepareForceRefresh();
       } catch (Exception e) {
         // Catch a general error and log it, rather than failing during recovery and crashing the
         // app
@@ -88,7 +88,7 @@ public class ReunpackSoSources implements RecoveryStrategy {
       LogUtil.e(SoLoader.TAG, "Runpacking " + uss.getClass().getName());
       try {
         // Re-unpack from other UnpackingSoSources as well
-        uss.prepare(soName);
+        uss.prepareForceRefresh();
       } catch (Exception e) {
         // Catch a general error and log it, rather than failing during recovery and crashing the
         // app

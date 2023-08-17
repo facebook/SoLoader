@@ -56,7 +56,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   private static final byte STATE_CLEAN = 1;
 
   protected final Context mContext;
-  @Nullable protected String mCorruptedLib;
 
   @Nullable private String[] mAbis;
 
@@ -536,12 +535,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       return null;
     }
     return soFile.getCanonicalPath();
-  }
-
-  /** Prepare this SoSource extracting a corrupted library. */
-  public void prepare(String soName) throws IOException {
-    mCorruptedLib = soName;
-    prepareForceRefresh();
   }
 
   /** Prepare this SoSource by force extracting a corrupted library. */

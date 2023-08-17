@@ -61,7 +61,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
   protected class ZipUnpacker extends Unpacker {
 
-    private @Nullable ZipDso[] mDsos;
+    protected @Nullable ZipDso[] mDsos;
     private final ZipFile mZipFile;
     private final UnpackingSoSource mSoSource;
 
@@ -70,16 +70,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
       mSoSource = soSource;
     }
 
-    /**
-     * If the list of zip DSOs is not created, generate that by iterating through all zip entries
-     * and doing pattern matching against a zipped libs pattern.
-     *
-     * @return mDsos
-     */
-    final ZipDso[] ensureDsosInitialised() {
-      if (mDsos != null) {
-        return mDsos;
-      }
+    ZipDso[] computeDsosFromZip() {
       LinkedHashSet<String> librariesAbiSet = new LinkedHashSet<>();
       HashMap<String, ZipDso> providedLibraries = new HashMap<>();
       Pattern zipSearchPattern = Pattern.compile(mZipSearchPattern);
@@ -108,36 +99,22 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
       ZipDso[] dsos = providedLibraries.values().toArray(new ZipDso[providedLibraries.size()]);
       Arrays.sort(dsos);
-      int nrFilteredDsos = 0;
-      for (int i = 0; i < dsos.length; ++i) {
-        ZipDso zd = dsos[i];
-        if (shouldExtract(zd.backingEntry, zd.name)) {
-          nrFilteredDsos += 1;
-        } else {
-          dsos[i] = null;
-        }
-      }
-      ZipDso[] filteredDsos = new ZipDso[nrFilteredDsos];
-      for (int i = 0, j = 0; i < dsos.length; ++i) {
-        ZipDso zd = dsos[i];
-        if (zd == null) {
-          continue;
-        }
-        filteredDsos[j++] = zd;
-      }
-      mDsos = filteredDsos;
-      return mDsos;
+      return dsos;
     }
 
     /**
-     * Hook for subclasses to filter out certain library names from being extracted from the zip
-     * file.
+     * If the list of zip DSOs is not created, generate that by iterating through all zip entries
+     * and doing pattern matching against a zipped libs pattern.
      *
-     * @param soName Candidate soName
-     * @param ze Zip entry for file to extract
+     * @return mDsos
      */
-    protected boolean shouldExtract(ZipEntry ze, String soName) {
-      return true;
+    ZipDso[] getExtractableDsosFromZip() {
+      if (mDsos != null) {
+        return mDsos;
+      }
+
+      mDsos = computeDsosFromZip();
+      return mDsos;
     }
 
     @Override
@@ -147,7 +124,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
     @Override
     public final Dso[] getDsos() throws IOException {
-      return ensureDsosInitialised();
+      return getExtractableDsosFromZip();
     }
 
     @Override
@@ -161,13 +138,13 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
       @Override
       public boolean hasNext() {
-        ensureDsosInitialised();
+        getExtractableDsosFromZip();
         return mCurrentDso < mDsos.length;
       }
 
       @Override
       public InputDso next() throws IOException {
-        ensureDsosInitialised();
+        getExtractableDsosFromZip();
         ZipDso zipDso = mDsos[mCurrentDso++];
         InputStream is = mZipFile.getInputStream(zipDso.backingEntry);
         try {
@@ -199,7 +176,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     }
   }
 
-  private static final class ZipDso extends Dso implements Comparable<ZipDso> {
+  protected static final class ZipDso extends Dso implements Comparable<ZipDso> {
 
     final ZipEntry backingEntry;
     final int abiScore;

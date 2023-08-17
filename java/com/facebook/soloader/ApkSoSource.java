@@ -72,15 +72,40 @@ public class ApkSoSource extends ExtractFromZipSoSource {
     }
 
     @Override
-    protected boolean shouldExtract(ZipEntry ze, String soName) {
+    protected ZipDso[] getExtractableDsosFromZip() {
+      if (mDsos != null) {
+        return mDsos;
+      }
+
+      ZipDso[] dsos = computeDsosFromZip();
+      for (ZipDso zd : dsos) {
+        if (shouldExtract(zd.backingEntry, zd.name)) {
+          // If one library is corrupted, extract all of them to simplify the logic of computing
+          // dependencies. By default, the application so source (/data/app) relies on the bionic
+          // linker to resolve dependencies.
+          // If there's 2 /data/app libraries with the same corrupted depdendency, we might end up
+          // facing multiple load failures that can be avoided:
+          //    A depends on C
+          //    B depends on C
+          //    C is corrupted
+          //    Try to load A (from app so source - data/app) -> load C first (from /data/app) -> C
+          // fails, hence unpack A and C to /data/data
+          //    Try to load B (from app so source - data/app) -> load C first (from /data/app) ->
+          // fail to load, even though C has previously been unpacked to /data/data and can be used
+          mDsos = dsos;
+          return mDsos;
+        }
+      }
+      mDsos = new ZipDso[0];
+      return mDsos;
+    }
+
+    private boolean shouldExtract(ZipEntry ze, String soName) {
       StringBuilder msg = new StringBuilder();
       boolean shouldExtract = false;
       String zipPath = ze.getName();
-      if (soName.equals(mCorruptedLib)) {
-        mCorruptedLib = null;
-        msg.append("allowing consideration of corrupted lib ").append(soName);
-        shouldExtract = true;
-      } else if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
+
+      if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
         msg.append("allowing consideration of ")
             .append(zipPath)
             .append(": self-extraction preferred");
