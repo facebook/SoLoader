@@ -145,12 +145,15 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  private static void writeState(File stateFileName, byte state) throws IOException {
+  private static void writeState(File stateFileName, byte state, boolean runFsync)
+      throws IOException {
     try (RandomAccessFile stateFile = new RandomAccessFile(stateFileName, "rw")) {
       stateFile.seek(0);
       stateFile.write(state);
       stateFile.setLength(stateFile.getFilePointer());
-      stateFile.getFD().sync();
+      if (runFsync) {
+        stateFile.getFD().sync();
+      }
     } catch (SyncFailedException e) {
       LogUtil.w(TAG, "state file sync failed", e);
     }
@@ -374,8 +377,9 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       return false; // No unpacking needed
     }
 
+    final boolean runFsync = ((flags & PREPARE_FLAG_DISABLE_FS_SYNC_JOB) == 0);
     LogUtil.v(TAG, "so store dirty: regenerating");
-    writeState(stateFileName, STATE_DIRTY);
+    writeState(stateFileName, STATE_DIRTY, runFsync);
     Dso[] desiredDsos = null;
     try (Unpacker u = makeUnpacker()) {
       desiredDsos = u.getDsos();
@@ -411,8 +415,10 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
                   depsFile.setLength(depsFile.getFilePointer());
                 }
 
-                SysUtil.fsyncRecursive(soDirectory);
-                writeState(stateFileName, STATE_CLEAN);
+                if (runFsync) {
+                  SysUtil.fsyncRecursive(soDirectory);
+                }
+                writeState(stateFileName, STATE_CLEAN, runFsync);
               } finally {
                 LogUtil.v(
                     TAG, "releasing dso store lock for " + soDirectory + " (from syncer thread)");
