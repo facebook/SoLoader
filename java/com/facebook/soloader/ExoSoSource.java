@@ -39,6 +39,11 @@ public final class ExoSoSource extends UnpackingSoSource {
   }
 
   @Override
+  public String getName() {
+    return "ExoSoSource";
+  }
+
+  @Override
   protected MessageDigest getHashingAlgorithm() throws NoSuchAlgorithmException {
     return MessageDigest.getInstance("SHA-1");
   }

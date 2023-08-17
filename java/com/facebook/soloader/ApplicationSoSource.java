@@ -79,9 +79,15 @@ public class ApplicationSoSource extends SoSource implements RecoverableSoSource
   }
 
   @Override
+  public String getName() {
+    return "ApplicationSoSource";
+  }
+
+  @Override
   public String toString() {
     return new StringBuilder()
-        .append("ApplicationSoSource[")
+        .append(getName())
+        .append("[")
         .append(soSource.toString())
         .append("]")
         .toString();

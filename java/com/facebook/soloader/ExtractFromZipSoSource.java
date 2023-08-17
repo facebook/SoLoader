@@ -55,6 +55,11 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
   }
 
   @Override
+  public String getName() {
+    return "ExtractFromZipSoSource";
+  }
+
+  @Override
   protected Unpacker makeUnpacker() throws IOException {
     return new ZipUnpacker(this);
   }

@@ -139,6 +139,9 @@ public abstract class SoSource {
     return SysUtil.getSupportedAbis();
   }
 
+  /** @return the name of this SoSource for logging purposes */
+  public abstract String getName();
+
   /**
    * Return the class name of the actual instance. Useful for debugging.
    *
@@ -146,6 +149,6 @@ public abstract class SoSource {
    */
   @Override
   public String toString() {
-    return getClass().getName();
+    return getName();
   }
 }

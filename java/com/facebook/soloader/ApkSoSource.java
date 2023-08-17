@@ -56,6 +56,11 @@ public class ApkSoSource extends ExtractFromZipSoSource {
   }
 
   @Override
+  public String getName() {
+    return "ApkSoSource";
+  }
+
+  @Override
   protected Unpacker makeUnpacker() throws IOException {
     return new ApkUnpacker(this);
   }

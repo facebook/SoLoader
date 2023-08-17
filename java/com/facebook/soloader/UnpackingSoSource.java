@@ -244,14 +244,14 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   }
 
   private void regenerate(InputDsoIterator dsoIterator) throws IOException {
-    LogUtil.v(TAG, "regenerating DSO store " + getClass().getName());
+    LogUtil.v(TAG, "regenerating DSO store " + getName());
     byte[] ioBuffer = new byte[32 * 1024];
     while (dsoIterator.hasNext()) {
       try (InputDso iDso = dsoIterator.next()) {
         extractDso(iDso, ioBuffer);
       }
     }
-    LogUtil.v(TAG, "Finished regenerating DSO store " + getClass().getName());
+    LogUtil.v(TAG, "Finished regenerating DSO store " + getName());
   }
 
   protected MessageDigest getHashingAlgorithm() throws NoSuchAlgorithmException {

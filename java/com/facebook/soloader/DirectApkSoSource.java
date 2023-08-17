@@ -216,9 +216,14 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
   }
 
   @Override
+  public String getName() {
+    return "DirectApkSoSource";
+  }
+
+  @Override
   public String toString() {
     return new StringBuilder()
-        .append(getClass().getName())
+        .append(getName())
         .append("[root = ")
         .append(mDirectApkLdPaths.toString())
         .append(']')

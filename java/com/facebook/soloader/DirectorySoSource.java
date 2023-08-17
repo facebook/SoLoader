@@ -169,6 +169,11 @@ public class DirectorySoSource extends SoSource {
   }
 
   @Override
+  public String getName() {
+    return "DirectorySoSource";
+  }
+
+  @Override
   public String toString() {
     String path;
     try {
@@ -177,7 +182,7 @@ public class DirectorySoSource extends SoSource {
       path = soDirectory.getName();
     }
     return new StringBuilder()
-        .append(getClass().getName())
+        .append(getName())
         .append("[root = ")
         .append(path)
         .append(" flags = ")

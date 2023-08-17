@@ -30,4 +30,9 @@ public class NoopSoSource extends SoSource {
   public File unpackLibrary(String soName) {
     throw new UnsupportedOperationException("unpacking not supported in test mode");
   }
+
+  @Override
+  public String getName() {
+    return "NoopSoSource";
+  }
 }
