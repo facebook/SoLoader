@@ -62,8 +62,7 @@ public final class NativeDeps {
         continue;
       }
 
-      SoLoader.loadLibraryBySoName(
-          dependency, loadFlags | SoSource.LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, threadPolicy);
+      SoLoader.loadDependency(dependency, loadFlags, threadPolicy);
     }
   }
 

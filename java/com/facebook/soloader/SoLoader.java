@@ -829,9 +829,19 @@ public class SoLoader {
     return null;
   }
 
-  /* package */ static void loadLibraryBySoName(
+  /**
+   * Load a library that is a dependency of another library by name. A dedicated entry point allows
+   * SoLoader to optimise recursive calls by assuming that the current platform is Android and merge
+   * map does not need to be consulted.
+   *
+   * @param soName Name of the library to load, as extracted from dynamic section.
+   * @param loadFlags
+   * @param oldPolicy
+   */
+  /* package */ static void loadDependency(
       String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) {
-    loadLibraryBySoNameImpl(soName, null, null, loadFlags, oldPolicy);
+    loadLibraryBySoNameImpl(
+        soName, null, null, loadFlags | SoSource.LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, oldPolicy);
   }
 
   private static boolean loadLibraryBySoName(

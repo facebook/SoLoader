@@ -154,8 +154,7 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
 
     if (dependencies != null) {
       for (String dependency : dependencies) {
-        SoLoader.loadLibraryBySoName(
-            dependency, loadFlags | LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, threadPolicy);
+        SoLoader.loadDependency(dependency, loadFlags, threadPolicy);
       }
     }
   }
