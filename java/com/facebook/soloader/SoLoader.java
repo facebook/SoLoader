@@ -259,7 +259,7 @@ public class SoLoader {
       return;
     }
 
-    LogUtil.w(TAG, "Initializing SoLoader");
+    LogUtil.w(TAG, "Initializing SoLoader: " + flags);
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
       isEnabled = initEnableConfig(context);
@@ -280,7 +280,7 @@ public class SoLoader {
         LogUtil.v(TAG, "Init System Loader delegate");
         NativeLoader.initIfUninitialized(new SystemDelegate());
       }
-      LogUtil.w(TAG, "SoLoader initialized");
+      LogUtil.w(TAG, "SoLoader initialized: " + flags);
     } finally {
       StrictMode.setThreadPolicy(oldPolicy);
     }
