@@ -181,8 +181,8 @@ public class SoLoader {
    */
   public static final int SOLOADER_SKIP_MERGED_JNI_ONLOAD = (1 << 4);
 
-  /** System Apps ignore PREFER_ANDROID_LIBS_DIRECTORY. Don't do that for this app. */
-  public static final int SOLOADER_DONT_TREAT_AS_SYSTEMAPP = (1 << 5);
+  /** Deprecated, NO EFFECT */
+  @Deprecated public static final int SOLOADER_DONT_TREAT_AS_SYSTEMAPP = (1 << 5);
 
   /**
    * In API level 23 and above, it’s possible to open a .so file directly from your APK. Enabling
@@ -573,7 +573,7 @@ public class SoLoader {
     if (sAppType != AppType.UNSET) {
       return sAppType;
     }
-    if ((flags & SOLOADER_DONT_TREAT_AS_SYSTEMAPP) != 0 || context == null) {
+    if (context == null) {
       return AppType.THIRD_PARTY_APP;
     }
 
