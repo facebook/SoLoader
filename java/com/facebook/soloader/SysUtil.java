@@ -270,7 +270,9 @@ public final class SysUtil {
           ZipEntry entry = entries.nextElement();
           if (entry != null
               && entry.getName().endsWith(".so")
-              && entry.getName().contains("/lib")) {
+              && entry.getName().contains("/lib")
+              // Skip the dso files in assets folder
+              && !entry.getName().startsWith("assets/")) {
             // Checking one dso item is good enough.
             return entry.getMethod() == ZipEntry.STORED;
           }
