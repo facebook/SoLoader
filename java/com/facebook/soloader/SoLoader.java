@@ -264,7 +264,7 @@ public class SoLoader {
     try {
       isEnabled = initEnableConfig(context);
       if (isEnabled) {
-        sAppType = getAppType(context, flags);
+        sAppType = getAppType(context);
         if ((flags & SOLOADER_EXPLICITLY_ENABLE_BACKUP_SOSOURCE) == 0
             && SysUtil.isSupportedDirectLoad(context, sAppType)) {
           // SoLoader doesn't need backup soSource if it supports directly loading .so file from APK
@@ -569,11 +569,12 @@ public class SoLoader {
     sSoFileLoader = new SoFileLoaderImpl();
   }
 
-  private static int getAppType(Context context, int flags) {
+  private static int getAppType(Context context) {
     if (sAppType != AppType.UNSET) {
       return sAppType;
     }
     if (context == null) {
+      LogUtil.d(TAG, "context is null, fallback to THIRD_PARTY_APP appType");
       return AppType.THIRD_PARTY_APP;
     }
 
