@@ -392,9 +392,22 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       return false; // No sync needed
     }
 
-    // Task to update the on-device state of the DSO store. Can be run in a different thread if the
-    // appropriate flag is passed (PREPARE_FLAG_ALLOW_ASYNC_INIT). Note that the syncer is
-    // responsible of releasing the store lock.
+    // N.B. We can afford to write the deps file without fsyncs because we've marked the DSO
+    // store STATE_DIRTY, which will cause us to ignore all intermediate state when regenerating it.
+    // That is, it's okay for the depsFile blocks to hit the disk before the actual DSO data file
+    // blocks as long as both hit the disk before we reset STATE_CLEAN.
+    final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
+    try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
+      depsFile.write(recomputedDeps);
+      depsFile.setLength(depsFile.getFilePointer());
+    }
+
+    // Task to dump the buffer cache to disk to guard against battery outages. The default is to run
+    // that in a different thread (PREPARE_FLAG_ALLOW_ASYNC_INIT) as this blocking operation is
+    // quite costly.
+    // In theory, other processes/threads will be fine reading from the cache before fsync
+    // completes.
+    // Note that the syncer is responsible of releasing the store lock.
     Runnable syncer =
         new Runnable() {
           @Override
@@ -402,18 +415,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
             LogUtil.v(TAG, "starting syncer worker");
             try {
               try {
-                // N.B. We can afford to write the deps file and without
-                // synchronization or fsyncs because we've marked the DSO store STATE_DIRTY, which
-                // will cause us to ignore all intermediate state when regenerating it.  That is,
-                // it's okay for the depsFile blocks to hit the disk before the
-                // actual DSO data file blocks as long as both hit the disk before we reset
-                // STATE_CLEAN.
-                final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
-                try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
-                  depsFile.write(recomputedDeps);
-                  depsFile.setLength(depsFile.getFilePointer());
-                }
-
                 if (runFsync) {
                   SysUtil.fsyncRecursive(soDirectory);
                 }
