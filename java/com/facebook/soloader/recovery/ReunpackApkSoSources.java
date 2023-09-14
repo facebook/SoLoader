@@ -65,7 +65,7 @@ public class ReunpackApkSoSources implements RecoveryStrategy {
       }
       ApkSoSource apkSource = (ApkSoSource) soSource;
       try {
-        LogUtil.e(SoLoader.TAG, "Runpacking ApkSoSource " + apkSource.getClass().getName());
+        LogUtil.e(SoLoader.TAG, "Runpacking ApkSoSource " + apkSource.getName());
         apkSource.prepareForceRefresh();
       } catch (Exception e) {
         // Catch a general error and log it, rather than failing during recovery and crashing the
@@ -74,7 +74,7 @@ public class ReunpackApkSoSources implements RecoveryStrategy {
         LogUtil.e(
             SoLoader.TAG,
             "Encountered an exception while reunpacking ApkSoSource "
-                + apkSource.getClass().getName()
+                + apkSource.getName()
                 + " for library "
                 + soName
                 + ": ",

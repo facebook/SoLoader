@@ -61,7 +61,7 @@ public class ReunpackNonApkSoSources implements RecoveryStrategy {
         continue;
       }
       try {
-        LogUtil.e(SoLoader.TAG, "Runpacking " + uss.getClass().getName());
+        LogUtil.e(SoLoader.TAG, "Runpacking " + uss.getName());
         uss.prepareForceRefresh();
       } catch (Exception e) {
         // Catch a general error and log it, rather than failing during recovery and crashing the
@@ -70,7 +70,7 @@ public class ReunpackNonApkSoSources implements RecoveryStrategy {
         LogUtil.e(
             SoLoader.TAG,
             "Encountered an exception while reunpacking "
-                + uss.getClass().getName()
+                + uss.getName()
                 + " for library "
                 + soName
                 + ": ",

@@ -73,7 +73,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     return new File(context.getApplicationInfo().dataDir + "/" + name);
   }
 
-  protected abstract Unpacker makeUnpacker() throws IOException;
+  protected abstract Unpacker makeUnpacker(boolean forceUnpacking) throws IOException;
 
   @Override
   public String[] getSoSourceAbis() {
@@ -353,7 +353,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     final byte[] recomputedDeps = getDepsBlock();
     // By default, if we're forcing a refresh or dependencies have changed the state is dirty
     byte state = STATE_DIRTY;
-    if (!forceRefresh(flags) && !depsChanged(recomputedDeps)) {
+    boolean forceUnpacking = forceRefresh(flags);
+    if (!forceUnpacking && !depsChanged(recomputedDeps)) {
       try (RandomAccessFile stateFile = new RandomAccessFile(stateFileName, "rw")) {
         // If the stateFile is not one byte don't even bother reading from it
         if (stateFile.length() == 1) {
@@ -380,7 +381,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     LogUtil.v(TAG, "so store dirty: regenerating");
     writeState(stateFileName, STATE_DIRTY, runFsync);
     Dso[] desiredDsos = null;
-    try (Unpacker u = makeUnpacker()) {
+    try (Unpacker u = makeUnpacker(forceUnpacking)) {
       desiredDsos = u.getDsos();
       deleteUnmentionedFiles(desiredDsos);
       try (InputDsoIterator idi = u.openDsoIterator()) {
@@ -469,7 +470,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     // Parcel is fine: we never parse the parceled bytes, so it's okay if the byte representation
     // changes beneath us.
     Parcel parcel = Parcel.obtain();
-    try (Unpacker u = makeUnpacker()) {
+    try (Unpacker u = makeUnpacker(false)) {
       Dso[] dsos = u.getDsos();
       parcel.writeInt(dsos.length);
       for (Dso dso : dsos) {
@@ -538,7 +539,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     return soFile.getCanonicalPath();
   }
 
-  /** Prepare this SoSource by force extracting a corrupted library. */
+  /** Prepare this SoSource by unconditonally unpacking/re-unpacking it. */
   public void prepareForceRefresh() throws IOException {
     prepare(SoSource.PREPARE_FLAG_FORCE_REFRESH);
   }

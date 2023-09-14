@@ -60,7 +60,7 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
   }
 
   @Override
-  protected Unpacker makeUnpacker() throws IOException {
+  protected Unpacker makeUnpacker(boolean forceUnpacking) throws IOException {
     return new ZipUnpacker(this);
   }
 

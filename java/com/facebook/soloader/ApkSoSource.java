@@ -61,17 +61,19 @@ public class ApkSoSource extends ExtractFromZipSoSource {
   }
 
   @Override
-  protected Unpacker makeUnpacker() throws IOException {
-    return new ApkUnpacker(this);
+  protected Unpacker makeUnpacker(boolean forceUnpacking) throws IOException {
+    return new ApkUnpacker(this, forceUnpacking);
   }
 
   protected class ApkUnpacker extends ZipUnpacker {
 
+    private final boolean mForceUnpacking;
     private final File mLibDir;
     private final int mFlags;
 
-    ApkUnpacker(ExtractFromZipSoSource soSource) throws IOException {
+    ApkUnpacker(ExtractFromZipSoSource soSource, boolean forceUnpacking) throws IOException {
       super(soSource);
+      mForceUnpacking = forceUnpacking;
       mLibDir = new File(mContext.getApplicationInfo().nativeLibraryDir);
       mFlags = ApkSoSource.this.mFlags;
     }
@@ -83,6 +85,18 @@ public class ApkSoSource extends ExtractFromZipSoSource {
       }
 
       ZipDso[] dsos = computeDsosFromZip();
+      mDsos = dsos;
+
+      if (mForceUnpacking) {
+        LogUtil.w(TAG, "Unconditonally extracting all DSOs from zip");
+        return mDsos;
+      }
+
+      if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
+        LogUtil.w(TAG, "Self-extraction preferred (PREFER_ANDROID_LIBS_DRIECTORY not set)");
+        return mDsos;
+      }
+
       for (ZipDso zd : dsos) {
         if (shouldExtract(zd.backingEntry, zd.name)) {
           // If one library is corrupted, extract all of them to simplify the logic of computing
@@ -97,80 +111,61 @@ public class ApkSoSource extends ExtractFromZipSoSource {
           // fails, hence unpack A and C to /data/data
           //    Try to load B (from app so source - data/app) -> load C first (from /data/app) ->
           // fail to load, even though C has previously been unpacked to /data/data and can be used
-          mDsos = dsos;
           return mDsos;
         }
       }
+
+      // No DSO should be extracted
       mDsos = new ZipDso[0];
       return mDsos;
     }
 
-    private boolean shouldExtract(ZipEntry ze, String soName) {
-      StringBuilder msg = new StringBuilder();
-      boolean shouldExtract = false;
+    // This is a lightweight fast check that runs during the first coldstart after a fresh install.
+    boolean shouldExtract(ZipEntry ze, String soName) {
       String zipPath = ze.getName();
-
-      if ((mFlags & PREFER_ANDROID_LIBS_DIRECTORY) == 0) {
-        msg.append("allowing consideration of ")
-            .append(zipPath)
-            .append(": self-extraction preferred");
-        shouldExtract = true;
-      } else {
-        boolean validPath = true;
-        File sysLibFile = new File(mLibDir, soName);
-        try {
-          if (!sysLibFile.getCanonicalPath().startsWith(mLibDir.getCanonicalPath())) {
-            validPath = false;
-            msg.append("not allowing consideration of ")
-                .append(zipPath)
-                .append(": ")
-                .append(soName)
-                .append(" not in lib dir ");
-            shouldExtract = false;
-          }
-        } catch (IOException e) {
-          validPath = false;
-          shouldExtract = false;
-          msg.append("not allowing consideration of ")
-              .append(zipPath)
-              .append(": ")
-              .append(soName)
-              .append(", IOException when constructing path")
-              .append(e.toString());
+      File sysLibFile = new File(mLibDir, soName);
+      try {
+        if (!sysLibFile.getCanonicalPath().startsWith(mLibDir.getCanonicalPath())) {
+          LogUtil.w(
+              TAG, "Not allowing consideration of " + zipPath + ": " + soName + " not in lib dir.");
+          return false;
         }
-
-        if (validPath) {
-          if (!sysLibFile.isFile()) {
-            msg.append("allowing consideration of ")
-                .append(zipPath)
-                .append(": ")
-                .append(soName)
-                .append(" not in system lib dir");
-            shouldExtract = true;
-          } else {
-            long sysLibLength = sysLibFile.length();
-            long apkLibLength = ze.getSize();
-
-            if (sysLibLength != apkLibLength) {
-              msg.append("allowing consideration of ")
-                  .append(sysLibFile)
-                  .append(": sysdir file length is ")
-                  .append(sysLibLength)
-                  .append(", but the file is ")
-                  .append(apkLibLength)
-                  .append(" bytes long in the APK");
-              shouldExtract = true;
-            } else {
-              msg.append("not allowing consideration of ")
-                  .append(zipPath)
-                  .append(": deferring to libdir");
-              shouldExtract = false;
-            }
-          }
-        }
+      } catch (IOException e) {
+        LogUtil.w(
+            TAG,
+            "Not allowing consideration of "
+                + zipPath
+                + ": "
+                + soName
+                + ", IOException when constructing path: "
+                + e.toString());
+        return false;
       }
-      LogUtil.d(TAG, msg.toString());
-      return shouldExtract;
+
+      if (!sysLibFile.isFile()) {
+        LogUtil.w(
+            TAG, "Allowing consideration of " + zipPath + ": " + soName + " not in system lib dir");
+        return true;
+      }
+
+      long sysLibLength = sysLibFile.length();
+      long apkLibLength = ze.getSize();
+
+      if (sysLibLength != apkLibLength) {
+        LogUtil.w(
+            TAG,
+            "Allowing consideration of "
+                + sysLibFile
+                + ": sysdir file length is "
+                + sysLibLength
+                + ", but the file is "
+                + apkLibLength
+                + " bytes long in the APK");
+        return true;
+      }
+
+      LogUtil.w(TAG, "Not allowing consideration of " + zipPath + ": deferring to libdir");
+      return false;
     }
   }
 
