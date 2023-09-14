@@ -133,29 +133,14 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     }
 
     @Override
-    public final InputDsoIterator openDsoIterator() throws IOException {
-      return new ZipBackedInputDsoIterator();
-    }
-
-    private final class ZipBackedInputDsoIterator extends InputDsoIterator {
-
-      private int mCurrentDso;
-
-      @Override
-      public boolean hasNext() {
-        getExtractableDsosFromZip();
-        return mCurrentDso < mDsos.length;
-      }
-
-      @Override
-      public InputDso next() throws IOException {
-        getExtractableDsosFromZip();
-        ZipDso zipDso = mDsos[mCurrentDso++];
+    public void unpack(File soDirectory) throws IOException {
+      byte[] ioBuffer = new byte[32 * 1024];
+      ZipDso[] dsos = getExtractableDsosFromZip();
+      for (ZipDso zipDso : dsos) {
         InputStream is = mZipFile.getInputStream(zipDso.backingEntry);
-        try {
-          InputDso ret = new InputDso(zipDso, is);
-          is = null; // Transfer ownership
-          return ret;
+        try (InputDso inputDso = new InputDso(zipDso, is)) {
+          is = null; // Transfer ownership to inputDso
+          extractDso(inputDso, ioBuffer, soDirectory);
         } finally {
           if (is != null) {
             is.close();

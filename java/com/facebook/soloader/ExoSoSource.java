@@ -19,7 +19,6 @@ package com.facebook.soloader;
 import android.content.Context;
 import com.facebook.soloader.UnpackingSoSource.Dso;
 import com.facebook.soloader.UnpackingSoSource.InputDso;
-import com.facebook.soloader.UnpackingSoSource.InputDsoIterator;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -125,29 +124,16 @@ public final class ExoSoSource extends UnpackingSoSource {
     }
 
     @Override
-    public InputDsoIterator openDsoIterator() throws IOException {
-      return new FileBackedInputDsoIterator();
-    }
-
-    private final class FileBackedInputDsoIterator extends InputDsoIterator {
-      private int mCurrentDso;
-
-      @Override
-      public boolean hasNext() {
-        return mCurrentDso < mDsos.length;
-      }
-
-      @Override
-      public InputDso next() throws IOException {
-        FileDso fileDso = mDsos[mCurrentDso++];
-        FileInputStream dsoFile = new FileInputStream(fileDso.backingFile);
-        try {
-          InputDso ret = new InputDso(fileDso, dsoFile);
-          dsoFile = null; // Ownership transferred
-          return ret;
+    public void unpack(File soDirectory) throws IOException {
+      byte[] ioBuffer = new byte[32 * 1024];
+      for (FileDso fileDso : mDsos) {
+        FileInputStream is = new FileInputStream(fileDso.backingFile);
+        try (InputDso inputDso = new InputDso(fileDso, is)) {
+          is = null; // Transfer ownership to inputDso
+          extractDso(inputDso, ioBuffer, soDirectory);
         } finally {
-          if (dsoFile != null) {
-            dsoFile.close();
+          if (is != null) {
+            is.close();
           }
         }
       }

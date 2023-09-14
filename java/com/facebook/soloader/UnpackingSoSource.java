@@ -121,29 +121,6 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  protected abstract static class InputDsoIterator implements Closeable {
-
-    public abstract boolean hasNext();
-
-    public abstract @Nullable InputDso next() throws IOException;
-
-    @Override
-    public void close() throws IOException {
-      /* By default, do nothing */
-    }
-  }
-
-  protected abstract static class Unpacker implements Closeable {
-    public abstract Dso[] getDsos() throws IOException;
-
-    public abstract InputDsoIterator openDsoIterator() throws IOException;
-
-    @Override
-    public void close() throws IOException {
-      /* By default, do nothing */
-    }
-  }
-
   private static void writeState(File stateFileName, byte state, boolean runFsync)
       throws IOException {
     try (RandomAccessFile stateFile = new RandomAccessFile(stateFileName, "rw")) {
@@ -189,69 +166,70 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  private void extractDso(InputDso iDso, byte[] ioBuffer) throws IOException {
-    LogUtil.i(TAG, "extracting DSO " + iDso.getDso().name);
-    File dsoFileName = new File(soDirectory, iDso.getDso().name);
-    if (dsoFileName.exists() && !dsoFileName.setWritable(true)) {
-      throw new IOException(
-          "error adding write permission to: "
-              + dsoFileName
-              + " under "
-              + soDirectory
-              + " (is writable: "
-              + soDirectory.canWrite()
-              + ")");
+  protected abstract static class Unpacker implements Closeable {
+    public abstract Dso[] getDsos() throws IOException;
+
+    public abstract void unpack(File soDirectory) throws IOException;
+
+    @Override
+    public void close() throws IOException {
+      // By default, do nothing
     }
 
-    RandomAccessFile dsoFile = null;
-    try {
-      try {
-        dsoFile = new RandomAccessFile(dsoFileName, "rw");
-      } catch (IOException ex) {
-        LogUtil.w(TAG, "error overwriting " + dsoFileName + " trying to delete and start over", ex);
-        SysUtil.dumbDeleteRecursive(dsoFileName); // Throws on error; not existing is okay
-        dsoFile = new RandomAccessFile(dsoFileName, "rw");
-      }
-
-      int sizeHint = iDso.available();
-      if (sizeHint > 1) {
-        SysUtil.fallocateIfSupported(dsoFile.getFD(), sizeHint);
-      }
-      SysUtil.copyBytes(dsoFile, iDso.content, Integer.MAX_VALUE, ioBuffer);
-      dsoFile.setLength(dsoFile.getFilePointer()); // In case we shortened file
-      if (!dsoFileName.setExecutable(true /* allow exec... */, false /* ...for everyone */)) {
-        throw new IOException("cannot make file executable: " + dsoFileName);
-      }
-    } catch (IOException e) {
-      LogUtil.e(TAG, "error extracting dsos: " + e);
-      SysUtil.dumbDeleteRecursive(dsoFileName);
-      throw e;
-    } finally {
-      if (dsoFile != null) {
-        dsoFile.close();
-      }
-      if (dsoFileName.exists() && !dsoFileName.setWritable(false)) {
+    public void extractDso(InputDso iDso, byte[] ioBuffer, File soDirectory) throws IOException {
+      LogUtil.i(TAG, "extracting DSO " + iDso.getDso().name);
+      File dsoFileName = new File(soDirectory, iDso.getDso().name);
+      if (dsoFileName.exists() && !dsoFileName.setWritable(true)) {
         throw new IOException(
-            "error removing "
+            "error adding write permission to: "
                 + dsoFileName
-                + " write permission from directory "
+                + " under "
                 + soDirectory
-                + " (writable: "
+                + " (is writable: "
                 + soDirectory.canWrite()
                 + ")");
       }
-    }
-  }
 
-  private void regenerate(InputDsoIterator dsoIterator) throws IOException {
-    LogUtil.v(TAG, "regenerating DSO store " + getName());
-    byte[] ioBuffer = new byte[32 * 1024];
-    while (dsoIterator.hasNext()) {
-      try (InputDso iDso = dsoIterator.next()) {
-        extractDso(iDso, ioBuffer);
+      RandomAccessFile dsoFile = null;
+      try {
+        try {
+          dsoFile = new RandomAccessFile(dsoFileName, "rw");
+        } catch (IOException ex) {
+          LogUtil.w(
+              TAG, "error overwriting " + dsoFileName + " trying to delete and start over", ex);
+          SysUtil.dumbDeleteRecursive(dsoFileName); // Throws on error; not existing is okay
+          dsoFile = new RandomAccessFile(dsoFileName, "rw");
+        }
+
+        int sizeHint = iDso.available();
+        if (sizeHint > 1) {
+          SysUtil.fallocateIfSupported(dsoFile.getFD(), sizeHint);
+        }
+        SysUtil.copyBytes(dsoFile, iDso.content, Integer.MAX_VALUE, ioBuffer);
+        dsoFile.setLength(dsoFile.getFilePointer()); // In case we shortened file
+        if (!dsoFileName.setExecutable(true /* allow exec... */, false /* ...for everyone */)) {
+          throw new IOException("cannot make file executable: " + dsoFileName);
+        }
+      } catch (IOException e) {
+        LogUtil.e(TAG, "error extracting dsos: " + e);
+        SysUtil.dumbDeleteRecursive(dsoFileName);
+        throw e;
+      } finally {
+        if (dsoFile != null) {
+          dsoFile.close();
+        }
+        if (dsoFileName.exists() && !dsoFileName.setWritable(false)) {
+          throw new IOException(
+              "error removing "
+                  + dsoFileName
+                  + " write permission from directory "
+                  + soDirectory
+                  + " (writable: "
+                  + soDirectory.canWrite()
+                  + ")");
+        }
       }
     }
-    LogUtil.v(TAG, "Finished regenerating DSO store " + getName());
   }
 
   protected MessageDigest getHashingAlgorithm() throws NoSuchAlgorithmException {
@@ -384,9 +362,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     try (Unpacker u = makeUnpacker(forceUnpacking)) {
       desiredDsos = u.getDsos();
       deleteUnmentionedFiles(desiredDsos);
-      try (InputDsoIterator idi = u.openDsoIterator()) {
-        regenerate(idi);
-      }
+      u.unpack(soDirectory);
     }
 
     if (desiredDsos == null) {
