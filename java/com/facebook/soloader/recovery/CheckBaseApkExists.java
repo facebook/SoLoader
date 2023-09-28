@@ -16,7 +16,8 @@
 
 package com.facebook.soloader.recovery;
 
-import com.facebook.soloader.ContextHolder;
+import android.content.Context;
+import com.facebook.soloader.LogUtil;
 import com.facebook.soloader.NoBaseApkException;
 import com.facebook.soloader.SoSource;
 import java.io.File;
@@ -27,17 +28,20 @@ import java.io.File;
  * tracking purposes.
  */
 public class CheckBaseApkExists implements RecoveryStrategy {
-  private final ContextHolder mContextHolder;
+  private static final String TAG = "soloader.recovery.CheckBaseApkExists";
+
+  private final Context mContext;
   private final BaseApkPathHistory mBaseApkPathHistory;
 
-  public CheckBaseApkExists(ContextHolder contextHolder, BaseApkPathHistory pathHistory) {
-    mContextHolder = contextHolder;
+  public CheckBaseApkExists(Context context, BaseApkPathHistory pathHistory) {
+    mContext = context;
     mBaseApkPathHistory = pathHistory;
   }
 
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
-    String baseApkPath = mContextHolder.get().getApplicationInfo().sourceDir;
+    String baseApkPath = mContext.getApplicationInfo().sourceDir;
+
     if (!new File(baseApkPath).exists()) {
       StringBuilder sb =
           new StringBuilder("Base apk does not exist: ").append(baseApkPath).append(". ");
@@ -45,6 +49,7 @@ public class CheckBaseApkExists implements RecoveryStrategy {
       throw new NoBaseApkException(sb.toString(), error);
     }
 
+    LogUtil.w(TAG, "Base apk exists: " + baseApkPath);
     return false;
   }
 }

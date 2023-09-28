@@ -28,9 +28,6 @@ public class BaseApkPathHistory {
   private final String[] mPaths;
 
   @GuardedBy("this")
-  private final String[] mTags;
-
-  @GuardedBy("this")
   private int mCounter;
 
   public BaseApkPathHistory(int length) {
@@ -39,15 +36,10 @@ public class BaseApkPathHistory {
     }
 
     mPaths = new String[length];
-    mTags = new String[length];
     mCounter = 0;
   }
 
-  public boolean recordPathIfNew(String path) {
-    return recordPathIfNew(path, "no tag");
-  }
-
-  public synchronized boolean recordPathIfNew(String path, String tag) {
+  public synchronized boolean recordPathIfNew(String path) {
     for (String oldPath : mPaths) {
       if (path.equals(oldPath)) {
         return false;
@@ -59,7 +51,6 @@ public class BaseApkPathHistory {
     LogUtil.w(SoLoader.TAG, sb.toString());
 
     mPaths[mCounter % mPaths.length] = path;
-    mTags[mCounter % mTags.length] = tag;
     mCounter++;
     return true;
   }
@@ -73,12 +64,9 @@ public class BaseApkPathHistory {
       int index = mCounter - i - 1;
       if (index >= 0) {
         String path = mPaths[index % mPaths.length];
-        String tag = mTags[index % mTags.length];
         sb.append("\n")
             .append(path)
             .append(" (")
-            .append(tag)
-            .append(", ")
             .append(new File(path).exists() ? "exists" : "does not exist")
             .append(")");
       }

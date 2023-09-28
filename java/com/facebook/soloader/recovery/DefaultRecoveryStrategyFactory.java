@@ -16,16 +16,16 @@
 
 package com.facebook.soloader.recovery;
 
-import com.facebook.soloader.ContextHolder;
+import android.content.Context;
 
 public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
-  private final ContextHolder mContextHolder;
+  private final Context mContext;
   private final BaseApkPathHistory mBaseApkPathHistory;
 
-  public DefaultRecoveryStrategyFactory(ContextHolder contextHolder) {
-    mContextHolder = contextHolder;
+  public DefaultRecoveryStrategyFactory(Context context) {
+    mContext = context;
     mBaseApkPathHistory = new BaseApkPathHistory(5);
-    mBaseApkPathHistory.recordPathIfNew(contextHolder.get().getApplicationInfo().sourceDir);
+    mBaseApkPathHistory.recordPathIfNew(context.getApplicationInfo().sourceDir);
   }
 
   @Override
@@ -37,10 +37,10 @@ public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
         // succeed. WaitForAsyncInit is a strategy that always succeeds, so we don't need an
         // explicit SimpleRetry.
         new WaitForAsyncInit(),
-        new RefreshContext(mContextHolder, mBaseApkPathHistory),
+        new DetectDataAppMove(mContext, mBaseApkPathHistory),
         new ReunpackApkSoSources(),
         new ReunpackNonApkSoSources(),
         new WaitForAsyncInit(),
-        new CheckBaseApkExists(mContextHolder, mBaseApkPathHistory));
+        new CheckBaseApkExists(mContext, mBaseApkPathHistory));
   }
 }

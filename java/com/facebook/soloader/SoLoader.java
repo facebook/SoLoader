@@ -100,8 +100,7 @@ public class SoLoader {
    */
   private static final ReentrantReadWriteLock sSoSourcesLock = new ReentrantReadWriteLock();
 
-  /** Mutable reference to a context aware of all the installed splits and current base apk path. */
-  /* package */ static final ContextHolder sContextHolder = new ContextHolder();
+  /* package */ static Context sApplicationContext = null;
 
   /**
    * Ordered list of sources to consult when trying to load a shared library or one of its
@@ -445,7 +444,7 @@ public class SoLoader {
       flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
     }
 
-    SoSource applicationSoSource = new ApplicationSoSource(sContextHolder.get(), flags);
+    SoSource applicationSoSource = new ApplicationSoSource(sApplicationContext, flags);
     LogUtil.d(TAG, "Adding application source: " + applicationSoSource.toString());
     soSources.add(0, applicationSoSource);
   }
@@ -554,8 +553,8 @@ public class SoLoader {
                 + context.getApplicationInfo().nativeLibraryDir);
       }
 
-      sContextHolder.set(applicationContext);
-      sRecoveryStrategyFactory = new DefaultRecoveryStrategyFactory(sContextHolder);
+      sApplicationContext = applicationContext;
+      sRecoveryStrategyFactory = new DefaultRecoveryStrategyFactory(applicationContext);
     }
 
     if (soFileLoader == null && sSoFileLoader != null) {
@@ -632,14 +631,14 @@ public class SoLoader {
         sLoadedLibraries.clear();
         sLoadingLibraries.clear();
         sSoFileLoader = null;
-        sContextHolder.set(null);
+        sApplicationContext = null;
         sRecoveryStrategyFactory = null;
       }
       setSoSources(null);
     }
 
     /* package */ static void setContext(Context context) {
-      sContextHolder.set(context);
+      sApplicationContext = context;
     }
   }
 
@@ -1078,7 +1077,7 @@ public class SoLoader {
         }
         // Load failure has not been caused by dependent libraries, the library itself was not
         // found. Print the sources and current native library directory
-        throw SoLoaderDSONotFoundError.create(soName, sContextHolder.get(), sSoSources);
+        throw SoLoaderDSONotFoundError.create(soName, sApplicationContext, sSoSources);
       } catch (IOException err) {
         // General SoLoaderULError
         SoLoaderULError error = new SoLoaderULError(soName);
