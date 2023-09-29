@@ -17,6 +17,7 @@
 package com.facebook.soloader;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.StrictMode;
 import android.text.TextUtils;
 import java.io.File;
@@ -50,8 +51,7 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
 
   public DirectApkSoSource(Context context) {
     super();
-    final String apkPath = context.getApplicationInfo().sourceDir;
-    mDirectApkLdPaths = getDirectApkLdPaths(apkPath);
+    mDirectApkLdPaths = getDirectApkLdPaths(context);
   }
 
   public DirectApkSoSource(Set<String> directApkLdPaths) {
@@ -112,23 +112,22 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
     return null;
   }
 
-  /*package*/ static Set<String> getDirectApkLdPaths(String apkPath) {
+  /*package*/ static Set<String> getDirectApkLdPaths(Context context) {
     Set<String> directApkPathSet = new HashSet<>();
-    final String classLoaderLdLibraryPath = SysUtil.getClassLoaderLdLoadLibrary();
 
-    if (classLoaderLdLibraryPath != null) {
-      final String[] paths = classLoaderLdLibraryPath.split(":");
-      for (final String path : paths) {
-        if (path.contains(".apk!/")) {
-          directApkPathSet.add(path);
-        }
-      }
+    final String apkPath = context.getApplicationInfo().sourceDir;
+    final @Nullable String fallbackApkLdPath = getFallbackApkLdPath(apkPath);
+    if (fallbackApkLdPath != null) {
+      directApkPathSet.add(fallbackApkLdPath);
     }
 
-    if (directApkPathSet.isEmpty()) {
-      final @Nullable String fallbackApkLdPath = getFallbackApkLdPath(apkPath);
-      if (fallbackApkLdPath != null) {
-        directApkPathSet.add(fallbackApkLdPath);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+        && context.getApplicationInfo().splitSourceDirs != null) {
+      for (String splitApkPath : context.getApplicationInfo().splitSourceDirs) {
+        final @Nullable String fallbackSplitApkLdPath = getFallbackApkLdPath(splitApkPath);
+        if (fallbackSplitApkLdPath != null) {
+          directApkPathSet.add(fallbackSplitApkLdPath);
+        }
       }
     }
 
@@ -137,10 +136,20 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
 
   private static @Nullable String getFallbackApkLdPath(String apkPath) {
     final String[] supportedAbis = SysUtil.getSupportedAbis();
-    if (!TextUtils.isEmpty(apkPath) && supportedAbis.length > 0) {
-      return apkPath + "!/lib/" + supportedAbis[0];
+    if (apkPath == null || apkPath.isEmpty()) {
+      LogUtil.w(
+          SoLoader.TAG,
+          "Cannot compute fallback path, apk path is " + ((apkPath == null) ? "null" : "empty"));
+      return null;
     }
-    return null;
+    if (supportedAbis == null || supportedAbis.length == 0) {
+      LogUtil.w(
+          SoLoader.TAG,
+          "Cannot compute fallback path, supportedAbis is "
+              + ((supportedAbis == null) ? "null" : "empty"));
+      return null;
+    }
+    return apkPath + "!/lib/" + supportedAbis[0];
   }
 
   private void loadDependencies(
