@@ -136,7 +136,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   }
 
   /** Delete files not mentioned in the given DSO list. */
-  private void deleteUnmentionedFiles(Dso[] dsos) throws IOException {
+  protected void deleteUnmentionedFiles(Dso[] dsos) throws IOException {
     String[] existingFiles = soDirectory.list();
     if (existingFiles == null) {
       throw new IOException("unable to list directory " + soDirectory);
@@ -169,6 +169,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   protected abstract static class Unpacker implements Closeable {
     public abstract Dso[] getDsos() throws IOException;
 
+    /* Unpacks to soDirectory and removes existing outdated libs */
     public abstract void unpack(File soDirectory) throws IOException;
 
     @Override
@@ -358,15 +359,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     final boolean runFsync = ((flags & PREPARE_FLAG_DISABLE_FS_SYNC_JOB) == 0);
     LogUtil.v(TAG, "so store dirty: regenerating");
     writeState(stateFileName, STATE_DIRTY, runFsync);
-    Dso[] desiredDsos = null;
     try (Unpacker u = makeUnpacker(forceUnpacking)) {
-      desiredDsos = u.getDsos();
-      deleteUnmentionedFiles(desiredDsos);
       u.unpack(soDirectory);
-    }
-
-    if (desiredDsos == null) {
-      return false; // No sync needed
     }
 
     // N.B. We can afford to write the deps file without fsyncs because we've marked the DSO
