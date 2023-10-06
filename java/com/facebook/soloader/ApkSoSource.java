@@ -60,6 +60,12 @@ public class ApkSoSource extends ExtractFromZipSoSource {
     return "ApkSoSource";
   }
 
+  public boolean hasZippedLibs() throws IOException {
+    try (ApkUnpacker u = new ApkUnpacker(this, false)) {
+      return u.computeDsosFromZip().length != 0;
+    }
+  }
+
   @Override
   protected Unpacker makeUnpacker(boolean forceUnpacking) throws IOException {
     return new ApkUnpacker(this, forceUnpacking);

@@ -476,7 +476,8 @@ public class SoLoader {
   }
 
   private static void addBackupSoSourceFromSplitApk(
-      Context context, int apkSoSourceFlags, ArrayList<UnpackingSoSource> backupSources) {
+      Context context, int apkSoSourceFlags, ArrayList<UnpackingSoSource> backupSources)
+      throws IOException {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
         && context.getApplicationInfo().splitSourceDirs != null) {
       LogUtil.d(TAG, "adding backup sources from split apks");
@@ -489,7 +490,9 @@ public class SoLoader {
                 SO_STORE_NAME_SPLIT + (splitIndex++),
                 apkSoSourceFlags);
         LogUtil.d(TAG, "adding backup source: " + splitApkSource.toString());
-        backupSources.add(splitApkSource);
+        if (splitApkSource.hasZippedLibs()) {
+          backupSources.add(splitApkSource);
+        }
       }
     }
   }
