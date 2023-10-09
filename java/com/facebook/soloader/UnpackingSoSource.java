@@ -37,20 +37,20 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   private static final String TAG = "fb-UnpackingSoSource";
 
   /** File that contains state information (STATE_DIRTY or STATE_CLEAN). */
-  private static final String STATE_FILE_NAME = "dso_state";
+  protected static final String STATE_FILE_NAME = "dso_state";
 
   /**
    * File used to synchronize changes in the dso store. For example, it is helpful to acquire this
    * lock to wait for other unpacking sources.
    */
-  private static final String LOCK_FILE_NAME = "dso_lock";
+  protected static final String LOCK_FILE_NAME = "dso_lock";
 
   /**
    * File containing an opaque blob of bytes that represents all the dependencies of a SoSource. For
    * example for a plain ExtractFromZipSource you'd have a simple list of (name, hash) pairs like
    * (com.facebook.soloader.ExtractFromZipSoSource$ZipDso@9d65e11a,pseudo-zip-hash-1-lib/arm64-v8a/foo-64.so-7720-1820-260126021)
    */
-  private static final String DEPS_FILE_NAME = "dso_deps";
+  protected static final String DEPS_FILE_NAME = "dso_deps";
 
   private static final byte STATE_DIRTY = 0;
   private static final byte STATE_CLEAN = 1;
