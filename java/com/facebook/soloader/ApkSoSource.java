@@ -132,7 +132,7 @@ public class ApkSoSource extends ExtractFromZipSoSource {
       File sysLibFile = new File(mLibDir, soName);
       try {
         if (!sysLibFile.getCanonicalPath().startsWith(mLibDir.getCanonicalPath())) {
-          LogUtil.w(
+          LogUtil.d(
               TAG, "Not allowing consideration of " + zipPath + ": " + soName + " not in lib dir.");
           return false;
         }

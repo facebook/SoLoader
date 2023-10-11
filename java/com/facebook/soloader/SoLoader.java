@@ -1083,7 +1083,7 @@ public class SoLoader {
         throw SoLoaderDSONotFoundError.create(soName, sApplicationContext, sSoSources);
       } catch (IOException err) {
         // General SoLoaderULError
-        SoLoaderULError error = new SoLoaderULError(soName);
+        SoLoaderULError error = new SoLoaderULError(soName, err.toString());
         error.initCause(err);
         throw error;
       } finally {

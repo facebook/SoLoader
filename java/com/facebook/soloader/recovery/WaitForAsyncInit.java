@@ -40,7 +40,7 @@ public class WaitForAsyncInit implements RecoveryStrategy {
     for (SoSource soSource : soSources) {
       if (soSource instanceof AsyncInitSoSource) {
         AsyncInitSoSource source = (AsyncInitSoSource) soSource;
-        LogUtil.e(SoLoader.TAG, "Waiting on SoSource " + source.getClass().getName());
+        LogUtil.e(SoLoader.TAG, "Waiting on SoSource " + soSource.getName());
         source.waitUntilInitCompleted();
       }
     }
