@@ -858,6 +858,7 @@ public class SoLoader {
       try {
         return loadLibraryBySoNameImpl(soName, shortName, mergedLibName, loadFlags, oldPolicy);
       } catch (UnsatisfiedLinkError e) {
+        LogUtil.w(TAG, "Starting recovery for " + soName, e);
         sSoSourcesLock.writeLock().lock();
         try {
           if (recovery == null) {
@@ -865,6 +866,7 @@ public class SoLoader {
           }
           if (recovery != null && recovery.recover(e, sSoSources)) {
             sSoSourcesVersion.getAndIncrement();
+            LogUtil.w(TAG, "Attempting to load library again");
             continue;
           }
         } catch (NoBaseApkException noBaseApkException) {
@@ -884,6 +886,7 @@ public class SoLoader {
         }
 
         // No recovery mechanism worked, throwing initial error
+        LogUtil.w(TAG, "Failed to recover");
         throw e;
       }
     }
