@@ -170,6 +170,10 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
 
   @Override
   protected void prepare(int flags) throws IOException {
+    prepare();
+  }
+
+  private void prepare() throws IOException {
     String subDir = null;
     for (String directApkLdPath : mDirectApkLdPaths) {
       if (!TextUtils.isEmpty(directApkLdPath)) {
@@ -271,6 +275,12 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
 
   @Override
   public SoSource recover(Context context) {
-    return new DirectApkSoSource(context);
+    DirectApkSoSource recovered = new DirectApkSoSource(context);
+    try {
+      recovered.prepare();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return recovered;
   }
 }
