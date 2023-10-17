@@ -152,9 +152,6 @@ public class SoLoader {
   /** Name of the directory we use for extracted DSOs from split APKs */
   private static final String SO_STORE_NAME_SPLIT = "lib-";
 
-  private static final String[] DEFAULT_DENY_LIST =
-      new String[] {System.mapLibraryName("breakpad")};
-
   /** Enable the exopackage SoSource. */
   public static final int SOLOADER_ENABLE_EXOPACKAGE = (1 << 0);
 
@@ -231,12 +228,7 @@ public class SoLoader {
   }
 
   public static void init(Context context, int flags) throws IOException {
-    init(context, flags, null, DEFAULT_DENY_LIST);
-  }
-
-  public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
-      throws IOException {
-    init(context, flags, soFileLoader, DEFAULT_DENY_LIST);
+    init(context, flags, null);
   }
 
   /**
@@ -247,11 +239,9 @@ public class SoLoader {
    * @param context application context
    * @param flags Zero or more of the SOLOADER_* flags
    * @param soFileLoader the custom {@link SoFileLoader}, you can implement your own loader
-   * @param denyList Skip load libs from system soSource, due to the linker namespace restriction
    * @throws IOException IOException
    */
-  public static void init(
-      Context context, int flags, @Nullable SoFileLoader soFileLoader, String[] denyList)
+  public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
       throws IOException {
     if (isInitialized()) {
       LogUtil.w(TAG, "SoLoader already initialized");
@@ -271,7 +261,7 @@ public class SoLoader {
         }
 
         initSoLoader(context, soFileLoader);
-        initSoSources(context, flags, denyList);
+        initSoSources(context, flags);
         LogUtil.v(TAG, "Init SoLoader delegate");
         NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
       } else {
@@ -294,7 +284,7 @@ public class SoLoader {
    */
   public static void init(Context context, boolean nativeExopackage) {
     try {
-      init(context, nativeExopackage ? SOLOADER_ENABLE_EXOPACKAGE : 0, null, DEFAULT_DENY_LIST);
+      init(context, nativeExopackage ? SOLOADER_ENABLE_EXOPACKAGE : 0, null);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
@@ -331,8 +321,7 @@ public class SoLoader {
     return (null == metaData || metaData.getBoolean(name, true));
   }
 
-  private static void initSoSources(Context context, int flags, String[] denyList)
-      throws IOException {
+  private static void initSoSources(Context context, int flags) throws IOException {
     if (sSoSources != null) {
       return;
     }
@@ -347,7 +336,7 @@ public class SoLoader {
       sFlags = flags;
 
       ArrayList<SoSource> soSources = new ArrayList<>();
-      addSystemLibSoSource(soSources, denyList);
+      addSystemLibSoSource(soSources);
 
       // We can only proceed forward if we have a Context. The prominent case
       // where we don't have a Context is barebones dalvikvm instantiations. In
@@ -501,9 +490,8 @@ public class SoLoader {
    * Add SoSource objects for each of the system library directories.
    *
    * @param soSources target soSource list
-   * @param denyList Skip load libs from current soSource, due to the linker namespace restriction
    */
-  private static void addSystemLibSoSource(ArrayList<SoSource> soSources, String[] denyList) {
+  private static void addSystemLibSoSource(ArrayList<SoSource> soSources) {
     String systemLibPaths =
         SysUtil.is64Bit() ? "/system/lib64:/vendor/lib64" : "/system/lib:/vendor/lib";
 
@@ -519,8 +507,7 @@ public class SoLoader {
       // these libraries have on each other, so doing that ourselves would be a waste.
       LogUtil.d(TAG, "adding system library source: " + libPath);
       File systemSoDirectory = new File(libPath);
-      soSources.add(
-          new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH, denyList));
+      soSources.add(new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
     }
   }
 
