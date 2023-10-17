@@ -358,7 +358,7 @@ public class SoLoader {
             addDirectApkSoSource(context, soSources);
           }
           addApplicationSoSource(soSources, getApplicationSoSourceFlags());
-          addBackupSoSource(context, soSources, ApkSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
+          addBackupSoSource(context, soSources, BackupSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
         }
       }
 
@@ -440,7 +440,7 @@ public class SoLoader {
 
   /** Add the SoSources for recovering the dso if the file is corrupted or missed */
   private static void addBackupSoSource(
-      Context context, ArrayList<SoSource> soSources, int apkSoSourceFlags) throws IOException {
+      Context context, ArrayList<SoSource> soSources, int backupSoSourceFlags) throws IOException {
     if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
       // Clean up backups
       final File backupDir = UnpackingSoSource.getSoStorePath(context, SO_STORE_NAME_MAIN);
@@ -454,30 +454,30 @@ public class SoLoader {
 
     final File mainApkDir = new File(context.getApplicationInfo().sourceDir);
     ArrayList<UnpackingSoSource> backupSources = new ArrayList<>();
-    ApkSoSource mainApkSource =
-        new ApkSoSource(context, mainApkDir, SO_STORE_NAME_MAIN, apkSoSourceFlags);
+    BackupSoSource mainApkSource =
+        new BackupSoSource(context, mainApkDir, SO_STORE_NAME_MAIN, backupSoSourceFlags);
     backupSources.add(mainApkSource);
     LogUtil.d(TAG, "adding backup source from : " + mainApkSource.toString());
 
-    addBackupSoSourceFromSplitApk(context, apkSoSourceFlags, backupSources);
+    addBackupSoSourceFromSplitApk(context, backupSoSourceFlags, backupSources);
 
     soSources.addAll(0, backupSources);
   }
 
   private static void addBackupSoSourceFromSplitApk(
-      Context context, int apkSoSourceFlags, ArrayList<UnpackingSoSource> backupSources)
+      Context context, int backupSoSourceFlags, ArrayList<UnpackingSoSource> backupSources)
       throws IOException {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
         && context.getApplicationInfo().splitSourceDirs != null) {
       LogUtil.d(TAG, "adding backup sources from split apks");
       int splitIndex = 0;
       for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
-        ApkSoSource splitApkSource =
-            new ApkSoSource(
+        BackupSoSource splitApkSource =
+            new BackupSoSource(
                 context,
                 new File(splitApkDir),
                 SO_STORE_NAME_SPLIT + (splitIndex++),
-                apkSoSourceFlags);
+                backupSoSourceFlags);
         LogUtil.d(TAG, "adding backup source: " + splitApkSource.toString());
         if (splitApkSource.hasZippedLibs()) {
           backupSources.add(splitApkSource);

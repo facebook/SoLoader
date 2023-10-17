@@ -16,19 +16,21 @@
 
 package com.facebook.soloader.recovery;
 
-import com.facebook.soloader.ApkSoSource;
+import com.facebook.soloader.BackupSoSource;
 import com.facebook.soloader.LogUtil;
 import com.facebook.soloader.SoLoader;
 import com.facebook.soloader.SoLoaderDSONotFoundError;
 import com.facebook.soloader.SoLoaderULError;
 import com.facebook.soloader.SoSource;
-import com.facebook.soloader.UnpackingSoSource;
 
 /**
  * RecoveryStrategy that detects cases when SoLoader failed to load a corrupted library, case in
- * which we try to re-unpack the libraries.
+ * which we try to re-unpack the libraries. Only for BackupSoSources
+ *
+ * <p>Guards against a known Android OS bug where the installer incorrectly unpacks libraries under
+ * /data/app
  */
-public class ReunpackNonApkSoSources implements RecoveryStrategy {
+public class ReunpackBackupSoSources implements RecoveryStrategy {
 
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
@@ -43,34 +45,36 @@ public class ReunpackNonApkSoSources implements RecoveryStrategy {
     }
 
     SoLoaderULError err = (SoLoaderULError) error;
-    String soName = err.getSoName();
+    String message = err.getMessage();
+    if (message == null || !message.contains("/data/app")) {
+      // Do not attempt to recovery if the DSO wasn't in the data/app directory
+      return false;
+    }
 
+    String soName = err.getSoName();
     LogUtil.e(
         SoLoader.TAG,
-        "Reunpacking NonApk UnpackingSoSources due to "
+        "Reunpacking BackupSoSources due to "
             + error
             + ((soName == null) ? "" : (", retrying for specific library " + soName)));
 
     for (SoSource soSource : soSources) {
-      if (!(soSource instanceof UnpackingSoSource)) {
+      if (!(soSource instanceof BackupSoSource)) {
+        // NonApk SoSources get reunpacked in ReunpackNonBackupSoSource recovery strategy
         continue;
       }
-      UnpackingSoSource uss = (UnpackingSoSource) soSource;
-      if (uss instanceof ApkSoSource) {
-        // Assume ReunpackApkSoSources has already attempted to reunpack ApkSoSources
-        continue;
-      }
+      BackupSoSource backupSoSource = (BackupSoSource) soSource;
       try {
-        LogUtil.e(SoLoader.TAG, "Runpacking " + uss.getName());
-        uss.prepareForceRefresh();
+        LogUtil.e(SoLoader.TAG, "Runpacking BackupSoSource " + backupSoSource.getName());
+        backupSoSource.prepareForceRefresh();
       } catch (Exception e) {
         // Catch a general error and log it, rather than failing during recovery and crashing the
         // app
         // in a different way.
         LogUtil.e(
             SoLoader.TAG,
-            "Encountered an exception while reunpacking "
-                + uss.getName()
+            "Encountered an exception while reunpacking BackupSoSource "
+                + backupSoSource.getName()
                 + " for library "
                 + soName
                 + ": ",

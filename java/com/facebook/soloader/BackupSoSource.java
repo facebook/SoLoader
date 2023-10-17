@@ -22,10 +22,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.zip.ZipEntry;
 
-/** {@link SoSource} that extracts libraries from an APK to the filesystem. */
-public class ApkSoSource extends ExtractFromZipSoSource {
+/**
+ * {@link SoSource} that extracts zipped libraries from an APK to the filesystem. This is a
+ * workaround for a known OS bug where the unpacking of non-asset zipped libraries at install time
+ * results in corrupted libraries (e.g. bad elf magic, or truncated files).
+ */
+public class BackupSoSource extends ExtractFromZipSoSource {
 
-  private static final String TAG = "ApkSoSource";
+  private static final String TAG = "BackupSoSource";
 
   /**
    * If this flag is given, do not extract libraries that appear to be correctly extracted to the
@@ -40,11 +44,11 @@ public class ApkSoSource extends ExtractFromZipSoSource {
 
   private final int mFlags;
 
-  public ApkSoSource(Context context, String name, int flags) {
+  public BackupSoSource(Context context, String name, int flags) {
     this(context, new File(context.getApplicationInfo().sourceDir), name, flags);
   }
 
-  public ApkSoSource(Context context, File apkPath, String name, int flags) {
+  public BackupSoSource(Context context, File apkPath, String name, int flags) {
     super(
         context,
         name,
@@ -57,7 +61,7 @@ public class ApkSoSource extends ExtractFromZipSoSource {
 
   @Override
   public String getName() {
-    return "ApkSoSource";
+    return "BackupSoSource";
   }
 
   public boolean hasZippedLibs() throws IOException {
@@ -81,7 +85,7 @@ public class ApkSoSource extends ExtractFromZipSoSource {
       super(soSource);
       mForceUnpacking = forceUnpacking;
       mLibDir = new File(mContext.getApplicationInfo().nativeLibraryDir);
-      mFlags = ApkSoSource.this.mFlags;
+      mFlags = BackupSoSource.this.mFlags;
     }
 
     @Override
