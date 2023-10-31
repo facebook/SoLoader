@@ -246,15 +246,8 @@ public final class SysUtil {
       return android.os.Process.is64Bit();
     }
 
-    public static boolean isSupportedDirectLoad(@Nullable Context context, int appType)
-        throws IOException {
+    public static boolean isSupportedDirectLoad(@Nullable Context context, int appType) {
       if (appType == SoLoader.AppType.SYSTEM_APP) {
-        if (context != null && context.getApplicationContext() != null) {
-          // Ideally, system_app permanently stores dso files uncompressed and page-aligned, even
-          // with FLAG_EXTRACT_NATIVE_LIBS flag. But to support a specific Oculus's sideload method,
-          // we need this extra checking. ref: D27831042
-          return isApkUncompressedDso(context);
-        }
         return true;
       } else {
         return isDisabledExtractNativeLibs(context);
@@ -416,8 +409,7 @@ public final class SysUtil {
     return is64bit;
   }
 
-  public static boolean isSupportedDirectLoad(@Nullable Context context, int appType)
-      throws IOException {
+  public static boolean isSupportedDirectLoad(@Nullable Context context, int appType) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       // Android starts to support directly loading from API 23.
       // https://android.googlesource.com/platform/bionic/+/master/android-changes-for-ndk-developers.md#opening-shared-libraries-directly-from-an-apk
