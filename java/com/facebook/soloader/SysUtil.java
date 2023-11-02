@@ -249,6 +249,10 @@ public final class SysUtil {
     public static boolean isSupportedDirectLoad(@Nullable Context context, int appType) {
       if (appType == SoLoader.AppType.SYSTEM_APP) {
         return true;
+      } else if (appType == SoLoader.AppType.UPDATED_SYSTEM_APP) {
+        final @Nullable String ldpath = SysUtil.getClassLoaderLdLoadLibrary();
+        return (ldpath != null && ldpath.contains(".apk!/"))
+            || isDisabledExtractNativeLibs(context);
       } else {
         return isDisabledExtractNativeLibs(context);
       }
