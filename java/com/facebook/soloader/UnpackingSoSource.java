@@ -173,28 +173,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     public void extractDso(InputDso iDso, byte[] ioBuffer, File soDirectory) throws IOException {
       LogUtil.i(TAG, "extracting DSO " + iDso.getDso().name);
       File dsoFileName = new File(soDirectory, iDso.getDso().name);
-      if (dsoFileName.exists() && !dsoFileName.setWritable(true)) {
-        throw new IOException(
-            "error adding write permission to: "
-                + dsoFileName
-                + " under "
-                + soDirectory
-                + " (is writable: "
-                + soDirectory.canWrite()
-                + ")");
-      }
-
-      RandomAccessFile dsoFile = null;
-      try {
-        try {
-          dsoFile = new RandomAccessFile(dsoFileName, "rw");
-        } catch (IOException ex) {
-          LogUtil.w(
-              TAG, "error overwriting " + dsoFileName + " trying to delete and start over", ex);
-          SysUtil.dumbDelete(dsoFileName); // Throws on error; not existing is okay
-          dsoFile = new RandomAccessFile(dsoFileName, "rw");
-        }
-
+      try (RandomAccessFile dsoFile = new RandomAccessFile(dsoFileName, "rw")) {
         int sizeHint = iDso.available();
         if (sizeHint > 1) {
           SysUtil.fallocateIfSupported(dsoFile.getFD(), sizeHint);
@@ -205,16 +184,14 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
           throw new IOException("cannot make file executable: " + dsoFileName);
         }
       } catch (IOException e) {
-        LogUtil.e(TAG, "error extracting dsos: " + e);
+        LogUtil.e(TAG, "error extracting dso  " + dsoFileName + " due to: " + e);
         SysUtil.dumbDelete(dsoFileName);
         throw e;
       } finally {
-        if (dsoFile != null) {
-          dsoFile.close();
-        }
         if (dsoFileName.exists() && !dsoFileName.setWritable(false)) {
-          throw new IOException(
-              "error removing "
+          LogUtil.e(
+              SoLoader.TAG,
+              "Error removing "
                   + dsoFileName
                   + " write permission from directory "
                   + soDirectory
