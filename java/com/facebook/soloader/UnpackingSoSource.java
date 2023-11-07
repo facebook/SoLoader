@@ -21,6 +21,7 @@ import android.os.Parcel;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -135,32 +136,24 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  /** Delete files not mentioned in the given DSO list. */
-  protected void deleteUnmentionedFiles(Dso[] dsos) throws IOException {
-    String[] existingFiles = soDirectory.list();
+  /** Delete all SO files from directory. */
+  private void deleteSoFiles() throws IOException {
+    FilenameFilter soFilter =
+        new FilenameFilter() {
+          @Override
+          public boolean accept(File dir, String name) {
+            return !name.equals(STATE_FILE_NAME)
+                && !name.equals(LOCK_FILE_NAME)
+                && !name.equals(DEPS_FILE_NAME);
+          }
+        };
+
+    File[] existingFiles = soDirectory.listFiles(soFilter);
     if (existingFiles == null) {
       throw new IOException("unable to list directory " + soDirectory);
     }
 
-    for (String fileName : existingFiles) {
-      if (fileName.equals(STATE_FILE_NAME)
-          || fileName.equals(LOCK_FILE_NAME)
-          || fileName.equals(DEPS_FILE_NAME)) {
-        continue;
-      }
-
-      boolean found = false;
-      for (Dso dso : dsos) {
-        if (dso.name.equals(fileName)) {
-          found = true;
-          break;
-        }
-      }
-      if (found) {
-        continue;
-      }
-
-      File fileNameToDelete = new File(soDirectory, fileName);
+    for (File fileNameToDelete : existingFiles) {
       LogUtil.v(TAG, "Deleting " + fileNameToDelete);
       SysUtil.dumbDelete(fileNameToDelete);
     }
@@ -359,6 +352,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     final boolean runFsync = ((flags & PREPARE_FLAG_DISABLE_FS_SYNC_JOB) == 0);
     LogUtil.v(TAG, "so store dirty: regenerating");
     writeState(stateFileName, STATE_DIRTY, runFsync);
+    deleteSoFiles();
     try (Unpacker u = makeUnpacker(forceUnpacking)) {
       u.unpack(soDirectory);
     }

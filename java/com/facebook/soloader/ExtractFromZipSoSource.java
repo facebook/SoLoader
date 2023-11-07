@@ -134,9 +134,8 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
     @Override
     public void unpack(File soDirectory) throws IOException {
-      byte[] ioBuffer = new byte[32 * 1024];
       ZipDso[] dsos = getExtractableDsosFromZip();
-      deleteUnmentionedFiles(dsos);
+      byte[] ioBuffer = new byte[32 * 1024];
       for (ZipDso zipDso : dsos) {
         InputStream is = mZipFile.getInputStream(zipDso.backingEntry);
         try (InputDso inputDso = new InputDso(zipDso, is)) {

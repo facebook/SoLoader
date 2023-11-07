@@ -126,7 +126,6 @@ public final class ExoSoSource extends UnpackingSoSource {
     @Override
     public void unpack(File soDirectory) throws IOException {
       byte[] ioBuffer = new byte[32 * 1024];
-      deleteUnmentionedFiles(mDsos);
       for (FileDso fileDso : mDsos) {
         FileInputStream is = new FileInputStream(fileDso.backingFile);
         try (InputDso inputDso = new InputDso(fileDso, is)) {
