@@ -445,7 +445,7 @@ public class SoLoader {
       // Clean up backups
       final File backupDir = UnpackingSoSource.getSoStorePath(context, SO_STORE_NAME_MAIN);
       try {
-        SysUtil.dumbDeleteRecursive(backupDir);
+        SysUtil.dumbDelete(backupDir);
       } catch (IOException e) {
         LogUtil.w(TAG, "Failed to delete " + backupDir.getCanonicalPath(), e);
       }

@@ -40,6 +40,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.Stack;
 import java.util.TreeSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -126,19 +127,29 @@ public final class SysUtil {
    * @param file File or directory to delete
    * @throws IOException IOException
    */
-  public static void dumbDeleteRecursive(File file) throws IOException {
-    if (file.isDirectory()) {
-      File[] fileList = file.listFiles();
+  public static void dumbDelete(File file) throws IOException {
+    Stack<File> filesStack = new Stack<>();
+    filesStack.push(file);
+    ArrayList<File> dirsToDelete = new ArrayList<>();
+    while (!filesStack.isEmpty()) {
+      File currentFile = filesStack.pop();
+      if (!currentFile.isDirectory()) {
+        deleteOrThrow(currentFile);
+        continue;
+      }
+      dirsToDelete.add(currentFile);
+      File[] fileList = currentFile.listFiles();
       if (fileList == null) {
-        // If file is not a directory, listFiles() will return null
-        return;
+        continue;
       }
       for (File entry : fileList) {
-        dumbDeleteRecursive(entry);
+        filesStack.push(entry);
       }
     }
 
-    deleteOrThrow(file);
+    for (int i = dirsToDelete.size() - 1; i >= 0; --i) {
+      deleteOrThrow(dirsToDelete.get(i));
+    }
   }
 
   /**

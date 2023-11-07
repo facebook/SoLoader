@@ -161,8 +161,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       }
 
       File fileNameToDelete = new File(soDirectory, fileName);
-      LogUtil.v(TAG, "deleting unaccounted-for file " + fileNameToDelete);
-      SysUtil.dumbDeleteRecursive(fileNameToDelete);
+      LogUtil.v(TAG, "Deleting " + fileNameToDelete);
+      SysUtil.dumbDelete(fileNameToDelete);
     }
   }
 
@@ -198,7 +198,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
         } catch (IOException ex) {
           LogUtil.w(
               TAG, "error overwriting " + dsoFileName + " trying to delete and start over", ex);
-          SysUtil.dumbDeleteRecursive(dsoFileName); // Throws on error; not existing is okay
+          SysUtil.dumbDelete(dsoFileName); // Throws on error; not existing is okay
           dsoFile = new RandomAccessFile(dsoFileName, "rw");
         }
 
@@ -213,7 +213,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
         }
       } catch (IOException e) {
         LogUtil.e(TAG, "error extracting dsos: " + e);
-        SysUtil.dumbDeleteRecursive(dsoFileName);
+        SysUtil.dumbDelete(dsoFileName);
         throw e;
       } finally {
         if (dsoFile != null) {
