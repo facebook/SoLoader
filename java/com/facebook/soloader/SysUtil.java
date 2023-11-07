@@ -35,7 +35,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
-import java.io.SyncFailedException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -329,23 +328,27 @@ public final class SysUtil {
     return bytesCopied;
   }
 
-  public static void fsyncRecursive(File fileName) throws IOException {
-    if (fileName.isDirectory()) {
-      File[] files = fileName.listFiles();
-      if (files == null) {
-        throw new IOException("cannot list directory " + fileName);
-      }
-      for (int i = 0; i < files.length; ++i) {
-        fsyncRecursive(files[i]);
-      }
-    } else if (fileName.getPath().endsWith("_lock")) {
-      /* Do not sync! Any close(2) of a locked file counts as releasing the file for the whole
-       * process! */
-    } else {
-      try (RandomAccessFile file = new RandomAccessFile(fileName, "r")) {
-        file.getFD().sync();
-      } catch (SyncFailedException e) {
-        LogUtil.e(TAG, "Syncing failed for " + fileName + ": " + e.getMessage());
+  public static void fsyncAll(File fileName) throws IOException {
+    Stack<File> filesStack = new Stack<>();
+    filesStack.push(fileName);
+    while (!filesStack.isEmpty()) {
+      File currentFile = filesStack.pop();
+      if (currentFile.isDirectory()) {
+        File[] fileList = currentFile.listFiles();
+        if (fileList == null) {
+          throw new IOException("cannot list directory " + currentFile);
+        }
+        for (File entry : fileList) {
+          filesStack.push(entry);
+        }
+      } else if (!currentFile.getPath().endsWith("_lock")) {
+        // Do not sync! Any close(2) of a locked file counts as releasing the file for the whole
+        // process!
+        try (RandomAccessFile file = new RandomAccessFile(currentFile, "r")) {
+          file.getFD().sync();
+        } catch (IOException e) {
+          LogUtil.e(TAG, "Syncing failed for " + currentFile + ": " + e.getMessage());
+        }
       }
     }
   }

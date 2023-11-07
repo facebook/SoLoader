@@ -87,7 +87,7 @@ public final class NativeDepsUnpacker {
 
       extractNativeDeps(context);
       writeApkIdentifier(context, dir);
-      SysUtil.fsyncRecursive(dir);
+      SysUtil.fsyncAll(dir);
 
       writeState(dir, STATE_CLEAN);
     }

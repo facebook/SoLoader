@@ -387,7 +387,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
             try {
               try {
                 if (runFsync) {
-                  SysUtil.fsyncRecursive(soDirectory);
+                  SysUtil.fsyncAll(soDirectory);
                 }
                 writeState(stateFileName, STATE_CLEAN, runFsync);
               } finally {
