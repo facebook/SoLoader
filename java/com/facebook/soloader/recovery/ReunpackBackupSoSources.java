@@ -46,7 +46,7 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
 
     SoLoaderULError err = (SoLoaderULError) error;
     String message = err.getMessage();
-    if (message == null || !message.contains("/data/app")) {
+    if (message == null || (!message.contains("/app/") && !message.contains("/mnt/"))) {
       // Do not attempt to recovery if the DSO wasn't in the data/app directory
       return false;
     }
