@@ -184,7 +184,7 @@ public class SoLoader {
    * In API level 23 and above, it’s possible to open a .so file directly from your APK. Enabling
    * this flag will explicitly add the direct SoSource in soSource list.
    */
-  public static final int SOLOADER_ENABLE_DIRECT_SOSOURCE = (1 << 6);
+  @Deprecated public static final int SOLOADER_ENABLE_DIRECT_SOSOURCE = (1 << 6);
 
   /**
    * For compatibility, we need explicitly enable the backup soSource. This flag conflicts with
@@ -257,7 +257,7 @@ public class SoLoader {
         if ((flags & SOLOADER_EXPLICITLY_ENABLE_BACKUP_SOSOURCE) == 0
             && SysUtil.isSupportedDirectLoad(context, sAppType)) {
           // SoLoader doesn't need backup soSource if it supports directly loading .so file from APK
-          flags |= (SOLOADER_DISABLE_BACKUP_SOSOURCE | SOLOADER_ENABLE_DIRECT_SOSOURCE);
+          flags |= SOLOADER_DISABLE_BACKUP_SOSOURCE;
         }
 
         initSoLoader(context, soFileLoader);
@@ -354,7 +354,7 @@ public class SoLoader {
           LogUtil.d(TAG, "Adding exo package source: " + SO_STORE_NAME_MAIN);
           soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
         } else {
-          if ((flags & SOLOADER_ENABLE_DIRECT_SOSOURCE) != 0) {
+          if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
             addDirectApkSoSource(context, soSources);
           }
           addApplicationSoSource(soSources, getApplicationSoSourceFlags());
