@@ -195,6 +195,13 @@ public class SoLoader {
   /** Experiment ONLY: disable the fsync job in soSource */
   public static final int SOLOADER_DISABLE_FS_SYNC_JOB = (1 << 8);
 
+  /**
+   * Experiment ONLY: use the {@link SystemLoadWrapperSoSource} to instead of the
+   * directApk/Application soSource. This could work on the apps w/o superpack or any other so file
+   * compression.
+   */
+  public static final int SOLOADER_ENABLE_SYSTEMLOAD_WRAPPER_SOSOURCE = (1 << 9);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -336,29 +343,35 @@ public class SoLoader {
       sFlags = flags;
 
       ArrayList<SoSource> soSources = new ArrayList<>();
-      addSystemLibSoSource(soSources);
+      final boolean isEnabledSystemLoadWrapper =
+          (flags & SOLOADER_ENABLE_SYSTEMLOAD_WRAPPER_SOSOURCE) != 0;
+      if (isEnabledSystemLoadWrapper) {
+        addSystemLoadWrapperSoSource(context, soSources);
+      } else {
+        addSystemLibSoSource(soSources);
 
-      // We can only proceed forward if we have a Context. The prominent case
-      // where we don't have a Context is barebones dalvikvm instantiations. In
-      // that case, the caller is responsible for providing a correct LD_LIBRARY_PATH.
+        // We can only proceed forward if we have a Context. The prominent case
+        // where we don't have a Context is barebones dalvikvm instantiations. In
+        // that case, the caller is responsible for providing a correct LD_LIBRARY_PATH.
 
-      if (context != null) {
-        // Prepend our own SoSource for our own DSOs.
+        if (context != null) {
+          // Prepend our own SoSource for our own DSOs.
 
-        if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
-          // Even for an exopackage, there might be some native libraries
-          // packaged directly in the application (e.g. ASAN libraries alongside
-          // a wrap.sh script [1]), so make sure we can load them.
-          // [1] https://developer.android.com/ndk/guides/wrap-script
-          addApplicationSoSource(soSources, getApplicationSoSourceFlags());
-          LogUtil.d(TAG, "Adding exo package source: " + SO_STORE_NAME_MAIN);
-          soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
-        } else {
-          if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
-            addDirectApkSoSource(context, soSources);
+          if ((flags & SOLOADER_ENABLE_EXOPACKAGE) != 0) {
+            // Even for an exopackage, there might be some native libraries
+            // packaged directly in the application (e.g. ASAN libraries alongside
+            // a wrap.sh script [1]), so make sure we can load them.
+            // [1] https://developer.android.com/ndk/guides/wrap-script
+            addApplicationSoSource(soSources, getApplicationSoSourceFlags());
+            LogUtil.d(TAG, "Adding exo package source: " + SO_STORE_NAME_MAIN);
+            soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
+          } else {
+            if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
+              addDirectApkSoSource(context, soSources);
+            }
+            addApplicationSoSource(soSources, getApplicationSoSourceFlags());
+            addBackupSoSource(context, soSources, BackupSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
           }
-          addApplicationSoSource(soSources, getApplicationSoSourceFlags());
-          addBackupSoSource(context, soSources, BackupSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
         }
       }
 
@@ -509,6 +522,12 @@ public class SoLoader {
       File systemSoDirectory = new File(libPath);
       soSources.add(new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
     }
+  }
+
+  private static void addSystemLoadWrapperSoSource(Context context, ArrayList<SoSource> soSources) {
+    SystemLoadWrapperSoSource systemLoadWrapperSoSource = new SystemLoadWrapperSoSource();
+    LogUtil.d(TAG, "adding systemLoadWrapper source: " + systemLoadWrapperSoSource);
+    soSources.add(0, systemLoadWrapperSoSource);
   }
 
   private static int makePrepareFlags() {
