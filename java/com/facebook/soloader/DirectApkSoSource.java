@@ -115,17 +115,6 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
   /*package*/ static Set<String> getDirectApkLdPaths(Context context) {
     Set<String> directApkPathSet = new HashSet<>();
 
-    final String classLoaderLdLibraryPath = SysUtil.getClassLoaderLdLoadLibrary();
-    if (classLoaderLdLibraryPath != null) {
-      LogUtil.w(SoLoader.TAG, "ClassLoader LdLibrary Path: " + classLoaderLdLibraryPath);
-      final String[] paths = classLoaderLdLibraryPath.split(":");
-      for (final String path : paths) {
-        if (path.contains(".apk!/")) {
-          directApkPathSet.add(path);
-        }
-      }
-    }
-
     final String apkPath = context.getApplicationInfo().sourceDir;
     final @Nullable String fallbackApkLdPath = getFallbackApkLdPath(apkPath);
     if (fallbackApkLdPath != null) {
