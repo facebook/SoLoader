@@ -458,8 +458,10 @@ public class SoLoader {
       // Clean up backups
       final File backupDir = UnpackingSoSource.getSoStorePath(context, SO_STORE_NAME_MAIN);
       try {
-        SysUtil.dumbDelete(backupDir);
-      } catch (IOException e) {
+        if (backupDir.exists()) {
+          SysUtil.dumbDelete(backupDir);
+        }
+      } catch (Exception e) {
         LogUtil.w(TAG, "Failed to delete " + backupDir.getCanonicalPath(), e);
       }
       return;
