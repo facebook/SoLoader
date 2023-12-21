@@ -16,6 +16,7 @@
 
 package com.facebook.soloader;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
@@ -452,6 +453,7 @@ public class SoLoader {
   }
 
   /** Add the SoSources for recovering the dso if the file is corrupted or missed */
+  @SuppressLint("CatchGeneralException")
   private static void addBackupSoSource(
       Context context, ArrayList<SoSource> soSources, int backupSoSourceFlags) throws IOException {
     if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
@@ -461,7 +463,7 @@ public class SoLoader {
         if (backupDir.exists()) {
           SysUtil.dumbDelete(backupDir);
         }
-      } catch (Exception e) {
+      } catch (Throwable e) {
         LogUtil.w(TAG, "Failed to delete " + backupDir.getCanonicalPath(), e);
       }
       return;
