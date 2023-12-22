@@ -514,7 +514,7 @@ public class SoLoader {
 
     String LD_LIBRARY_PATH = System.getenv("LD_LIBRARY_PATH");
     if (LD_LIBRARY_PATH != null && !LD_LIBRARY_PATH.equals("")) {
-      systemLibPaths += ":" + LD_LIBRARY_PATH;
+      systemLibPaths = LD_LIBRARY_PATH + ":" + systemLibPaths;
     }
 
     final Set<String> libPathSet = new HashSet<>(Arrays.asList(systemLibPaths.split(":")));
