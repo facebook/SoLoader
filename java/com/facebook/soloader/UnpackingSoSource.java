@@ -480,7 +480,11 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     return soFile.getCanonicalPath();
   }
 
-  /** Prepare this SoSource by unconditonally unpacking/re-unpacking it. */
+  /**
+   * Prepare this SoSource by unconditonally unpacking/re-unpacking it.
+   *
+   * @throws IOException IOException
+   */
   public void prepareForceRefresh() throws IOException {
     prepare(SoSource.PREPARE_FLAG_FORCE_REFRESH);
   }

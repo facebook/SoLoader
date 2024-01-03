@@ -18,7 +18,7 @@ package com.facebook.soloader.recovery;
 
 public interface RecoveryStrategyFactory {
   /**
-   * @returns an instance of RecoveryStrategy that will be used to recover from failures to load a
+   * @return an instance of RecoveryStrategy that will be used to recover from failures to load a
    *     native library. The recover method of the returned object might be called multiple times
    *     until false is returned or until a successfull retry of the load is performed. All calls
    *     are guaranteed to hapen sequentially, within the context of a single library load. This

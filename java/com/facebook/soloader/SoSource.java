@@ -90,6 +90,10 @@ public abstract class SoSource {
   /**
    * Returns the so file for the specified library. Returns null if the library does not exist or if
    * it's not backed by a file.
+   *
+   * @param soName Name of library to load
+   * @return File if library found; {@code null} if not.
+   * @throws IOException IOException
    */
   @Nullable
   protected File getSoFileByName(String soName) throws IOException {
