@@ -162,7 +162,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   protected abstract static class Unpacker implements Closeable {
     public abstract Dso[] getDsos() throws IOException;
 
-    /* Unpacks to soDirectory and removes existing outdated libs */
+    /* Unpacks to soDirectory. */
     public abstract void unpack(File soDirectory) throws IOException;
 
     @Override

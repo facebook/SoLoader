@@ -59,6 +59,12 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     return "ExtractFromZipSoSource";
   }
 
+  public boolean hasZippedLibs() throws IOException {
+    try (ZipUnpacker u = new ZipUnpacker(this)) {
+      return u.computeDsosFromZip().length != 0;
+    }
+  }
+
   @Override
   protected Unpacker makeUnpacker(boolean forceUnpacking) throws IOException {
     return new ZipUnpacker(this);

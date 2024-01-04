@@ -148,10 +148,7 @@ public class SoLoader {
   /**
    * Name of the directory we use for extracted DSOs from built-in SO sources (main APK, exopackage)
    */
-  private static final String SO_STORE_NAME_MAIN = "lib-main";
-
-  /** Name of the directory we use for extracted DSOs from split APKs */
-  private static final String SO_STORE_NAME_SPLIT = "lib-";
+  public static final String SO_STORE_NAME_MAIN = "lib-main";
 
   /** Enable the exopackage SoSource. */
   public static final int SOLOADER_ENABLE_EXOPACKAGE = (1 << 0);
@@ -371,7 +368,7 @@ public class SoLoader {
               addDirectApkSoSource(context, soSources);
             }
             addApplicationSoSource(soSources, getApplicationSoSourceFlags());
-            addBackupSoSource(context, soSources, BackupSoSource.PREFER_ANDROID_LIBS_DIRECTORY);
+            addBackupSoSource(context, soSources);
           }
         }
       }
@@ -454,8 +451,8 @@ public class SoLoader {
 
   /** Add the SoSources for recovering the dso if the file is corrupted or missed */
   @SuppressLint("CatchGeneralException")
-  private static void addBackupSoSource(
-      Context context, ArrayList<SoSource> soSources, int backupSoSourceFlags) throws IOException {
+  private static void addBackupSoSource(Context context, ArrayList<SoSource> soSources)
+      throws IOException {
     if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
       // Clean up backups
       final File backupDir = UnpackingSoSource.getSoStorePath(context, SO_STORE_NAME_MAIN);
@@ -469,38 +466,8 @@ public class SoLoader {
       return;
     }
 
-    final File mainApkDir = new File(context.getApplicationInfo().sourceDir);
-    ArrayList<UnpackingSoSource> backupSources = new ArrayList<>();
-    BackupSoSource mainApkSource =
-        new BackupSoSource(context, mainApkDir, SO_STORE_NAME_MAIN, backupSoSourceFlags);
-    backupSources.add(mainApkSource);
-    LogUtil.d(TAG, "adding backup source from : " + mainApkSource.toString());
-
-    addBackupSoSourceFromSplitApk(context, backupSoSourceFlags, backupSources);
-
-    soSources.addAll(0, backupSources);
-  }
-
-  private static void addBackupSoSourceFromSplitApk(
-      Context context, int backupSoSourceFlags, ArrayList<UnpackingSoSource> backupSources)
-      throws IOException {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
-        && context.getApplicationInfo().splitSourceDirs != null) {
-      LogUtil.d(TAG, "adding backup sources from split apks");
-      int splitIndex = 0;
-      for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
-        BackupSoSource splitApkSource =
-            new BackupSoSource(
-                context,
-                new File(splitApkDir),
-                SO_STORE_NAME_SPLIT + (splitIndex++),
-                backupSoSourceFlags);
-        LogUtil.d(TAG, "adding backup source: " + splitApkSource.toString());
-        if (splitApkSource.hasZippedLibs()) {
-          backupSources.add(splitApkSource);
-        }
-      }
-    }
+    BackupSoSource backupSoSource = new BackupSoSource(context, SO_STORE_NAME_MAIN);
+    soSources.add(0, backupSoSource);
   }
 
   /**
@@ -546,6 +513,7 @@ public class SoLoader {
       if ((sFlags & SOLOADER_DISABLE_FS_SYNC_JOB) != 0) {
         prepareFlags |= SoSource.PREPARE_FLAG_DISABLE_FS_SYNC_JOB;
       }
+      prepareFlags |= SoSource.PREPARE_FLAG_SKIP_BACKUP_SO_SOURCE;
       return prepareFlags;
     } finally {
       sSoSourcesLock.writeLock().unlock();
