@@ -66,7 +66,7 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
       BackupSoSource backupSoSource = (BackupSoSource) soSource;
       try {
         LogUtil.e(SoLoader.TAG, "Runpacking BackupSoSource " + backupSoSource.getName());
-        backupSoSource.prepareForceRefresh();
+        backupSoSource.prepare(SoSource.PREPARE_FLAG_FORCE_REFRESH);
       } catch (Exception e) {
         // Catch a general error and log it, rather than failing during recovery and crashing the
         // app

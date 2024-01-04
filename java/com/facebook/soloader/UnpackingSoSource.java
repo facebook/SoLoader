@@ -426,7 +426,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
 
   /** Verify or refresh the state of the shared library store. */
   @Override
-  protected void prepare(int flags) throws IOException {
+  public void prepare(int flags) throws IOException {
     SysUtil.mkdirOrThrow(soDirectory);
 
     if (!soDirectory.canWrite() && !soDirectory.setWritable(true)) {
@@ -478,14 +478,5 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
       return null;
     }
     return soFile.getCanonicalPath();
-  }
-
-  /**
-   * Prepare this SoSource by unconditonally unpacking/re-unpacking it.
-   *
-   * @throws IOException IOException
-   */
-  public void prepareForceRefresh() throws IOException {
-    prepare(SoSource.PREPARE_FLAG_FORCE_REFRESH);
   }
 }

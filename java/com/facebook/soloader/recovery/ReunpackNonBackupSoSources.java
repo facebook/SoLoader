@@ -62,7 +62,7 @@ public class ReunpackNonBackupSoSources implements RecoveryStrategy {
       }
       try {
         LogUtil.e(SoLoader.TAG, "Runpacking " + uss.getName());
-        uss.prepareForceRefresh();
+        uss.prepare(SoSource.PREPARE_FLAG_FORCE_REFRESH);
       } catch (Exception e) {
         // Catch a general error and log it, rather than failing during recovery and crashing the
         // app
