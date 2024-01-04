@@ -31,16 +31,11 @@ public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
   @Override
   public RecoveryStrategy get() {
     return new CompositeRecoveryStrategy(
-        // The very first recovery strategy should be to just retry. It is possible that one of the
-        // SoSources was recovered in a recursive call to load library dependencies and as a result
-        // no recovery steps will succeed now, but another attempt to load the current library would
-        // succeed. WaitForAsyncInit is a strategy that always succeeds, so we don't need an
-        // explicit SimpleRetry.
-        new WaitForAsyncInit(),
         new DetectDataAppMove(mContext, mBaseApkPathHistory),
+        new CheckBaseApkExists(mContext, mBaseApkPathHistory),
+        new WaitForAsyncInit(),
         new ReunpackBackupSoSources(),
         new ReunpackNonBackupSoSources(),
-        new WaitForAsyncInit(),
-        new CheckBaseApkExists(mContext, mBaseApkPathHistory));
+        new WaitForAsyncInit());
   }
 }
