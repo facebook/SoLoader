@@ -74,7 +74,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     return new File(context.getApplicationInfo().dataDir + "/" + name);
   }
 
-  protected abstract Unpacker makeUnpacker(boolean forceUnpacking) throws IOException;
+  protected abstract Unpacker makeUnpacker() throws IOException;
 
   @Override
   public String[] getSoSourceAbis() {
@@ -330,7 +330,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     LogUtil.v(TAG, "so store dirty: regenerating");
     writeState(stateFileName, STATE_DIRTY, runFsync);
     deleteSoFiles();
-    try (Unpacker u = makeUnpacker(forceUnpacking)) {
+    try (Unpacker u = makeUnpacker()) {
       u.unpack(soDirectory);
     }
 
@@ -411,7 +411,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     // Parcel is fine: we never parse the parceled bytes, so it's okay if the byte representation
     // changes beneath us.
     Parcel parcel = Parcel.obtain();
-    try (Unpacker u = makeUnpacker(false)) {
+    try (Unpacker u = makeUnpacker()) {
       Dso[] dsos = u.getDsos();
       parcel.writeInt(dsos.length);
       for (Dso dso : dsos) {

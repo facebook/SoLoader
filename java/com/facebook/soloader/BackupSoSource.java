@@ -81,7 +81,7 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
   }
 
   @Override
-  protected Unpacker makeUnpacker(boolean forceUnpacking) throws IOException {
+  protected Unpacker makeUnpacker() throws IOException {
     return new ApkUnpacker();
   }
 
@@ -108,7 +108,7 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
     public Dso[] getDsos() throws IOException {
       ArrayList<Dso> dsos = new ArrayList<>();
       for (ExtractFromZipSoSource zipSource : mZipSources) {
-        try (Unpacker u = zipSource.makeUnpacker(true)) {
+        try (Unpacker u = zipSource.makeUnpacker()) {
           dsos.addAll(Arrays.asList(u.getDsos()));
         }
       }
@@ -119,7 +119,7 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
     public void unpack(File soDirectory) throws IOException {
       // Delete all files in the directory before unpacking
       for (ExtractFromZipSoSource zipSource : mZipSources) {
-        try (ZipUnpacker u = (ZipUnpacker) zipSource.makeUnpacker(false)) {
+        try (ZipUnpacker u = (ZipUnpacker) zipSource.makeUnpacker()) {
           u.unpack(soDirectory);
         }
       }
