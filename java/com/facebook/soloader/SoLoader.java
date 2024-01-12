@@ -513,7 +513,9 @@ public class SoLoader {
       if ((sFlags & SOLOADER_DISABLE_FS_SYNC_JOB) != 0) {
         prepareFlags |= SoSource.PREPARE_FLAG_DISABLE_FS_SYNC_JOB;
       }
-      prepareFlags |= SoSource.PREPARE_FLAG_SKIP_BACKUP_SO_SOURCE;
+      if ((sFlags & SOLOADER_EXPLICITLY_ENABLE_BACKUP_SOSOURCE) == 0) {
+        prepareFlags |= SoSource.PREPARE_FLAG_SKIP_BACKUP_SO_SOURCE;
+      }
       return prepareFlags;
     } finally {
       sSoSourcesLock.writeLock().unlock();
