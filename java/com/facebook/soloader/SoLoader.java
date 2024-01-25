@@ -26,6 +26,7 @@ import android.os.StrictMode;
 import android.text.TextUtils;
 import com.facebook.soloader.nativeloader.NativeLoader;
 import com.facebook.soloader.nativeloader.SystemDelegate;
+import com.facebook.soloader.observer.ObserverHolder;
 import com.facebook.soloader.recovery.DefaultRecoveryStrategyFactory;
 import com.facebook.soloader.recovery.RecoveryStrategy;
 import com.facebook.soloader.recovery.RecoveryStrategyFactory;
@@ -616,6 +617,7 @@ public class SoLoader {
         sSoFileLoader = null;
         sApplicationContext = null;
         sRecoveryStrategyFactory = null;
+        ObserverHolder.resetObserversForTestsOnly();
       }
       setSoSources(null);
     }
@@ -771,12 +773,24 @@ public class SoLoader {
       return true;
     }
 
-    String mergedLibName = MergedSoMapping.mapLibName(shortName);
+    return loadLibraryOnAndroid(shortName, loadFlags);
+  }
 
-    String soName = mergedLibName != null ? mergedLibName : shortName;
-
-    return loadLibraryBySoName(
-        System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
+  @SuppressLint({"CatchGeneralException", "EmptyCatchBlock"})
+  private static boolean loadLibraryOnAndroid(String shortName, int loadFlags) {
+    @Nullable Throwable failure = null;
+    ObserverHolder.onLoadLibraryStart(shortName, loadFlags);
+    try {
+      String mergedLibName = MergedSoMapping.mapLibName(shortName);
+      String soName = mergedLibName != null ? mergedLibName : shortName;
+      return loadLibraryBySoName(
+          System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
+    } catch (Throwable t) {
+      failure = t;
+      throw t;
+    } finally {
+      ObserverHolder.onLoadLibraryEnd(failure);
+    }
   }
 
   private static @Nullable Boolean loadLibraryOnNonAndroid(String shortName) {
@@ -821,10 +835,20 @@ public class SoLoader {
    * @param loadFlags
    * @param oldPolicy
    */
+  @SuppressLint({"CatchGeneralException", "EmptyCatchBlock"})
   /* package */ static void loadDependency(
       String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) {
-    loadLibraryBySoNameImpl(
-        soName, null, null, loadFlags | SoSource.LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, oldPolicy);
+    @Nullable Throwable failure = null;
+    ObserverHolder.onLoadDependencyStart(soName, loadFlags);
+    try {
+      loadLibraryBySoNameImpl(
+          soName, null, null, loadFlags | SoSource.LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, oldPolicy);
+    } catch (Throwable t) {
+      failure = t;
+      throw t;
+    } finally {
+      ObserverHolder.onLoadDependencyEnd(failure);
+    }
   }
 
   private static boolean loadLibraryBySoName(
@@ -838,37 +862,60 @@ public class SoLoader {
       try {
         return loadLibraryBySoNameImpl(soName, shortName, mergedLibName, loadFlags, oldPolicy);
       } catch (UnsatisfiedLinkError e) {
-        LogUtil.w(TAG, "Starting recovery for " + soName, e);
-        sSoSourcesLock.writeLock().lock();
-        try {
-          if (recovery == null) {
-            recovery = getRecoveryStrategy();
-          }
-          if (recovery != null && recovery.recover(e, sSoSources)) {
-            sSoSourcesVersion.getAndIncrement();
-            LogUtil.w(TAG, "Attempting to load library again");
-            continue;
-          }
-        } catch (NoBaseApkException noBaseApkException) {
-          // If we failed during recovery, we only want to throw the recovery exception for the case
-          // when the base APK path does not exist, everything else should preserve the initial
-          // error.
-          LogUtil.e(TAG, "Base APK not found during recovery", noBaseApkException);
-          throw noBaseApkException;
-        } catch (Exception recoveryException) {
-          LogUtil.e(
-              TAG,
-              "Got an exception during recovery, will throw the initial error instead",
-              recoveryException);
-          throw e;
-        } finally {
-          sSoSourcesLock.writeLock().unlock();
-        }
-
-        // No recovery mechanism worked, throwing initial error
-        LogUtil.w(TAG, "Failed to recover");
-        throw e;
+        recovery = recover(soName, e, recovery);
       }
+    }
+  }
+
+  @SuppressLint("CatchGeneralException")
+  private static RecoveryStrategy recover(
+      String soName, UnsatisfiedLinkError e, @Nullable RecoveryStrategy recovery) {
+    LogUtil.w(TAG, "Starting recovery for " + soName, e);
+    sSoSourcesLock.writeLock().lock();
+    try {
+      if (recovery == null) {
+        recovery = getRecoveryStrategy();
+        if (recovery == null) {
+          LogUtil.w(TAG, "No recovery strategy");
+          throw e;
+        }
+      }
+      if (recoverLocked(e, recovery)) {
+        sSoSourcesVersion.getAndIncrement();
+        return recovery;
+      }
+    } catch (NoBaseApkException noBaseApkException) {
+      // If we failed during recovery, we only want to throw the recovery exception for the case
+      // when the base APK path does not exist, everything else should preserve the initial
+      // error.
+      LogUtil.e(TAG, "Base APK not found during recovery", noBaseApkException);
+      throw noBaseApkException;
+    } catch (Exception recoveryException) {
+      LogUtil.e(
+          TAG,
+          "Got an exception during recovery, will throw the initial error instead",
+          recoveryException);
+      throw e;
+    } finally {
+      sSoSourcesLock.writeLock().unlock();
+    }
+
+    // No recovery mechanism worked, throwing initial error
+    LogUtil.w(TAG, "Failed to recover");
+    throw e;
+  }
+
+  @SuppressLint({"CatchGeneralException", "EmptyCatchBlock"})
+  private static boolean recoverLocked(UnsatisfiedLinkError e, RecoveryStrategy recovery) {
+    @Nullable Throwable failure = null;
+    ObserverHolder.onRecoveryStart(recovery);
+    try {
+      return recovery.recover(e, sSoSources);
+    } catch (Throwable t) {
+      failure = t;
+      throw t;
+    } finally {
+      ObserverHolder.onRecoveryEnd(failure);
     }
   }
 
@@ -1057,7 +1104,7 @@ public class SoLoader {
       sSoSourcesLock.readLock().lock();
       try {
         for (SoSource source : sSoSources) {
-          if (source.loadLibrary(soName, loadFlags, oldPolicy) != SoSource.LOAD_RESULT_NOT_FOUND) {
+          if (loadLibraryFromSoSource(source, soName, loadFlags, oldPolicy)) {
             return;
           }
         }
@@ -1080,6 +1127,22 @@ public class SoLoader {
       if (restoreOldPolicy) {
         StrictMode.setThreadPolicy(oldPolicy);
       }
+    }
+  }
+
+  @SuppressLint({"CatchGeneralException", "EmptyCatchBlock", "MissingSoLoaderLibrary"})
+  private static boolean loadLibraryFromSoSource(
+      SoSource source, String name, int loadFlags, StrictMode.ThreadPolicy oldPolicy)
+      throws IOException {
+    @Nullable Throwable failure = null;
+    ObserverHolder.onSoSourceLoadLibraryStart(source);
+    try {
+      return source.loadLibrary(name, loadFlags, oldPolicy) != SoSource.LOAD_RESULT_NOT_FOUND;
+    } catch (Throwable t) {
+      failure = t;
+      throw t;
+    } finally {
+      ObserverHolder.onSoSourceLoadLibraryEnd(failure);
     }
   }
 

@@ -19,6 +19,7 @@ fb_core_android_library(
 LOADER_SRCS = glob(
     [
         "*.java",
+        "observer/*.java",
         "recovery/*.java",
     ],
     exclude = [

@@ -16,8 +16,10 @@
 
 package com.facebook.soloader;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.StrictMode;
+import com.facebook.soloader.observer.ObserverHolder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -66,10 +68,13 @@ public final class NativeDeps {
     }
   }
 
+  @SuppressLint({"CatchGeneralException", "EmptyCatchBlock"})
   public static String[] getDependencies(String soName, ElfByteChannel bc) throws IOException {
+    @Nullable Throwable failure = null;
     if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
       Api18TraceUtils.beginTraceSection("soloader.NativeDeps.getDependencies[", soName, "]");
     }
+    ObserverHolder.onGetDependenciesStart();
     try {
       String[] deps = awaitGetDepsFromPrecomputedDeps(soName);
       if (deps != null) {
@@ -77,8 +82,14 @@ public final class NativeDeps {
       }
       return MinElf.extract_DT_NEEDED(bc);
     } catch (MinElf.ElfError err) {
-      throw SoLoaderULErrorFactory.create(soName, err);
+      UnsatisfiedLinkError ule = SoLoaderULErrorFactory.create(soName, err);
+      failure = ule;
+      throw ule;
+    } catch (Error | RuntimeException t) {
+      failure = t;
+      throw t;
     } finally {
+      ObserverHolder.onGetDependenciesEnd(failure);
       if (SoLoader.SYSTRACE_LIBRARY_LOADING) {
         Api18TraceUtils.endSection();
       }
