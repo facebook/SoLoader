@@ -16,6 +16,7 @@
 
 package com.facebook.soloader.observer;
 
+import com.facebook.soloader.SoFileLoader;
 import com.facebook.soloader.SoSource;
 import com.facebook.soloader.recovery.RecoveryStrategy;
 import javax.annotation.Nullable;
@@ -40,4 +41,8 @@ public interface Observer {
   void onGetDependenciesStart();
 
   void onGetDependenciesEnd(@Nullable Throwable t);
+
+  void onSoFileLoaderLoadStart(SoFileLoader soFileLoader, String method, int flags);
+
+  void onSoFileLoaderLoadEnd(@Nullable Throwable t);
 }

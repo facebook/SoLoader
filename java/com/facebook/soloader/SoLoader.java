@@ -549,7 +549,7 @@ public class SoLoader {
       return;
     }
 
-    sSoFileLoader = new SoFileLoaderImpl();
+    sSoFileLoader = new InstrumentedSoFileLoader(new SoFileLoaderImpl());
   }
 
   private static int getAppType(Context context) {

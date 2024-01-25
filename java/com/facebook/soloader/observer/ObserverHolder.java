@@ -16,6 +16,7 @@
 
 package com.facebook.soloader.observer;
 
+import com.facebook.soloader.SoFileLoader;
 import com.facebook.soloader.SoSource;
 import com.facebook.soloader.recovery.RecoveryStrategy;
 import java.util.concurrent.atomic.AtomicReference;
@@ -130,6 +131,24 @@ public class ObserverHolder {
     if (observers != null) {
       for (Observer observer : observers) {
         observer.onGetDependenciesEnd(t);
+      }
+    }
+  }
+
+  public static void onSoFileLoaderLoadStart(SoFileLoader soFileLoader, String method, int flags) {
+    Observer[] observers = sObservers.get();
+    if (observers != null) {
+      for (Observer observer : observers) {
+        observer.onSoFileLoaderLoadStart(soFileLoader, method, flags);
+      }
+    }
+  }
+
+  public static void onSoFileLoaderLoadEnd(@Nullable Throwable t) {
+    Observer[] observers = sObservers.get();
+    if (observers != null) {
+      for (Observer observer : observers) {
+        observer.onSoFileLoaderLoadEnd(t);
       }
     }
   }
