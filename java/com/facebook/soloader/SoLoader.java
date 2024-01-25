@@ -455,15 +455,6 @@ public class SoLoader {
   private static void addBackupSoSource(Context context, ArrayList<SoSource> soSources)
       throws IOException {
     if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
-      // Clean up backups
-      final File backupDir = UnpackingSoSource.getSoStorePath(context, SO_STORE_NAME_MAIN);
-      try {
-        if (backupDir.exists()) {
-          SysUtil.dumbDelete(backupDir);
-        }
-      } catch (Throwable e) {
-        LogUtil.w(TAG, "Failed to delete " + backupDir.getCanonicalPath(), e);
-      }
       return;
     }
 
