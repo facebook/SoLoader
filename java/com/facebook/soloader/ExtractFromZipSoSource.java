@@ -54,6 +54,13 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
     mZipSearchPattern = zipSearchPattern;
   }
 
+  public ExtractFromZipSoSource(
+      Context context, File storePath, File zipFileName, String zipSearchPattern) {
+    super(context, storePath);
+    mZipFileName = zipFileName;
+    mZipSearchPattern = zipSearchPattern;
+  }
+
   @Override
   public String getName() {
     return "ExtractFromZipSoSource";
@@ -93,8 +100,9 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
         if (!m.matches()) {
           continue;
         }
-        String libraryAbi = m.group(1);
-        String soName = m.group(2);
+        int soNameIdx = m.groupCount();
+        String libraryAbi = m.group(soNameIdx - 1);
+        String soName = m.group(soNameIdx);
         int abiScore = SysUtil.findAbiScore(supportedAbis, libraryAbi);
         if (abiScore < 0) {
           continue;
