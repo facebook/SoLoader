@@ -201,6 +201,9 @@ public class SoLoader {
    */
   public static final int SOLOADER_ENABLE_SYSTEMLOAD_WRAPPER_SOSOURCE = (1 << 9);
 
+  /** Experiment ONLY: skip custom SoSources for base.apk and rely on System.loadLibrary calls. */
+  public static final int SOLOADER_ENABLE_BASE_APK_SPLIT_SOURCE = (1 << 10);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -344,8 +347,13 @@ public class SoLoader {
       ArrayList<SoSource> soSources = new ArrayList<>();
       final boolean isEnabledSystemLoadWrapper =
           (flags & SOLOADER_ENABLE_SYSTEMLOAD_WRAPPER_SOSOURCE) != 0;
+      final boolean isEnabledBaseApkSplitSource =
+          (flags & SOLOADER_ENABLE_BASE_APK_SPLIT_SOURCE) != 0;
       if (isEnabledSystemLoadWrapper) {
         addSystemLoadWrapperSoSource(context, soSources);
+      } else if (isEnabledBaseApkSplitSource) {
+        addSystemLibSoSource(soSources);
+        soSources.add(0, new DirectSplitSoSource("base"));
       } else {
         addSystemLibSoSource(soSources);
 
