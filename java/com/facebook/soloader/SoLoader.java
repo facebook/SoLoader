@@ -986,7 +986,7 @@ public class SoLoader {
           if (!loaded) {
             try {
               LogUtil.d(TAG, "About to load: " + soName);
-              doLoadLibraryBySoName(soName, loadFlags, oldPolicy);
+              doLoadLibraryBySoName(soName, shortName, loadFlags, oldPolicy);
             } catch (UnsatisfiedLinkError ex) {
               String message = ex.getMessage();
               if (message != null && message.contains("unexpected e_machine:")) {
@@ -1074,7 +1074,10 @@ public class SoLoader {
   }
 
   private static void doLoadLibraryBySoName(
-      String soName, int loadFlags, @Nullable StrictMode.ThreadPolicy oldPolicy)
+      String soName,
+      @Nullable String shortName,
+      int loadFlags,
+      @Nullable StrictMode.ThreadPolicy oldPolicy)
       throws UnsatisfiedLinkError {
     sSoSourcesLock.readLock().lock();
     try {
@@ -1096,6 +1099,9 @@ public class SoLoader {
     }
 
     if (SYSTRACE_LIBRARY_LOADING) {
+      if (shortName != null) {
+        Api18TraceUtils.beginTraceSection("SoLoader.loadLibrary[", shortName, "]");
+      }
       Api18TraceUtils.beginTraceSection("SoLoader.loadLibrary[", soName, "]");
     }
 
@@ -1120,6 +1126,9 @@ public class SoLoader {
       }
     } finally {
       if (SYSTRACE_LIBRARY_LOADING) {
+        if (shortName != null) {
+          Api18TraceUtils.endSection();
+        }
         Api18TraceUtils.endSection();
       }
 
