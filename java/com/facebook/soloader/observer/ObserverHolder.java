@@ -45,11 +45,11 @@ public class ObserverHolder {
     } while (!sObservers.compareAndSet(oldObservers, newObservers));
   }
 
-  public static void onLoadLibraryStart(String library, int flags) {
+  public static void onLoadLibraryStart(String library, @Nullable String mergedLibrary, int flags) {
     Observer[] observers = sObservers.get();
     if (observers != null) {
       for (Observer observer : observers) {
-        observer.onLoadLibraryStart(library, flags);
+        observer.onLoadLibraryStart(library, mergedLibrary, flags);
       }
     }
   }

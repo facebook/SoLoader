@@ -22,7 +22,7 @@ import com.facebook.soloader.recovery.RecoveryStrategy;
 import javax.annotation.Nullable;
 
 public interface Observer {
-  void onLoadLibraryStart(String library, int flags);
+  void onLoadLibraryStart(String library, @Nullable String mergedLibrary, int flags);
 
   void onLoadLibraryEnd(@Nullable Throwable t);
 
