@@ -778,10 +778,10 @@ public class SoLoader {
   @SuppressLint({"CatchGeneralException", "EmptyCatchBlock"})
   private static boolean loadLibraryOnAndroid(String shortName, int loadFlags) {
     @Nullable Throwable failure = null;
+    String mergedLibName = MergedSoMapping.mapLibName(shortName);
+    String soName = mergedLibName != null ? mergedLibName : shortName;
+    ObserverHolder.onLoadLibraryStart(shortName, mergedLibName, loadFlags);
     try {
-      String mergedLibName = MergedSoMapping.mapLibName(shortName);
-      String soName = mergedLibName != null ? mergedLibName : shortName;
-      ObserverHolder.onLoadLibraryStart(shortName, mergedLibName, loadFlags);
       return loadLibraryBySoName(
           System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
     } catch (Throwable t) {
