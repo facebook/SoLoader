@@ -174,8 +174,8 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
   }
 
   private void prepare() throws IOException {
-    String subDir = null;
     for (String directApkLdPath : mDirectApkLdPaths) {
+      String subDir = null;
       if (!TextUtils.isEmpty(directApkLdPath)) {
         final int i = directApkLdPath.indexOf('!');
         if (i >= 0 && i + 2 < directApkLdPath.length()) {
@@ -203,14 +203,18 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
   }
 
   private void buildLibDepsCache(String directApkLdPath, String soName) throws IOException {
-    try (ZipFile mZipFile = new ZipFile(getApkPathFromLdPath(directApkLdPath))) {
-      Enumeration<? extends ZipEntry> entries = mZipFile.entries();
-      while (entries.hasMoreElements()) {
-        ZipEntry entry = entries.nextElement();
-        if (entry != null && entry.getName().endsWith("/" + soName)) {
-          buildLibDepsCacheImpl(directApkLdPath, mZipFile, entry, soName);
-        }
+    final String apkPath = getApkPathFromLdPath(directApkLdPath);
+
+    try (ZipFile mZipFile = new ZipFile(apkPath)) {
+      final String path = getLibraryPathInApk(directApkLdPath, soName);
+      final ZipEntry entry = mZipFile.getEntry(path);
+
+      if (entry == null) {
+        LogUtil.e(SoLoader.TAG, path + " not found in " + apkPath);
+        return;
       }
+
+      buildLibDepsCacheImpl(directApkLdPath, mZipFile, entry, soName);
     }
   }
 
@@ -271,6 +275,11 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
 
   private static String getApkPathFromLdPath(String ldPath) {
     return ldPath.substring(0, ldPath.indexOf('!'));
+  }
+
+  private static String getLibraryPathInApk(String directApkLdPath, String soName) {
+    final int index = directApkLdPath.indexOf('!');
+    return directApkLdPath.substring(index + 2) + File.separator + soName;
   }
 
   @Override
