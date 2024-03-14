@@ -16,6 +16,7 @@
 
 package com.facebook.soloader;
 
+import android.os.Build;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -30,12 +31,19 @@ import javax.annotation.Nullable;
 public class SoFileLoaderImpl implements SoFileLoader {
 
   private static final String TAG = "SoFileLoaderImpl";
-  private final Runtime mRuntime;
+  @Nullable private final Runtime mRuntime;
   @Nullable private final Method mNativeLoadRuntimeMethod;
   @Nullable private final String mLocalLdLibraryPath;
   @Nullable private final String mLocalLdLibraryPathNoZips;
 
   public SoFileLoaderImpl() {
+    if (Build.VERSION.SDK_INT >= 24) {
+      mRuntime = null;
+      mNativeLoadRuntimeMethod = null;
+      mLocalLdLibraryPath = null;
+      mLocalLdLibraryPathNoZips = null;
+      return;
+    }
     mRuntime = Runtime.getRuntime();
     mNativeLoadRuntimeMethod = SysUtil.getNativeLoadRuntimeMethod();
     mLocalLdLibraryPath =
@@ -51,8 +59,8 @@ public class SoFileLoaderImpl implements SoFileLoader {
   @Override
   public void load(final String pathToSoFile, final int loadFlags) {
     if (mNativeLoadRuntimeMethod == null) {
-      // nativeLoad() version with LD_LIBRARY_PATH override is not available, fallback to standard
-      // loader.
+      // nativeLoad() version with LD_LIBRARY_PATH override is not available,
+      // or not needed (Android 7+), fallback to standard loader.
       System.load(pathToSoFile);
       return;
     }
@@ -63,7 +71,6 @@ public class SoFileLoaderImpl implements SoFileLoader {
     try {
       // nativeLoad should be synchronized so there's only one
       // LD_LIBRARY_PATH in use regardless of how many ClassLoaders are in the system
-      // https://android.googlesource.com/platform/libcore/+/refs/tags/android-8.0.0_r45/ojluni/src/main/java/java/lang/Runtime.java#1103
       synchronized (mRuntime) {
         errorMessage =
             (String)
@@ -76,8 +83,7 @@ public class SoFileLoaderImpl implements SoFileLoader {
       }
     } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
       // Throw an SoLoaderULError to try to recover from the state
-      errorMessage =
-          "nativeLoad() error during invocation for " + pathToSoFile + ": " + errorMessage;
+      errorMessage = "nativeLoad() error during invocation for " + pathToSoFile + ": " + e;
       throw new RuntimeException(errorMessage);
     } finally {
       if (errorMessage != null) {
