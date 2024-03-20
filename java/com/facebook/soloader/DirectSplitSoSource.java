@@ -16,7 +16,6 @@
 
 package com.facebook.soloader;
 
-import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.StrictMode;
 import java.io.File;
@@ -26,11 +25,11 @@ import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
 
-public class DirectSplitSoSource extends SoSource {
-  private final String mSplitName;
+public abstract class DirectSplitSoSource extends SoSource {
+  protected final String mSplitName;
 
-  private @Nullable Manifest mManifest = null;
-  private @Nullable Set<String> mLibs = null;
+  protected @Nullable Manifest mManifest = null;
+  protected @Nullable Set<String> mLibs = null;
 
   public DirectSplitSoSource(String splitName) {
     mSplitName = splitName;
@@ -40,6 +39,13 @@ public class DirectSplitSoSource extends SoSource {
     mSplitName = splitName;
     mManifest = manifest;
     mLibs = new HashSet<String>(manifest.libs);
+  }
+
+  public DirectSplitSoSource(
+      String splitName, @Nullable Manifest manifest, @Nullable Set<String> libs) {
+    mSplitName = splitName;
+    mManifest = manifest;
+    mLibs = libs;
   }
 
   Manifest getManifest() {
@@ -66,21 +72,13 @@ public class DirectSplitSoSource extends SoSource {
     }
 
     if (mLibs.contains(soName)) {
-      if ((loadFlags & LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) != 0) {
-        return LOAD_RESULT_IMPLICITLY_PROVIDED;
-      }
-
-      callSystemLoadLibrary(soName.substring(3, soName.length() - 3));
-      return LOAD_RESULT_LOADED;
+      return loadLibraryImpl(soName, loadFlags);
     }
 
     return LOAD_RESULT_NOT_FOUND;
   }
 
-  @SuppressLint("MissingSoLoaderLibrary")
-  void callSystemLoadLibrary(String name) {
-    System.loadLibrary(name);
-  }
+  protected abstract int loadLibraryImpl(String soName, int loadFlags);
 
   @Override
   @Nullable
@@ -155,10 +153,5 @@ public class DirectSplitSoSource extends SoSource {
       throw new IllegalStateException("prepare not called");
     }
     return new String[] {mManifest.arch};
-  }
-
-  @Override
-  public String getName() {
-    return "DirectSplitSoSource";
   }
 }
