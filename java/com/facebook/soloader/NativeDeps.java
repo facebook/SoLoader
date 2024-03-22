@@ -152,7 +152,8 @@ public final class NativeDeps {
               sWaitForDepsFileLock.writeLock().unlock();
               sUseDepsFileAsync = false;
             }
-          };
+          }
+          ;
         };
 
     new Thread(runnable, "soloader-nativedeps-init").start();
@@ -183,7 +184,8 @@ public final class NativeDeps {
     if (!success) {
       LogUtil.w(
           LOG_TAG,
-          "Failed to extract native deps from APK, falling back to using MinElf to get library dependencies.");
+          "Failed to extract native deps from APK, falling back to using MinElf to get library"
+              + " dependencies.");
     }
 
     return success;
