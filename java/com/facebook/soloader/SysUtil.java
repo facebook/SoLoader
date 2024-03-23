@@ -179,7 +179,8 @@ public final class SysUtil {
         LogUtil.e(
             TAG,
             String.format(
-                "Could not read /proc/self/exe. Falling back to default ABI list: %s. errno: %d Err msg: %s",
+                "Could not read /proc/self/exe. Falling back to default ABI list: %s. errno: %d Err"
+                    + " msg: %s",
                 Arrays.toString(supportedAbis), e.errno, e.getMessage()));
         return Build.SUPPORTED_ABIS;
       }
