@@ -22,6 +22,7 @@ import com.facebook.soloader.SoLoader;
 import com.facebook.soloader.SoLoaderDSONotFoundError;
 import com.facebook.soloader.SoLoaderULError;
 import com.facebook.soloader.SoSource;
+import java.io.IOException;
 
 /**
  * RecoveryStrategy that detects cases when SoLoader failed to load a corrupted library, case in
@@ -38,26 +39,50 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
       // Only recover from SoLoaderULE errors
       return false;
     }
-
-    if (error instanceof SoLoaderDSONotFoundError) {
-      // Do not attempt to recover if DSO is not found
-      return false;
-    }
-
     SoLoaderULError err = (SoLoaderULError) error;
+    String soName = err.getSoName();
     String message = err.getMessage();
-    if (message == null || (!message.contains("/app/") && !message.contains("/mnt/"))) {
-      // Do not attempt to recovery if the DSO wasn't in the data/app directory
+
+    if (soName == null) {
+      LogUtil.e(SoLoader.TAG, "No so name provided in ULE, cannot recover");
       return false;
     }
 
-    String soName = err.getSoName();
-    LogUtil.e(
-        SoLoader.TAG,
-        "Reunpacking BackupSoSources due to "
-            + error
-            + ((soName == null) ? "" : (", retrying for specific library " + soName)));
+    if (err instanceof SoLoaderDSONotFoundError) {
+      // Recover if DSO is not found
+      logRecovery(err, soName);
 
+      return recoverDSONotFoundError(soSources, soName, 0);
+    } else if (message == null || (!message.contains("/app/") && !message.contains("/mnt/"))) {
+      // Don't recover if the DSO wasn't in the data/app directory
+
+      return false;
+    } else {
+      logRecovery(err, soName);
+      return lazyPrepareBackupSoSource(soSources, soName);
+    }
+  }
+
+  private boolean recoverDSONotFoundError(SoSource[] soSources, String soName, int prepareFlags) {
+    try {
+      for (SoSource soSource : soSources) {
+        if (!(soSource instanceof BackupSoSource)) {
+          continue;
+        }
+        BackupSoSource uss = (BackupSoSource) soSource;
+
+        if (uss.peekAndPrepareSoSource(soName, prepareFlags)) {
+          return true;
+        }
+      }
+      return false;
+    } catch (IOException ioException) {
+      LogUtil.e(SoLoader.TAG, "Failed to run recovery for backup so source due to: " + ioException);
+      return false;
+    }
+  }
+
+  private boolean lazyPrepareBackupSoSource(SoSource[] soSources, String soName) {
     for (SoSource soSource : soSources) {
       if (!(soSource instanceof BackupSoSource)) {
         // NonApk SoSources get reunpacked in ReunpackNonBackupSoSource recovery strategy
@@ -87,5 +112,14 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
     }
 
     return false;
+  }
+
+  private void logRecovery(Error error, String soName) {
+    LogUtil.e(
+        SoLoader.TAG,
+        "Reunpacking BackupSoSources due to "
+            + error
+            + ", retrying for specific library "
+            + soName);
   }
 }

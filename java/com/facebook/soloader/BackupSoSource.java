@@ -103,7 +103,28 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
     mInitialized = true;
   }
 
+  public boolean peekAndPrepareSoSource(String soName, int prepareFlags) throws IOException {
+    boolean found = false;
+    try (Unpacker u = makeUnpacker()) {
+      Dso[] dsos = u.getDsos();
+      for (Dso dso : dsos) {
+        if (dso.name.equals(soName)) {
+          LogUtil.e(SoLoader.TAG, "Found " + soName + " in " + getName());
+          found = true;
+          break;
+        }
+      }
+    }
+    if (!found) {
+      return false;
+    }
+    LogUtil.e(SoLoader.TAG, "Preparing " + getName());
+    prepare(prepareFlags);
+    return true;
+  }
+
   protected class ApkUnpacker extends Unpacker {
+
     @Override
     public Dso[] getDsos() throws IOException {
       ArrayList<Dso> dsos = new ArrayList<>();
