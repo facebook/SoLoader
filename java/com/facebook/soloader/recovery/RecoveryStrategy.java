@@ -20,5 +20,8 @@ import com.facebook.soloader.SoSource;
 
 // Abstract interface for algorithms attempting to recover SoLoader from a corrupted state.
 public interface RecoveryStrategy {
+
+  public static final int FLAG_ENABLE_DSONOTFOUND_ERROR_RECOVERY_FOR_BACKUP_SO_SOURCE = 1;
+
   boolean recover(UnsatisfiedLinkError e, SoSource[] soSources);
 }

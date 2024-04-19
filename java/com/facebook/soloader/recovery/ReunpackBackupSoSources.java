@@ -33,6 +33,16 @@ import java.io.IOException;
  */
 public class ReunpackBackupSoSources implements RecoveryStrategy {
 
+  private int mRecoveryFlags;
+
+  public ReunpackBackupSoSources() {
+    this(0);
+  }
+
+  public ReunpackBackupSoSources(int recoveryFlags) {
+    mRecoveryFlags = recoveryFlags;
+  }
+
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
     if (!(error instanceof SoLoaderULError)) {
@@ -49,10 +59,17 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
     }
 
     if (err instanceof SoLoaderDSONotFoundError) {
-      // Recover if DSO is not found
-      logRecovery(err, soName);
+      if ((mRecoveryFlags
+              & RecoveryStrategy.FLAG_ENABLE_DSONOTFOUND_ERROR_RECOVERY_FOR_BACKUP_SO_SOURCE)
+          != 0) {
 
-      return recoverDSONotFoundError(soSources, soName, 0);
+        // Recover if DSO is not found
+        logRecovery(err, soName);
+
+        return recoverDSONotFoundError(soSources, soName, 0);
+      } else {
+        return false;
+      }
     } else if (message == null || (!message.contains("/app/") && !message.contains("/mnt/"))) {
       // Don't recover if the DSO wasn't in the data/app directory
 

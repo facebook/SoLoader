@@ -204,6 +204,9 @@ public class SoLoader {
   /** Experiment ONLY: skip custom SoSources for base.apk and rely on System.loadLibrary calls. */
   public static final int SOLOADER_ENABLE_BASE_APK_SPLIT_SOURCE = (1 << 10);
 
+  /** Experiment ONLY: skip DSONotFound error recovery for back up so source */
+  public static final int SOLOADER_ENABLE_BACKUP_SOSOURCE_DSONOTFOUND_ERROR_RECOVERY = (1 << 11);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -269,7 +272,7 @@ public class SoLoader {
           flags |= SOLOADER_DISABLE_BACKUP_SOSOURCE;
         }
 
-        initSoLoader(context, soFileLoader);
+        initSoLoader(context, soFileLoader, flags);
         initSoSources(context, flags);
         LogUtil.v(TAG, "Init SoLoader delegate");
         NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
@@ -522,8 +525,16 @@ public class SoLoader {
     }
   }
 
+  private static int makeRecoveryFlags(int flags) {
+    int recoveryFlags = 0;
+    if ((flags & SOLOADER_ENABLE_BACKUP_SOSOURCE_DSONOTFOUND_ERROR_RECOVERY) != 0) {
+      recoveryFlags |= RecoveryStrategy.FLAG_ENABLE_DSONOTFOUND_ERROR_RECOVERY_FOR_BACKUP_SO_SOURCE;
+    }
+    return recoveryFlags;
+  }
+
   private static synchronized void initSoLoader(
-      @Nullable Context context, @Nullable SoFileLoader soFileLoader) {
+      @Nullable Context context, @Nullable SoFileLoader soFileLoader, int flags) {
     if (context != null) {
       Context applicationContext = context.getApplicationContext();
 
@@ -537,7 +548,8 @@ public class SoLoader {
       }
 
       sApplicationContext = applicationContext;
-      sRecoveryStrategyFactory = new DefaultRecoveryStrategyFactory(applicationContext);
+      sRecoveryStrategyFactory =
+          new DefaultRecoveryStrategyFactory(applicationContext, makeRecoveryFlags(flags));
     }
 
     if (soFileLoader == null && sSoFileLoader != null) {

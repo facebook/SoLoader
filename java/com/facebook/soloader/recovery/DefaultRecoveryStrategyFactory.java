@@ -21,9 +21,11 @@ import android.content.Context;
 public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
   private final Context mContext;
   private final BaseApkPathHistory mBaseApkPathHistory;
+  private final int mRecoveryFlags;
 
-  public DefaultRecoveryStrategyFactory(Context context) {
+  public DefaultRecoveryStrategyFactory(Context context, int recoveryFlags) {
     mContext = context;
+    mRecoveryFlags = recoveryFlags;
     mBaseApkPathHistory = new BaseApkPathHistory(5);
     mBaseApkPathHistory.recordPathIfNew(context.getApplicationInfo().sourceDir);
   }
@@ -34,7 +36,7 @@ public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
         new DetectDataAppMove(mContext, mBaseApkPathHistory),
         new CheckBaseApkExists(mContext, mBaseApkPathHistory),
         new WaitForAsyncInit(),
-        new ReunpackBackupSoSources(),
+        new ReunpackBackupSoSources(mRecoveryFlags),
         new ReunpackNonBackupSoSources(),
         new WaitForAsyncInit());
   }
