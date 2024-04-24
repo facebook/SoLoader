@@ -20,8 +20,8 @@ import android.annotation.SuppressLint;
 import java.util.Set;
 import javax.annotation.Nullable;
 
-public class DirectSplitSoSourceWithStrictPathControl extends DirectSplitSoSource {
-  public DirectSplitSoSourceWithStrictPathControl(
+public class DirectSplitSoSourceLoadByPath extends DirectSplitSoSource {
+  public DirectSplitSoSourceLoadByPath(
       String splitName, @Nullable Manifest manifest, @Nullable Set<String> libs) {
     super(splitName, manifest, libs);
   }
@@ -35,6 +35,6 @@ public class DirectSplitSoSourceWithStrictPathControl extends DirectSplitSoSourc
 
   @Override
   public String getName() {
-    return "DirectSplitSoSourceWithStrictPathControl";
+    return "DirectSplitSoSourceLoadByPath";
   }
 }

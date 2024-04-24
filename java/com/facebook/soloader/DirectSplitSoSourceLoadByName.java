@@ -19,30 +19,26 @@ package com.facebook.soloader;
 import android.annotation.SuppressLint;
 import android.content.Context;
 
-public class DirectSplitSoSourceWithImplicitLoads extends DirectSplitSoSource
+public class DirectSplitSoSourceLoadByName extends DirectSplitSoSource
     implements RecoverableSoSource {
-  public DirectSplitSoSourceWithImplicitLoads(String splitName) {
+  public DirectSplitSoSourceLoadByName(String splitName) {
     super(splitName);
   }
 
   @Override
   @SuppressLint("MissingSoLoaderLibrary")
   protected int loadLibraryImpl(String soName, int loadFlags) {
-    if ((loadFlags & LOAD_FLAG_ALLOW_IMPLICIT_PROVISION) != 0) {
-      return LOAD_RESULT_IMPLICITLY_PROVIDED;
-    }
-
     System.loadLibrary(soName.substring(3, soName.length() - 3));
     return LOAD_RESULT_LOADED;
   }
 
   @Override
   public String getName() {
-    return "DirectSplitSoSourceWithImplicitLoads";
+    return "DirectSplitSoSourceLoadByName";
   }
 
   @Override
   public SoSource recover(Context context) {
-    return new DirectSplitSoSourceWithStrictPathControl(mSplitName, mManifest, mLibs);
+    return new DirectSplitSoSourceLoadByPath(mSplitName, mManifest, mLibs);
   }
 }

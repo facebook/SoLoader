@@ -356,7 +356,7 @@ public class SoLoader {
         addSystemLoadWrapperSoSource(context, soSources);
       } else if (isEnabledBaseApkSplitSource) {
         addSystemLibSoSource(soSources);
-        soSources.add(0, new DirectSplitSoSourceWithImplicitLoads("base"));
+        soSources.add(0, new DirectSplitSoSourceLoadByName("base"));
       } else {
         addSystemLibSoSource(soSources);
 
