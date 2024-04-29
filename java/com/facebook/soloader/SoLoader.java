@@ -388,7 +388,7 @@ public class SoLoader {
       SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
       int prepareFlags = makePrepareFlags();
       for (int i = finalSoSources.length; i-- > 0; ) {
-        LogUtil.d(TAG, "Preparing SO source: " + finalSoSources[i]);
+        LogUtil.i(TAG, "Preparing SO source: " + finalSoSources[i]);
 
         if (SYSTRACE_LIBRARY_LOADING) {
           Api18TraceUtils.beginTraceSection(TAG, "_", finalSoSources[i].getClass().getSimpleName());
@@ -400,7 +400,7 @@ public class SoLoader {
       }
       sSoSources = finalSoSources;
       sSoSourcesVersion.getAndIncrement();
-      LogUtil.d(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
+      LogUtil.i(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
     } finally {
       sSoSourcesLock.writeLock().unlock();
     }

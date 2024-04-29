@@ -216,4 +216,13 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
       return 31 * result + backingEntry.hashCode();
     }
   }
+
+  @Override
+  public String toString() {
+    try {
+      return mZipFileName.getCanonicalPath();
+    } catch (IOException e) {
+      return mZipFileName.getName();
+    }
+  }
 }
