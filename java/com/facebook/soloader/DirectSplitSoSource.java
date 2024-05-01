@@ -16,6 +16,7 @@
 
 package com.facebook.soloader;
 
+import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.StrictMode;
 import java.io.File;
@@ -25,7 +26,7 @@ import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
 
-public abstract class DirectSplitSoSource extends SoSource {
+public class DirectSplitSoSource extends SoSource {
   protected final String mSplitName;
 
   protected @Nullable Manifest mManifest = null;
@@ -33,19 +34,6 @@ public abstract class DirectSplitSoSource extends SoSource {
 
   public DirectSplitSoSource(String splitName) {
     mSplitName = splitName;
-  }
-
-  public DirectSplitSoSource(String splitName, Manifest manifest) {
-    mSplitName = splitName;
-    mManifest = manifest;
-    mLibs = new HashSet<String>(manifest.libs);
-  }
-
-  public DirectSplitSoSource(
-      String splitName, @Nullable Manifest manifest, @Nullable Set<String> libs) {
-    mSplitName = splitName;
-    mManifest = manifest;
-    mLibs = libs;
   }
 
   Manifest getManifest() {
@@ -78,7 +66,16 @@ public abstract class DirectSplitSoSource extends SoSource {
     return LOAD_RESULT_NOT_FOUND;
   }
 
-  protected abstract int loadLibraryImpl(String soName, int loadFlags);
+  @SuppressLint("MissingSoLoaderLibrary")
+  protected int loadLibraryImpl(String soName, int loadFlags) {
+    @Nullable String path = getLibraryPath(soName);
+    if (path == null) {
+      throw new NullPointerException();
+    }
+
+    System.load(path);
+    return LOAD_RESULT_LOADED;
+  }
 
   @Override
   @Nullable
@@ -153,5 +150,10 @@ public abstract class DirectSplitSoSource extends SoSource {
       throw new IllegalStateException("prepare not called");
     }
     return new String[] {mManifest.arch};
+  }
+
+  @Override
+  public String getName() {
+    return "DirectSplitSoSource";
   }
 }
