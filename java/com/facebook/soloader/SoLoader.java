@@ -793,14 +793,17 @@ public class SoLoader {
     String mergedLibName = MergedSoMapping.mapLibName(shortName);
     String soName = mergedLibName != null ? mergedLibName : shortName;
     ObserverHolder.onLoadLibraryStart(shortName, mergedLibName, loadFlags);
+    boolean wasLoaded = false;
     try {
-      return loadLibraryBySoName(
-          System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
+      wasLoaded =
+          loadLibraryBySoName(
+              System.mapLibraryName(soName), shortName, mergedLibName, loadFlags, null);
+      return wasLoaded;
     } catch (Throwable t) {
       failure = t;
       throw t;
     } finally {
-      ObserverHolder.onLoadLibraryEnd(failure);
+      ObserverHolder.onLoadLibraryEnd(failure, wasLoaded);
     }
   }
 
@@ -851,14 +854,20 @@ public class SoLoader {
       String soName, int loadFlags, StrictMode.ThreadPolicy oldPolicy) {
     @Nullable Throwable failure = null;
     ObserverHolder.onLoadDependencyStart(soName, loadFlags);
+    boolean wasLoaded = false;
     try {
-      loadLibraryBySoNameImpl(
-          soName, null, null, loadFlags | SoSource.LOAD_FLAG_ALLOW_IMPLICIT_PROVISION, oldPolicy);
+      wasLoaded =
+          loadLibraryBySoNameImpl(
+              soName,
+              null,
+              null,
+              loadFlags | SoSource.LOAD_FLAG_ALLOW_IMPLICIT_PROVISION,
+              oldPolicy);
     } catch (Throwable t) {
       failure = t;
       throw t;
     } finally {
-      ObserverHolder.onLoadDependencyEnd(failure);
+      ObserverHolder.onLoadDependencyEnd(failure, wasLoaded);
     }
   }
 

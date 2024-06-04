@@ -54,11 +54,11 @@ public class ObserverHolder {
     }
   }
 
-  public static void onLoadLibraryEnd(@Nullable Throwable t) {
+  public static void onLoadLibraryEnd(@Nullable Throwable t, boolean wasLoaded) {
     Observer[] observers = sObservers.get();
     if (observers != null) {
       for (Observer observer : observers) {
-        observer.onLoadLibraryEnd(t);
+        observer.onLoadLibraryEnd(t, wasLoaded);
       }
     }
   }
@@ -72,11 +72,11 @@ public class ObserverHolder {
     }
   }
 
-  public static void onLoadDependencyEnd(@Nullable Throwable t) {
+  public static void onLoadDependencyEnd(@Nullable Throwable t, boolean wasLoaded) {
     Observer[] observers = sObservers.get();
     if (observers != null) {
       for (Observer observer : observers) {
-        observer.onLoadDependencyEnd(t);
+        observer.onLoadDependencyEnd(t, wasLoaded);
       }
     }
   }

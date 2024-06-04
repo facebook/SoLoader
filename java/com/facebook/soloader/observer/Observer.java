@@ -24,11 +24,11 @@ import javax.annotation.Nullable;
 public interface Observer {
   void onLoadLibraryStart(String library, @Nullable String mergedLibrary, int flags);
 
-  void onLoadLibraryEnd(@Nullable Throwable t);
+  void onLoadLibraryEnd(@Nullable Throwable t, boolean wasLoaded);
 
   void onLoadDependencyStart(String library, int flags);
 
-  void onLoadDependencyEnd(@Nullable Throwable t);
+  void onLoadDependencyEnd(@Nullable Throwable t, boolean wasLoaded);
 
   void onSoSourceLoadLibraryStart(SoSource source);
 
