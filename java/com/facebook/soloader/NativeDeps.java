@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -53,6 +54,24 @@ public final class NativeDeps {
   private static volatile boolean sUseDepsFileAsync = false;
   private static final ReentrantReadWriteLock sWaitForDepsFileLock = new ReentrantReadWriteLock();
 
+  private static final HashSet<String> STANDARD_SYSTEM_LIBS =
+      new HashSet<String>() {
+        {
+          add("libEGL.so");
+          add("libGLESv2.so");
+          add("libGLESv3.so");
+          add("libOpenSLES.so");
+          add("libandroid.so");
+          add("libc.so");
+          add("libdl.so");
+          add("libjnigraphics.so");
+          add("liblog.so");
+          add("libm.so");
+          add("libstdc++.so");
+          add("libz.so");
+        }
+      };
+
   public static void loadDependencies(
       String soName, ElfByteChannel bc, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
       throws IOException {
@@ -61,6 +80,11 @@ public final class NativeDeps {
         SoLoader.TAG, "Loading " + soName + "'s dependencies: " + Arrays.toString(dependencies));
     for (String dependency : dependencies) {
       if (dependency.startsWith("/")) {
+        continue;
+      }
+
+      if (STANDARD_SYSTEM_LIBS.contains(dependency)) {
+        // The linker will implicitly load these by itself.
         continue;
       }
 
@@ -153,7 +177,6 @@ public final class NativeDeps {
               sUseDepsFileAsync = false;
             }
           }
-          ;
         };
 
     new Thread(runnable, "soloader-nativedeps-init").start();
