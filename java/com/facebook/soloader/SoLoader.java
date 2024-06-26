@@ -970,6 +970,9 @@ public class SoLoader {
     if (!TextUtils.isEmpty(shortName) && sLoadedAndJniInvoked.contains(shortName)) {
       return false;
     }
+    if (sLoadedLibraries.contains(soName) && mergedLibName == null) {
+      return false;
+    }
 
     // LoadingLibLock is used to ensure that doLoadLibraryBySoName and its corresponding JniOnload
     // are only executed once per library. It also guarantees that concurrent calls to loadLibrary
