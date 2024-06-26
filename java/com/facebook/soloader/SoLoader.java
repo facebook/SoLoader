@@ -120,8 +120,8 @@ public class SoLoader {
   private static RecoveryStrategyFactory sRecoveryStrategyFactory = null;
 
   /** Records the sonames (e.g., "libdistract.so") of shared libraries we've loaded. */
-  @GuardedBy("SoLoader.class")
-  private static final HashSet<String> sLoadedLibraries = new HashSet<>();
+  private static final Set<String> sLoadedLibraries =
+      Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
   /**
    * Libraries that are in the process of being loaded, and lock objects to synchronize on and wait
@@ -1012,17 +1012,15 @@ public class SoLoader {
     try {
       synchronized (loadingLibLock) {
         if (!loaded) {
-          synchronized (SoLoader.class) {
-            if (sLoadedLibraries.contains(soName)) {
-              // Library was successfully loaded by other thread while we waited
-              if (mergedLibName == null) {
-                // Not a merged lib, no need to init
-                return false;
-              }
-              loaded = true;
+          if (sLoadedLibraries.contains(soName)) {
+            // Library was successfully loaded by other thread while we waited
+            if (mergedLibName == null) {
+              // Not a merged lib, no need to init
+              return false;
             }
-            // Else, load was not successful on other thread. We will try in this one.
+            loaded = true;
           }
+          // Else, load was not successful on other thread. We will try in this one.
 
           if (!loaded) {
             try {
@@ -1038,9 +1036,7 @@ public class SoLoader {
               throw ex;
             }
             LogUtil.d(TAG, "Loaded: " + soName);
-            synchronized (SoLoader.class) {
-              sLoadedLibraries.add(soName);
-            }
+            sLoadedLibraries.add(soName);
           }
         }
       }
