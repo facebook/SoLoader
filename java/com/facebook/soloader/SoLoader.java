@@ -137,8 +137,17 @@ public class SoLoader {
    * corresponding lock in sLoadingLibraries. However, as we only add to this set (and never
    * remove), it is safe to perform un-guarded reads as an optional optimization prior to locking.
    */
-  private static final Set<String> sLoadedAndMergedLibraries =
+  private static final Set<String> sLoadedAndJniInvoked =
       Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+
+  /**
+   * Locks for invoking JNI_OnLoad for a merged library. This is used to lock on
+   * sLoadedAndJniInvoked checks/mutations on a shortName library level.
+   *
+   * <p>To prevent potential deadlock, always acquire sSoSourcesLock before these locks!
+   */
+  @GuardedBy("SoLoader.class")
+  private static final Map<String, Object> sInvokingJniForLibrary = new HashMap<>();
 
   /** Wrapper for System.loadLibrary. */
   @Nullable private static SystemLoadLibraryWrapper sSystemLoadLibraryWrapper = null;
@@ -624,6 +633,7 @@ public class SoLoader {
     /* package */ static void resetStatus() {
       synchronized (SoLoader.class) {
         sLoadedLibraries.clear();
+        sLoadedAndJniInvoked.clear();
         sLoadingLibraries.clear();
         sSoFileLoader = null;
         sApplicationContext = null;
@@ -957,7 +967,7 @@ public class SoLoader {
     // As an optimization, avoid taking locks if the library has already loaded. Without locks this
     // does not provide 100% coverage (e.g. another thread may currently be loading or initializing
     // the library), so we'll need to check again with locks held, below.
-    if (!TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName)) {
+    if (!TextUtils.isEmpty(shortName) && sLoadedAndJniInvoked.contains(shortName)) {
       return false;
     }
 
@@ -965,6 +975,7 @@ public class SoLoader {
     // are only executed once per library. It also guarantees that concurrent calls to loadLibrary
     // for the same library do not return until both its load and JniOnLoad have completed.
     Object loadingLibLock;
+    Object invokingJniLock;
     boolean loaded = false;
     synchronized (SoLoader.class) {
       if (sLoadedLibraries.contains(soName)) {
@@ -979,6 +990,12 @@ public class SoLoader {
       } else {
         loadingLibLock = new Object();
         sLoadingLibraries.put(soName, loadingLibLock);
+      }
+      if (sInvokingJniForLibrary.containsKey(shortName)) {
+        invokingJniLock = sInvokingJniForLibrary.get(shortName);
+      } else {
+        invokingJniLock = new Object();
+        sInvokingJniForLibrary.put(shortName, invokingJniLock);
       }
     }
 
@@ -1023,21 +1040,28 @@ public class SoLoader {
             }
           }
         }
+      }
 
-        if ((loadFlags & SOLOADER_SKIP_MERGED_JNI_ONLOAD) == 0) {
+      synchronized (invokingJniLock) {
+        if ((loadFlags & SOLOADER_SKIP_MERGED_JNI_ONLOAD) == 0 && mergedLibName != null) {
           // MergedSoMapping#invokeJniOnload does not necessarily handle concurrent nor redundant
-          // invocation. sLoadedAndMergedLibraries is used in conjunction with loadingLibLock to
+          // invocation. sLoadedAndJniInvoked is used in conjunction with loadingLibLock to
           // ensure one invocation per library.
-          boolean isAlreadyMerged =
-              !TextUtils.isEmpty(shortName) && sLoadedAndMergedLibraries.contains(shortName);
-          if (mergedLibName != null && !isAlreadyMerged) {
+          boolean wasAlreadyJniInvoked =
+              !TextUtils.isEmpty(shortName) && sLoadedAndJniInvoked.contains(shortName);
+          if (!wasAlreadyJniInvoked) {
             if (SYSTRACE_LIBRARY_LOADING) {
               Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[", shortName, "]");
             }
             try {
-              LogUtil.d(TAG, "About to merge: " + shortName + " / " + soName);
+              LogUtil.d(
+                  TAG,
+                  "About to invoke JNI_OnLoad for merged library "
+                      + shortName
+                      + ", which was merged into "
+                      + soName);
               MergedSoMapping.invokeJniOnload(shortName);
-              sLoadedAndMergedLibraries.add(shortName);
+              sLoadedAndJniInvoked.add(shortName);
             } catch (UnsatisfiedLinkError e) {
               // If you are seeing this exception, first make sure your library sets
               // allow_jni_merging=True.  Trying to merge a library without that
