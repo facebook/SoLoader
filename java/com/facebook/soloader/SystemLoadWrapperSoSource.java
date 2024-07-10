@@ -18,6 +18,7 @@ package com.facebook.soloader;
 
 import android.annotation.SuppressLint;
 import android.os.StrictMode;
+import android.text.TextUtils;
 import java.io.File;
 import java.io.IOException;
 import javax.annotation.Nullable;
@@ -43,6 +44,28 @@ public class SystemLoadWrapperSoSource extends SoSource {
   @Nullable
   @Override
   public File unpackLibrary(String soName) throws IOException {
+    return null;
+  }
+
+  @Override
+  @Nullable
+  public String getLibraryPath(String soName) throws IOException {
+    final String ldPaths = SysUtil.getClassLoaderLdLoadLibrary();
+    if (TextUtils.isEmpty(ldPaths)) {
+      return null;
+    }
+
+    for (String ldPath : ldPaths.split(":")) {
+      if (SysUtil.isDisabledExtractNativeLibs(SoLoader.sApplicationContext)
+          && ldPath.contains(".apk!")) {
+        return ldPath + File.separator + soName;
+      } else {
+        File file = new File(ldPath, soName);
+        if (file.exists()) {
+          return file.getCanonicalPath();
+        }
+      }
+    }
     return null;
   }
 
