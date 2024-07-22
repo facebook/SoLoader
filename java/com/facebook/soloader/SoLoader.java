@@ -216,6 +216,8 @@ public class SoLoader {
   /** Experiment ONLY: skip DSONotFound error recovery for back up so source */
   public static final int SOLOADER_ENABLE_BACKUP_SOSOURCE_DSONOTFOUND_ERROR_RECOVERY = (1 << 11);
 
+  public static final int SOLOADER_IMPLICIT_DEPENDENCIES_TEST = (1 << 12);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -389,7 +391,11 @@ public class SoLoader {
               addDirectApkSoSource(context, soSources);
             }
             addApplicationSoSource(soSources, getApplicationSoSourceFlags());
-            addBackupSoSource(context, soSources);
+            addBackupSoSource(
+                context,
+                soSources,
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+                    && (flags & SOLOADER_IMPLICIT_DEPENDENCIES_TEST) != 0);
           }
         }
       }
@@ -472,13 +478,15 @@ public class SoLoader {
 
   /** Add the SoSources for recovering the dso if the file is corrupted or missed */
   @SuppressLint("CatchGeneralException")
-  private static void addBackupSoSource(Context context, ArrayList<SoSource> soSources)
+  private static void addBackupSoSource(
+      Context context, ArrayList<SoSource> soSources, boolean implicitDependencies)
       throws IOException {
     if ((sFlags & SOLOADER_DISABLE_BACKUP_SOSOURCE) != 0) {
       return;
     }
 
-    BackupSoSource backupSoSource = new BackupSoSource(context, SO_STORE_NAME_MAIN);
+    BackupSoSource backupSoSource =
+        new BackupSoSource(context, SO_STORE_NAME_MAIN, !implicitDependencies);
     soSources.add(0, backupSoSource);
   }
 
