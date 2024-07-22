@@ -43,8 +43,8 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
   private final ArrayList<ExtractFromZipSoSource> mZipSources = new ArrayList<>();
   protected boolean mInitialized = false;
 
-  public BackupSoSource(Context context, String name) {
-    super(context, name);
+  public BackupSoSource(Context context, String name, boolean resolveDependencies) {
+    super(context, name, resolveDependencies);
     mZipSources.add(
         new ExtractFromZipSoSource(
             context,
@@ -54,6 +54,10 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
             // during installation.
             ZIP_SEARCH_PATTERN));
     addBackupsFromSplitApks(context, name);
+  }
+
+  public BackupSoSource(Context context, String name) {
+    this(context, name, true);
   }
 
   private void addBackupsFromSplitApks(Context context, String name) {

@@ -60,14 +60,22 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
 
   @Nullable private String[] mAbis;
 
+  protected UnpackingSoSource(Context context, String name, boolean resolveDependencies) {
+    super(getSoStorePath(context, name), resolveDependencies ? RESOLVE_DEPENDENCIES : 0);
+    mContext = context;
+  }
+
   protected UnpackingSoSource(Context context, String name) {
-    super(getSoStorePath(context, name), RESOLVE_DEPENDENCIES);
+    this(context, name, true);
+  }
+
+  protected UnpackingSoSource(Context context, File storePath, boolean resolveDependencies) {
+    super(storePath, resolveDependencies ? RESOLVE_DEPENDENCIES : 0);
     mContext = context;
   }
 
   protected UnpackingSoSource(Context context, File storePath) {
-    super(storePath, RESOLVE_DEPENDENCIES);
-    mContext = context;
+    this(context, storePath, true);
   }
 
   public static File getSoStorePath(Context context, String name) {
