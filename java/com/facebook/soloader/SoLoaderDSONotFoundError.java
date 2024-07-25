@@ -17,6 +17,7 @@
 package com.facebook.soloader;
 
 import android.content.Context;
+import javax.annotation.Nullable;
 
 @DoNotStripAny
 public class SoLoaderDSONotFoundError extends SoLoaderULError {
@@ -29,7 +30,8 @@ public class SoLoaderDSONotFoundError extends SoLoaderULError {
     super(soName, error);
   }
 
-  public static SoLoaderDSONotFoundError create(String soName, Context ctx, SoSource[] soSources) {
+  public static SoLoaderDSONotFoundError create(
+      String soName, @Nullable Context ctx, SoSource[] soSources) {
     StringBuilder sb = new StringBuilder("couldn't find DSO to load: ").append(soName);
     sb.append("\n\texisting SO sources: ");
     for (int i = 0; i < soSources.length; ++i) {
