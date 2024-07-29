@@ -344,7 +344,7 @@ public class SoLoader {
     return (null == metaData || metaData.getBoolean(name, true));
   }
 
-  private static void initSoSources(Context context, int flags) throws IOException {
+  private static void initSoSources(@Nullable Context context, int flags) throws IOException {
     if (sSoSources != null) {
       return;
     }
@@ -580,7 +580,7 @@ public class SoLoader {
     sSoFileLoader = new InstrumentedSoFileLoader(new SoFileLoaderImpl());
   }
 
-  private static int getAppType(Context context) {
+  private static int getAppType(@Nullable Context context) {
     if (sAppType != AppType.UNSET) {
       return sAppType;
     }
