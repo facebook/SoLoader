@@ -338,18 +338,23 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     LogUtil.v(TAG, "so store dirty: regenerating");
     writeState(stateFileName, STATE_DIRTY, runFsync);
     deleteSoFiles();
-    try (Unpacker u = makeUnpacker()) {
-      u.unpack(soDirectory);
-    }
 
-    // N.B. We can afford to write the deps file without fsyncs because we've marked the DSO
-    // store STATE_DIRTY, which will cause us to ignore all intermediate state when regenerating it.
-    // That is, it's okay for the depsFile blocks to hit the disk before the actual DSO data file
-    // blocks as long as both hit the disk before we reset STATE_CLEAN.
-    final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
-    try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
-      depsFile.write(recomputedDeps);
-      depsFile.setLength(depsFile.getFilePointer());
+    final boolean noUnpacking = (flags & PREPARE_FLAG_NO_UNPACKING) != 0;
+    if (!noUnpacking) {
+      try (Unpacker u = makeUnpacker()) {
+        u.unpack(soDirectory);
+      }
+
+      // N.B. We can afford to write the deps file without fsyncs because we've marked the DSO
+      // store STATE_DIRTY, which will cause us to ignore all intermediate state when regenerating
+      // it.
+      // That is, it's okay for the depsFile blocks to hit the disk before the actual DSO data file
+      // blocks as long as both hit the disk before we reset STATE_CLEAN.
+      final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
+      try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
+        depsFile.write(recomputedDeps);
+        depsFile.setLength(depsFile.getFilePointer());
+      }
     }
 
     // Task to dump the buffer cache to disk to guard against battery outages. The default is to run

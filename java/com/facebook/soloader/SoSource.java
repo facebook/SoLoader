@@ -59,7 +59,9 @@ public abstract class SoSource {
   public static final int PREPARE_FLAG_DISABLE_FS_SYNC_JOB = (1 << 2);
 
   /** Skip preparing backup so source. */
-  public static final int PREPARE_FLAG_SKIP_BACKUP_SO_SOURCE = (1 << 3);
+  public static final int PREPARE_FLAG_NO_UNPACKING_BACKUP_SO_SOURCE = (1 << 3);
+
+  public static final int PREPARE_FLAG_NO_UNPACKING = (1 << 4);
 
   /** Prepare to install this SoSource in SoLoader. */
   protected void prepare(int flags) throws IOException {
