@@ -100,7 +100,8 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
 
   @Override
   public void prepare(int flags) throws IOException {
-    if ((flags & SoSource.PREPARE_FLAG_SKIP_BACKUP_SO_SOURCE) != 0) {
+    if ((flags & SoSource.PREPARE_FLAG_NO_UNPACKING_BACKUP_SO_SOURCE) != 0) {
+      super.prepare(flags | SoSource.PREPARE_FLAG_NO_UNPACKING);
       return;
     }
     super.prepare(flags);
