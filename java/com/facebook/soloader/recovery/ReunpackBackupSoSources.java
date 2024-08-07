@@ -17,6 +17,7 @@
 package com.facebook.soloader.recovery;
 
 import com.facebook.soloader.BackupSoSource;
+import com.facebook.soloader.DirectorySoSource;
 import com.facebook.soloader.LogUtil;
 import com.facebook.soloader.SoLoader;
 import com.facebook.soloader.SoLoaderDSONotFoundError;
@@ -100,6 +101,7 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
   }
 
   private boolean lazyPrepareBackupSoSource(SoSource[] soSources, String soName) {
+    boolean recovered = false;
     for (SoSource soSource : soSources) {
       if (!(soSource instanceof BackupSoSource)) {
         // NonApk SoSources get reunpacked in ReunpackNonBackupSoSource recovery strategy
@@ -111,7 +113,8 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
             SoLoader.TAG,
             "Preparing BackupSoSource for the first time " + backupSoSource.getName());
         backupSoSource.prepare(0);
-        return true;
+        recovered = true;
+        break;
       } catch (Exception e) {
         // Catch a general error and log it, rather than failing during recovery and crashing the
         // app
@@ -126,6 +129,22 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
             e);
         return false;
       }
+    }
+
+    if (recovered) {
+      for (SoSource soSource : soSources) {
+        if (!(soSource instanceof DirectorySoSource)) {
+          continue;
+        }
+        if (soSource instanceof BackupSoSource) {
+          continue;
+        }
+        DirectorySoSource directorySoSource = (DirectorySoSource) soSource;
+        // We need to explicitly resolve dependencies, as dlopen() cannot do
+        // so for dependencies at non-standard locations.
+        directorySoSource.setExplicitDependencyResolution();
+      }
+      return true;
     }
 
     return false;

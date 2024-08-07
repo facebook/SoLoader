@@ -31,7 +31,7 @@ public class DirectorySoSource extends SoSource {
   public static final int ON_LD_LIBRARY_PATH = 2;
 
   protected final File soDirectory;
-  protected final int flags;
+  protected int flags;
   protected final List<String> denyList;
 
   /**
@@ -45,6 +45,10 @@ public class DirectorySoSource extends SoSource {
    */
   public DirectorySoSource(File soDirectory, int flags) {
     this(soDirectory, flags, new String[0]);
+  }
+
+  public void setExplicitDependencyResolution() {
+    flags |= RESOLVE_DEPENDENCIES;
   }
 
   /**
