@@ -239,6 +239,12 @@ public class SoLoader {
 
   private static int sAppType = AppType.UNSET;
 
+  /**
+   * If provided during the init method, external libraries can provide their own implementation
+   * ExternalSoMapping. This is useful for apps that want to use SoMerging in OSS.
+   */
+  @Nullable private static ExternalSoMapping externalSoMapping = null;
+
   static {
     boolean shouldSystrace = false;
     try {
@@ -311,6 +317,31 @@ public class SoLoader {
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
+  }
+
+  /**
+   * Initializes native code loading for this app; this class's other static facilities cannot be
+   * used until this {@link #init} is called. This method is idempotent: calls after the first are
+   * ignored.
+   *
+   * <p>This is used only by apps that use SoMerging in OSS, such as React Native apps.
+   *
+   * @param context application context
+   * @param flags Zero or more of the SOLOADER_* flags
+   * @param soFileLoader the custom {@link SoFileLoader}, you can implement your own loader
+   * @param externalSoMapping the custom {@link ExternalSoMapping} if the App is using SoMerging.
+   * @throws IOException IOException
+   */
+  public static void init(
+      Context context,
+      int flags,
+      @Nullable SoFileLoader soFileLoader,
+      @Nullable ExternalSoMapping externalSoMapping)
+      throws IOException {
+    synchronized (SoLoader.class) {
+      SoLoader.externalSoMapping = externalSoMapping;
+    }
+    init(context, flags, soFileLoader);
   }
 
   /**
@@ -745,7 +776,12 @@ public class SoLoader {
    * @return the File object of the so file
    */
   public static @Nullable File getSoFile(String shortName) {
-    String mergedLibName = MergedSoMapping.mapLibName(shortName);
+    String mergedLibName;
+    if (externalSoMapping != null) {
+      mergedLibName = externalSoMapping.mapLibName(shortName);
+    } else {
+      mergedLibName = MergedSoMapping.mapLibName(shortName);
+    }
     String soName = mergedLibName != null ? mergedLibName : shortName;
     String mappedName = System.mapLibraryName(soName);
 
@@ -808,7 +844,12 @@ public class SoLoader {
   @SuppressLint({"CatchGeneralException", "EmptyCatchBlock"})
   private static boolean loadLibraryOnAndroid(String shortName, int loadFlags) {
     @Nullable Throwable failure = null;
-    String mergedLibName = MergedSoMapping.mapLibName(shortName);
+    String mergedLibName;
+    if (externalSoMapping != null) {
+      mergedLibName = externalSoMapping.mapLibName(shortName);
+    } else {
+      mergedLibName = MergedSoMapping.mapLibName(shortName);
+    }
     String soName = mergedLibName != null ? mergedLibName : shortName;
     ObserverHolder.onLoadLibraryStart(shortName, mergedLibName, loadFlags);
     boolean wasLoaded = false;
@@ -1057,7 +1098,7 @@ public class SoLoader {
           boolean wasAlreadyJniInvoked =
               !TextUtils.isEmpty(shortName) && sLoadedAndJniInvoked.contains(shortName);
           if (!wasAlreadyJniInvoked) {
-            if (SYSTRACE_LIBRARY_LOADING) {
+            if (SYSTRACE_LIBRARY_LOADING && externalSoMapping == null) {
               Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[", shortName, "]");
             }
             try {
@@ -1067,7 +1108,11 @@ public class SoLoader {
                       + shortName
                       + ", which was merged into "
                       + soName);
-              MergedSoMapping.invokeJniOnload(shortName);
+              if (externalSoMapping != null) {
+                externalSoMapping.invokeJniOnload(shortName);
+              } else {
+                MergedSoMapping.invokeJniOnload(shortName);
+              }
               sLoadedAndJniInvoked.add(shortName);
             } catch (UnsatisfiedLinkError e) {
               // If you are seeing this exception, first make sure your library sets
@@ -1095,7 +1140,7 @@ public class SoLoader {
                       + "'.  See comment for details.",
                   e);
             } finally {
-              if (SYSTRACE_LIBRARY_LOADING) {
+              if (SYSTRACE_LIBRARY_LOADING && externalSoMapping == null) {
                 Api18TraceUtils.endSection();
               }
             }
