@@ -2,6 +2,8 @@ load("//tools/build_defs/oss:soloader_defs.bzl", "fb_core_android_library", "fb_
 
 fb_core_android_library(
     name = "soloader",
+    # NullChecker use this module, so using nullchecker here will result in circular dependency
+    nullchecker_mode = "none",
     proguard_config = "soloader.pro",
     provided_deps = [
         "//deps:jsr_305",
@@ -32,6 +34,8 @@ LOADER_SRCS = glob(
 fb_core_android_library(
     name = "loader",
     srcs = LOADER_SRCS,
+    # NullChecker use this module, so using nullchecker here will result in circular dependency
+    nullchecker_mode = "none",
     proguard_config = "soloader.pro",
     provided_deps = [
         ":annotation",
