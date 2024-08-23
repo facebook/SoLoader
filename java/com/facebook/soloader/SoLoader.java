@@ -102,7 +102,7 @@ public class SoLoader {
    */
   private static final ReentrantReadWriteLock sSoSourcesLock = new ReentrantReadWriteLock();
 
-  /* package */ static Context sApplicationContext = null;
+  /* package */ @Nullable static Context sApplicationContext = null;
 
   /**
    * Ordered list of sources to consult when trying to load a shared library or one of its
