@@ -36,7 +36,9 @@ public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
         new DetectDataAppMove(mContext, mBaseApkPathHistory),
         new CheckBaseApkExists(mContext, mBaseApkPathHistory),
         new WaitForAsyncInit(),
+        new CheckOnDiskStateDataApp(mContext),
         new ReunpackBackupSoSources(mRecoveryFlags),
+        new CheckOnDiskStateDataData(),
         new ReunpackNonBackupSoSources(),
         new WaitForAsyncInit());
   }

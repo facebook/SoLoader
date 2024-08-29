@@ -949,7 +949,7 @@ public class SoLoader {
   @SuppressLint("CatchGeneralException")
   private static RecoveryStrategy recover(
       String soName, UnsatisfiedLinkError e, @Nullable RecoveryStrategy recovery) {
-    LogUtil.w(TAG, "Starting recovery for " + soName, e);
+    LogUtil.w(TAG, "Running a recovery step for " + soName + " due to " + e.toString());
     sSoSourcesLock.writeLock().lock();
     try {
       if (recovery == null) {

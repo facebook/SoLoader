@@ -127,6 +127,13 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
     return true;
   }
 
+  @Override
+  public Dso[] getDsosBaseApk() throws IOException {
+    try (Unpacker u = mZipSources.get(0).makeUnpacker()) {
+      return u.getDsos();
+    }
+  }
+
   protected class ApkUnpacker extends Unpacker {
 
     @Override

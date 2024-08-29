@@ -93,6 +93,12 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     return mAbis;
   }
 
+  public Dso[] getDsosBaseApk() throws IOException {
+    try (UnpackingSoSource.Unpacker unpacker = makeUnpacker()) {
+      return unpacker.getDsos();
+    }
+  }
+
   public void setSoSourceAbis(final String[] abis) {
     mAbis = abis;
   }

@@ -119,7 +119,7 @@ public class DirectorySoSource extends SoSource {
 
   @Override
   @Nullable
-  protected File getSoFileByName(String soName) throws IOException {
+  public File getSoFileByName(String soName) throws IOException {
     File soFile = new File(soDirectory, soName);
     if (soFile.exists()) {
       return soFile;
