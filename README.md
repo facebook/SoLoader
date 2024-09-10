@@ -21,7 +21,7 @@ You can use [prebuilt aars](https://github.com/facebook/soloader/releases/latest
 or fetch SoLoader from Maven repository by adding the following to your
 `build.gradle` file:
 ```groovy
-implementation 'com.facebook.soloader:soloader:0.11.0+'
+implementation 'com.facebook.soloader:soloader:0.12.0+'
 ```
 
 ## Building from source
