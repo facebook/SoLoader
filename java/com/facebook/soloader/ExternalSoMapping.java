@@ -24,7 +24,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * provide their own mapping from Open Source.
  */
 @ThreadSafe
-interface ExternalSoMapping {
+public interface ExternalSoMapping {
   @Nullable
   String mapLibName(String preMergedLibName);
 
