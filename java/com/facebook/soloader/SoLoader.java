@@ -327,21 +327,15 @@ public class SoLoader {
    * <p>This is used only by apps that use SoMerging in OSS, such as React Native apps.
    *
    * @param context application context
-   * @param flags Zero or more of the SOLOADER_* flags
-   * @param soFileLoader the custom {@link SoFileLoader}, you can implement your own loader
    * @param externalSoMapping the custom {@link ExternalSoMapping} if the App is using SoMerging.
    * @throws IOException IOException
    */
-  public static void init(
-      Context context,
-      int flags,
-      @Nullable SoFileLoader soFileLoader,
-      @Nullable ExternalSoMapping externalSoMapping)
+  public static void init(Context context, @Nullable ExternalSoMapping externalSoMapping)
       throws IOException {
     synchronized (SoLoader.class) {
       SoLoader.externalSoMapping = externalSoMapping;
     }
-    init(context, flags, soFileLoader);
+    init(context, 0);
   }
 
   /**
