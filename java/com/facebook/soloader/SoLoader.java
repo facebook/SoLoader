@@ -349,6 +349,13 @@ public class SoLoader {
       return true;
     }
 
+    if (SoLoader.externalSoMapping != null) {
+      // This case is used by React Native apps that use SoMerging in OSS.
+      // if the externalSoMapping has been provided, we don't need to check inside the Manifest
+      // if SoLoader is enabled or not.
+      return true;
+    }
+
     final String name = "com.facebook.soloader.enabled";
     Bundle metaData = null;
     String packageName = null;
