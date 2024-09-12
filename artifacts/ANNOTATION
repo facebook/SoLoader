@@ -3,7 +3,7 @@ NAME = 'SoLoader'
 GROUP = 'com.facebook.soloader'
 ARTIFACT = 'annotation'
 PACKAGING = 'jar'
-VERSION='0.12.0'
+VERSION='0.12.1'
 
 DESCRIPTION = "DoNotOptimize class"
 URL = 'https://github.com/facebook/soloader'

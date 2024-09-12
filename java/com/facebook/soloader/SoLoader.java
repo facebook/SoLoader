@@ -93,7 +93,7 @@ public class SoLoader {
   /* package */ @Nullable static SoFileLoader sSoFileLoader;
 
   // optional identifier strings to facilitate bytecode analysis
-  public static final String VERSION = "0.12.0";
+  public static final String VERSION = "0.12.1";
 
   /**
    * locking controlling the list of SoSources. We want to allow long running iterations over the
