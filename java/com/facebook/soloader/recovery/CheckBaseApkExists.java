@@ -46,7 +46,7 @@ public class CheckBaseApkExists implements RecoveryStrategy {
       StringBuilder sb =
           new StringBuilder("Base apk does not exist: ").append(baseApkPath).append(". ");
       mBaseApkPathHistory.report(sb);
-      throw new NoBaseApkException(sb.toString(), error);
+      throw new NoBaseApkException(sb.toString());
     }
 
     LogUtil.w(TAG, "Base apk exists: " + baseApkPath);
