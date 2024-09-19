@@ -46,48 +46,62 @@ public class CheckOnDiskStateDataApp implements RecoveryStrategy {
 
     File nativeLibStandardDir = new File(mContext.getApplicationInfo().nativeLibraryDir);
     if (!nativeLibStandardDir.exists()) {
-      LogUtil.e(
-          SoLoader.TAG,
-          "Native library directory "
-              + nativeLibStandardDir
-              + " does not exist, exiting /data/app recovery.");
-      return false;
-    }
-
-    ArrayList<String> missingLibs = new ArrayList<>();
-    for (SoSource soSource : soSources) {
-      if (!(soSource instanceof BackupSoSource)) {
-        continue;
-      }
-      BackupSoSource uss = (BackupSoSource) soSource;
-      try {
-        Dso[] dsosFromArchive = uss.getDsosBaseApk();
-        for (Dso dso : dsosFromArchive) {
-          File soFile = new File(nativeLibStandardDir, dso.name);
-          if (soFile.exists()) {
-            continue;
-          }
-          missingLibs.add(dso.name);
+      for (SoSource soSource : soSources) {
+        if (!(soSource instanceof BackupSoSource)) {
+          continue;
         }
+        BackupSoSource uss = (BackupSoSource) soSource;
+        try {
 
-        if (missingLibs.isEmpty()) {
-          LogUtil.e(SoLoader.TAG, "No libraries missing from " + nativeLibStandardDir);
+          LogUtil.e(
+              SoLoader.TAG,
+              "Native library directory "
+                  + nativeLibStandardDir
+                  + " does not exist, will unpack everything under /data/data.");
+          uss.prepare(0);
+          break;
+        } catch (Exception e) {
+          LogUtil.e(
+              SoLoader.TAG, "Encountered an exception while recovering from /data/app failure ", e);
           return false;
         }
+      }
+    } else {
+      ArrayList<String> missingLibs = new ArrayList<>();
+      for (SoSource soSource : soSources) {
+        if (!(soSource instanceof BackupSoSource)) {
+          continue;
+        }
+        BackupSoSource uss = (BackupSoSource) soSource;
+        try {
+          Dso[] dsosFromArchive = uss.getDsosBaseApk();
+          for (Dso dso : dsosFromArchive) {
+            File soFile = new File(nativeLibStandardDir, dso.name);
+            if (soFile.exists()) {
+              continue;
+            }
+            missingLibs.add(dso.name);
+          }
 
-        LogUtil.e(
-            SoLoader.TAG,
-            "Missing libraries from "
-                + nativeLibStandardDir
-                + ": "
-                + missingLibs.toString()
-                + ", will run prepare on tbe backup so source");
-        uss.prepare(0);
-        break;
-      } catch (Exception e) {
-        LogUtil.e(
-            SoLoader.TAG, "Encountered an exception while recovering from /data/app failure ", e);
-        return false;
+          if (missingLibs.isEmpty()) {
+            LogUtil.e(SoLoader.TAG, "No libraries missing from " + nativeLibStandardDir);
+            return false;
+          }
+
+          LogUtil.e(
+              SoLoader.TAG,
+              "Missing libraries from "
+                  + nativeLibStandardDir
+                  + ": "
+                  + missingLibs.toString()
+                  + ", will run prepare on tbe backup so source");
+          uss.prepare(0);
+          break;
+        } catch (Exception e) {
+          LogUtil.e(
+              SoLoader.TAG, "Encountered an exception while recovering from /data/app failure ", e);
+          return false;
+        }
       }
     }
 
