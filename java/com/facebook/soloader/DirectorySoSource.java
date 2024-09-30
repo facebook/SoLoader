@@ -19,9 +19,7 @@ package com.facebook.soloader;
 import android.os.StrictMode;
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 import javax.annotation.Nullable;
 
 /** {@link SoSource} that finds shared libraries in a given directory. */
@@ -32,7 +30,6 @@ public class DirectorySoSource extends SoSource {
 
   protected final File soDirectory;
   protected int flags;
-  protected final List<String> denyList;
 
   /**
    * Make a new DirectorySoSource. If {@code flags} contains {@link
@@ -44,25 +41,12 @@ public class DirectorySoSource extends SoSource {
    * @param flags load flags
    */
   public DirectorySoSource(File soDirectory, int flags) {
-    this(soDirectory, flags, new String[0]);
+    this.soDirectory = soDirectory;
+    this.flags = flags;
   }
 
   public void setExplicitDependencyResolution() {
     flags |= RESOLVE_DEPENDENCIES;
-  }
-
-  /**
-   * This method is similar to {@link #DirectorySoSource(File, int)}, with the following
-   * differences:
-   *
-   * @param soDirectory the dir that contains the so files
-   * @param flags load flags
-   * @param denyList the soname list that we won't try to load from this source
-   */
-  public DirectorySoSource(File soDirectory, int flags, String[] denyList) {
-    this.soDirectory = soDirectory;
-    this.flags = flags;
-    this.denyList = Arrays.asList(denyList);
   }
 
   @Override
@@ -77,13 +61,6 @@ public class DirectorySoSource extends SoSource {
       throws IOException {
     if (SoLoader.sSoFileLoader == null) {
       throw new IllegalStateException("SoLoader.init() not yet called");
-    }
-
-    if (denyList.contains(soName)) {
-      LogUtil.d(
-          SoLoader.TAG,
-          soName + " is on the denyList, skip loading from " + libDir.getCanonicalPath());
-      return LOAD_RESULT_NOT_FOUND;
     }
 
     File soFile = getSoFileByName(soName);
