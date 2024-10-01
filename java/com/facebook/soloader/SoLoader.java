@@ -808,8 +808,22 @@ public class SoLoader {
     return null;
   }
 
+  // same as loadLibrary, but the given library-name must not be a string constant; as a result, a
+  // tool like Redex cannot determine which library is being referenced, possibly leading to the
+  // removal of any such indirectly referenced library.
+  public static boolean loadLibraryUnsafe(String shortName) {
+    return loadLibrary(shortName);
+  }
+
   public static boolean loadLibrary(String shortName) {
     return isEnabled ? loadLibrary(shortName, 0) : NativeLoader.loadLibrary(shortName);
+  }
+
+  // same as loadLibrary, but the given library-name must not be a string constant; as a result, a
+  // tool like Redex cannot determine which library is being referenced, possibly leading to the
+  // removal of any such indirectly referenced library.
+  public static boolean loadLibraryUnsafe(String shortName, int loadFlags) {
+    return loadLibrary(shortName, loadFlags);
   }
 
   /**
