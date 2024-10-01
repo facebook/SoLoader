@@ -59,7 +59,7 @@ public abstract class NativeLibrary {
       try {
         if (mLibraryNames != null) {
           for (String name : mLibraryNames) {
-            SoLoader.loadLibrary(name);
+            SoLoader.loadLibraryUnsafe(name);
           }
         }
         initialNativeCheck();
