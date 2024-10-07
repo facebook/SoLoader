@@ -552,4 +552,12 @@ public final class SysUtil {
       return null;
     }
   }
+
+  public static String getCanonicalPathOrName(File file) {
+    try {
+      return file.getCanonicalPath();
+    } catch (IOException e) {
+      return file.getName();
+    }
+  }
 }

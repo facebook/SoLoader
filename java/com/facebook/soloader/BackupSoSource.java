@@ -203,17 +203,10 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
 
   @Override
   public String toString() {
-    String path;
-    try {
-      path = String.valueOf(soDirectory.getCanonicalPath());
-    } catch (IOException e) {
-      path = soDirectory.getName();
-    }
-
     return new StringBuilder()
         .append(getName())
         .append("[root = ")
-        .append(path)
+        .append(SysUtil.getCanonicalPathOrName(soDirectory))
         .append(" flags = ")
         .append(flags)
         .append(" apks = ")

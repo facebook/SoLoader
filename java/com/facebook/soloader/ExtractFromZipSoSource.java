@@ -219,10 +219,11 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
   @Override
   public String toString() {
-    try {
-      return mZipFileName.getCanonicalPath();
-    } catch (IOException e) {
-      return mZipFileName.getName();
-    }
+    return new StringBuilder()
+        .append(getName())
+        .append("[")
+        .append(SysUtil.getCanonicalPathOrName(mZipFileName))
+        .append("]")
+        .toString();
   }
 }
