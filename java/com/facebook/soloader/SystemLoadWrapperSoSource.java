@@ -34,7 +34,7 @@ public class SystemLoadWrapperSoSource extends SoSource {
       throws IOException {
     try {
       System.loadLibrary(soName.substring("lib".length(), soName.length() - ".so".length()));
-    } catch (Exception e) {
+    } catch (Throwable e) {
       LogUtil.e(SoLoader.TAG, "Error loading library: " + soName, e);
       return LOAD_RESULT_NOT_FOUND;
     }
