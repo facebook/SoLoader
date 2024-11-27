@@ -17,118 +17,104 @@
 package com.facebook.soloader.nativeloader;
 
 import java.io.IOException;
+import java.util.Optional;
 
-/** Facade to load native libraries for android */
-public class NativeLoader {
+/**
+ * Facade to manage loading of native libraries for Android.
+ */
+public final class NativeLoader {
 
-  private static NativeLoaderDelegate sDelegate;
+    private static NativeLoaderDelegate sDelegate;
 
-  /** Blocked default constructor */
-  private NativeLoader() {}
+    // Private constructor to prevent instantiation
+    private NativeLoader() {}
 
-  public static boolean loadLibrary(String shortName) {
-    return loadLibrary(shortName, 0);
-  }
-
-  /**
-   * Load a shared library, initializing any JNI binding it contains. Depending upon underlying
-   * loader, behavior can be customized based on passed in flag
-   *
-   * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
-   * @param flags 0 for default behavior, otherwise NativeLoaderDelegate defines other behaviors.
-   * @return Whether the library was loaded as a result of this call (true), or was already loaded
-   *     through a previous call (false).
-   */
-  public static boolean loadLibrary(String shortName, int flags) {
-    synchronized (NativeLoader.class) {
-      if (sDelegate == null) {
-        throw new IllegalStateException(
-            "NativeLoader has not been initialized.  "
-                + "To use standard native library loading, call "
-                + "NativeLoader.init(new SystemDelegate()).");
-      }
+    /**
+     * Loads a shared library with default behavior.
+     *
+     * @param shortName Name of the library, without "lib" prefix or ".so" suffix.
+     * @return {@code true} if the library was loaded by this call; {@code false} if it was already loaded.
+     */
+    public static boolean loadLibrary(String shortName) {
+        return loadLibrary(shortName, 0);
     }
 
-    return sDelegate.loadLibrary(shortName, flags);
-  }
-
-  /**
-   * Get the path of a loaded shared library.
-   *
-   * @param shortName Name of library to find, without "lib" prefix or ".so" suffix
-   * @return The path for the loaded library, null otherwise.
-   * @throws IOException IOException
-   */
-  public static String getLibraryPath(String shortName) throws IOException {
-    synchronized (NativeLoader.class) {
-      if (sDelegate == null) {
-        throw new IllegalStateException(
-            "NativeLoader has not been initialized.  "
-                + "To use standard native library loading, call "
-                + "NativeLoader.init(new SystemDelegate()).");
-      }
+    /**
+     * Loads a shared library with custom behavior defined by flags.
+     *
+     * @param shortName Name of the library, without "lib" prefix or ".so" suffix.
+     * @param flags     Flags for customization; default is 0.
+     * @return {@code true} if the library was loaded by this call; {@code false} if it was already loaded.
+     */
+    public static boolean loadLibrary(String shortName, int flags) {
+        ensureInitialized();
+        return sDelegate.loadLibrary(shortName, flags);
     }
 
-    return sDelegate.getLibraryPath(shortName);
-  }
-
-  /**
-   * Get the version of the loader used.
-   *
-   * @return The version number for the loader.
-   */
-  public static int getSoSourcesVersion() {
-    synchronized (NativeLoader.class) {
-      if (sDelegate == null) {
-        throw new IllegalStateException(
-            "NativeLoader has not been initialized.  "
-                + "To use standard native library loading, call "
-                + "NativeLoader.init(new SystemDelegate()).");
-      }
+    /**
+     * Retrieves the path of a loaded shared library.
+     *
+     * @param shortName Name of the library, without "lib" prefix or ".so" suffix.
+     * @return An {@link Optional} containing the library path if found; empty otherwise.
+     * @throws IOException if an error occurs while retrieving the path.
+     */
+    public static Optional<String> getLibraryPath(String shortName) throws IOException {
+        ensureInitialized();
+        return Optional.ofNullable(sDelegate.getLibraryPath(shortName));
     }
 
-    return sDelegate.getSoSourcesVersion();
-  }
-
-  /**
-   * Initializes native code loading for this app. Should be called only once, before any calls to
-   * {@link #loadLibrary(String)}.
-   *
-   * @param delegate Delegate to use for all {@code loadLibrary} calls.
-   */
-  public static void init(NativeLoaderDelegate delegate) {
-    synchronized (NativeLoader.class) {
-      if (sDelegate != null) {
-        throw new IllegalStateException("Cannot re-initialize NativeLoader.");
-      }
-      sDelegate = delegate;
+    /**
+     * Retrieves the version of the loader being used.
+     *
+     * @return The version number of the loader.
+     */
+    public static int getSoSourcesVersion() {
+        ensureInitialized();
+        return sDelegate.getSoSourcesVersion();
     }
-  }
 
-  /**
-   * Determine whether {@code NativeLoader} has already been initialized. This method should not
-   * normally be used, because initialization should be performed only once during app startup.
-   * However, libraries that want to provide a default initialization for {@code NativeLoader} to
-   * hide its existence from the app can use this method to avoid re-initializing.
-   *
-   * @return True if {@link #init(NativeLoaderDelegate)} has been called.
-   */
-  public static boolean isInitialized() {
-    synchronized (NativeLoader.class) {
-      return sDelegate != null;
+    /**
+     * Initializes the NativeLoader with a specified delegate.
+     * Should be called once during app startup.
+     *
+     * @param delegate The delegate to handle library loading operations.
+     */
+    public static synchronized void init(NativeLoaderDelegate delegate) {
+        if (sDelegate != null) {
+            throw new IllegalStateException("NativeLoader has already been initialized.");
+        }
+        sDelegate = delegate;
     }
-  }
 
-  /**
-   * Perform an initialization only if {@link NativeLoader} has not already been initialized. This
-   * protects against race conditions where isInitialized and init are called by multiple threads
-   * and both threads end up trying to perform an initialization
-   *
-   * @param delegate the NativeLoaderDelegate
-   */
-  public static void initIfUninitialized(NativeLoaderDelegate delegate) {
-    if (!isInitialized()) {
-      init(delegate);
+    /**
+     * Checks if the NativeLoader has been initialized.
+     *
+     * @return {@code true} if initialized; {@code false} otherwise.
+     */
+    public static synchronized boolean isInitialized() {
+        return sDelegate != null;
     }
-  }
+
+    /**
+     * Initializes the NativeLoader only if it hasn't already been initialized.
+     *
+     * @param delegate The delegate to handle library loading operations.
+     */
+    public static void initIfUninitialized(NativeLoaderDelegate delegate) {
+        synchronized (NativeLoader.class) {
+            if (!isInitialized()) {
+                init(delegate);
+            }
+        }
+    }
+
+    /**
+     * Ensures that the NativeLoader has been initialized; otherwise, throws an exception.
+     */
+    private static void ensureInitialized() {
+        if (!isInitialized()) {
+            throw new IllegalStateException(
+                "NativeLoader is not initialized. Call NativeLoader.init(new SystemDelegate()) before using it.");
+        }
+    }
 }
