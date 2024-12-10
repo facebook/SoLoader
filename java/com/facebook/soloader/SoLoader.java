@@ -328,14 +328,16 @@ public class SoLoader {
    *
    * @param context application context
    * @param externalSoMapping the custom {@link ExternalSoMapping} if the App is using SoMerging.
-   * @throws IOException IOException
    */
-  public static void init(Context context, @Nullable ExternalSoMapping externalSoMapping)
-      throws IOException {
+  public static void init(Context context, @Nullable ExternalSoMapping externalSoMapping) {
     synchronized (SoLoader.class) {
       SoLoader.externalSoMapping = externalSoMapping;
     }
-    init(context, 0);
+    try {
+      init(context, 0);
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   /**
