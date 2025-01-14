@@ -53,7 +53,7 @@ public abstract class NativeLibrary {
   @Nullable
   public boolean loadLibraries() {
     synchronized (mLock) {
-      if (mLoadLibraries == false) {
+      if (!mLoadLibraries) {
         return mLibrariesLoaded;
       }
       try {
