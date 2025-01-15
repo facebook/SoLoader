@@ -32,17 +32,17 @@ public abstract class NativeLibrary {
   private static final String TAG = NativeLibrary.class.getName();
 
   private final Object mLock;
-  private @Nullable List<String> mLibraryNames;
+  private @Nullable List<Runnable> mLibraryLoaders;
   private Boolean mLoadLibraries;
   private boolean mLibrariesLoaded;
   private volatile @Nullable UnsatisfiedLinkError mLinkError;
 
-  protected NativeLibrary(List<String> libraryNames) {
+  protected NativeLibrary(List<Runnable> libraryLoaders) {
     mLock = new Object();
     mLoadLibraries = true;
     mLibrariesLoaded = false;
     mLinkError = null;
-    mLibraryNames = libraryNames;
+    mLibraryLoaders = libraryLoaders;
   }
 
   /**
@@ -57,14 +57,14 @@ public abstract class NativeLibrary {
         return mLibrariesLoaded;
       }
       try {
-        if (mLibraryNames != null) {
-          for (String name : mLibraryNames) {
-            SoLoader.loadLibraryUnsafe(name);
+        if (mLibraryLoaders != null) {
+          for (Runnable libraryLoader : mLibraryLoaders) {
+            libraryLoader.run();
           }
         }
         initialNativeCheck();
         mLibrariesLoaded = true;
-        mLibraryNames = null;
+        mLibraryLoaders = null;
       } catch (UnsatisfiedLinkError error) {
         LogUtil.e(TAG, "Failed to load native lib (initial check): ", error);
         mLinkError = error;
