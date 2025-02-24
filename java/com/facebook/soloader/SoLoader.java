@@ -218,6 +218,9 @@ public class SoLoader {
 
   public static final int SOLOADER_IMPLICIT_DEPENDENCIES_TEST = (1 << 12);
 
+  /** Only initialize system SoSource */
+  public static final int SOLOADER_SYSTEM_SOSOURCE_ONLY = (1 << 13);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -397,8 +400,11 @@ public class SoLoader {
           (flags & SOLOADER_ENABLE_SYSTEMLOAD_WRAPPER_SOSOURCE) != 0;
       final boolean isEnabledBaseApkSplitSource =
           (flags & SOLOADER_ENABLE_BASE_APK_SPLIT_SOURCE) != 0;
+      final boolean systemSoSourceOnly = (flags & SOLOADER_SYSTEM_SOSOURCE_ONLY) != 0;
       if (isEnabledSystemLoadWrapper) {
         addSystemLoadWrapperSoSource(context, soSources);
+      } else if (systemSoSourceOnly) {
+        addSystemLibSoSource(soSources);
       } else if (isEnabledBaseApkSplitSource) {
         addSystemLibSoSource(soSources);
         soSources.add(0, new DirectSplitSoSource("base"));
