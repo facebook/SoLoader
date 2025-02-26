@@ -44,7 +44,7 @@ public final class NativeDeps {
   private static final float HASHMAP_LOAD_FACTOR = 1f;
   private static final int INITIAL_HASH = 5381;
   private static final int WAITING_THREADS_WARNING_THRESHOLD = 3;
-  private static final String LOG_TAG = "NativeDeps";
+  private static final String LOG_TAG = "SoLoader[NativeDeps]";
 
   private static volatile boolean sInitialized = false;
   private static @Nullable byte[] sEncodedDeps;
@@ -104,6 +104,9 @@ public final class NativeDeps {
       if (deps != null) {
         return deps;
       }
+      LogUtil.w(
+          LOG_TAG,
+          "Falling back to custom ELF parsing when loading " + soName + ", this can be slow");
       return MinElf.extract_DT_NEEDED(bc);
     } catch (MinElf.ElfError err) {
       UnsatisfiedLinkError ule = SoLoaderULErrorFactory.create(soName, err);
@@ -336,17 +339,26 @@ public final class NativeDeps {
     if (apkId != null) {
       offset = verifyBytesAndGetOffset(apkId, deps);
       if (offset == -1) {
+        LogUtil.w(LOG_TAG, "Invalid native deps file, offset=-1");
         return false;
       }
     }
 
     int deps_offset = findNextLine(deps, offset);
     if (deps_offset >= deps.length) {
+      LogUtil.w(
+          LOG_TAG,
+          "Invalid native deps file, deps_offset ("
+              + deps_offset
+              + ") >= length ("
+              + deps.length
+              + ")");
       return false;
     }
 
     int libsCount = parseLibCount(deps, offset, deps_offset - offset - 1);
     if (libsCount <= 0) {
+      LogUtil.w(LOG_TAG, "Invalid native deps file, libsCount=" + libsCount);
       return false;
     }
 
@@ -356,6 +368,13 @@ public final class NativeDeps {
     indexDepsBytes(deps, deps_offset);
 
     if (sPrecomputedLibs.size() != libsCount) {
+      LogUtil.w(
+          LOG_TAG,
+          "Invalid native deps file, precomputed libs size ("
+              + sPrecomputedLibs.size()
+              + ") != libsCount ("
+              + libsCount
+              + ")");
       return false;
     }
 
@@ -491,6 +510,7 @@ public final class NativeDeps {
     }
 
     if (soName.length() <= LIB_PREFIX_SUFFIX_LEN) {
+      LogUtil.w(LOG_TAG, "Invalid soName: " + soName);
       // soName must start with "lib" prefix and end with ".so" prefix, so
       // the length of the string must be at least 7.
       return null;
@@ -498,6 +518,7 @@ public final class NativeDeps {
 
     int offset = getOffsetForLib(soName);
     if (offset == -1) {
+      LogUtil.w(LOG_TAG, "Couldn't find " + soName + " in native deps file");
       return null;
     }
 
