@@ -22,6 +22,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
 import android.os.StrictMode;
 import android.text.TextUtils;
 import com.facebook.soloader.nativeloader.NativeLoader;
@@ -847,6 +848,10 @@ public class SoLoader {
     Boolean needsLoad = loadLibraryOnNonAndroid(shortName);
     if (needsLoad != null) {
       return needsLoad;
+    }
+
+    if (Thread.currentThread() == Looper.getMainLooper().getThread()) {
+      LogUtil.w(TAG, "Loading " + shortName + " on the main thread");
     }
 
     if (!isEnabled) {
