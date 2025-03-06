@@ -311,7 +311,7 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
    * @return Unpacking was successful and the on-device dso store state updated accordingly.
    * @throws IOException
    */
-  private boolean refreshLocked(final FileLocker lock, final int flags) throws IOException {
+  protected boolean refreshLocked(final FileLocker lock, final int flags) throws IOException {
     final File stateFileName = new File(soDirectory, STATE_FILE_NAME);
     final byte[] recomputedDeps = getDepsBlock();
     // By default, if we're forcing a refresh or dependencies have changed the state is dirty
