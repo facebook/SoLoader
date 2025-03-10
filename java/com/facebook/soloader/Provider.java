@@ -16,12 +16,6 @@
 
 package com.facebook.soloader;
 
-import android.content.pm.ApplicationInfo;
-
-public interface RecoverableSoSource {
-
-  // Called by SoLoader when an invariant such as /data/app directory changes. Allows
-  // implementations of SoSources to recover by either fixing own state and returning
-  // reference to this, or by returning new SoSource that should be used from now on instead.
-  SoSource recover(ApplicationInfo aInfo);
+public interface Provider<T> {
+  T get();
 }

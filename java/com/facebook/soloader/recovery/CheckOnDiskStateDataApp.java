@@ -16,10 +16,11 @@
 
 package com.facebook.soloader.recovery;
 
-import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import com.facebook.soloader.BackupSoSource;
 import com.facebook.soloader.DirectorySoSource;
 import com.facebook.soloader.LogUtil;
+import com.facebook.soloader.Provider;
 import com.facebook.soloader.SoLoader;
 import com.facebook.soloader.SoLoaderULError;
 import com.facebook.soloader.SoSource;
@@ -29,10 +30,10 @@ import java.util.ArrayList;
 
 public class CheckOnDiskStateDataApp implements RecoveryStrategy {
 
-  private final Context mContext;
+  private final Provider<ApplicationInfo> mApplicationInfoProvider;
 
-  public CheckOnDiskStateDataApp(Context context) {
-    mContext = context;
+  public CheckOnDiskStateDataApp(Provider<ApplicationInfo> applicationInfoProvider) {
+    mApplicationInfoProvider = applicationInfoProvider;
   }
 
   @Override
@@ -44,7 +45,7 @@ public class CheckOnDiskStateDataApp implements RecoveryStrategy {
 
     LogUtil.e(SoLoader.TAG, "Checking /data/app missing libraries.");
 
-    File nativeLibStandardDir = new File(mContext.getApplicationInfo().nativeLibraryDir);
+    File nativeLibStandardDir = new File(mApplicationInfoProvider.get().nativeLibraryDir);
     if (!nativeLibStandardDir.exists()) {
       for (SoSource soSource : soSources) {
         if (!(soSource instanceof BackupSoSource)) {

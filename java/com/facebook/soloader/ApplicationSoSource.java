@@ -17,6 +17,7 @@
 package com.facebook.soloader;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.os.StrictMode;
 import java.io.File;
 import java.io.IOException;
@@ -35,7 +36,11 @@ public class ApplicationSoSource extends SoSource implements RecoverableSoSource
   }
 
   private static File getNativeLibDirFromContext(Context context) {
-    return new File(context.getApplicationInfo().nativeLibraryDir);
+    return getNativeLibDirFromApplicationInfo(context.getApplicationInfo());
+  }
+
+  private static File getNativeLibDirFromApplicationInfo(ApplicationInfo aInfo) {
+    return new File(aInfo.nativeLibraryDir);
   }
 
   @Override
@@ -94,10 +99,11 @@ public class ApplicationSoSource extends SoSource implements RecoverableSoSource
   }
 
   @Override
-  public SoSource recover(Context context) {
+  public SoSource recover(ApplicationInfo aInfo) {
     soSource =
         new DirectorySoSource(
-            getNativeLibDirFromContext(context), flags | DirectorySoSource.RESOLVE_DEPENDENCIES);
+            getNativeLibDirFromApplicationInfo(aInfo),
+            flags | DirectorySoSource.RESOLVE_DEPENDENCIES);
     return this;
   }
 }

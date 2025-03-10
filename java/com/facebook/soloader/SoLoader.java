@@ -104,6 +104,7 @@ public class SoLoader {
   private static final ReentrantReadWriteLock sSoSourcesLock = new ReentrantReadWriteLock();
 
   /* package */ @Nullable static Context sApplicationContext = null;
+  /* package */ @Nullable static Provider<ApplicationInfo> sApplicationInfoProvider = null;
 
   /**
    * Ordered list of sources to consult when trying to load a shared library or one of its
@@ -264,6 +265,11 @@ public class SoLoader {
     init(context, flags, null);
   }
 
+  public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
+      throws IOException {
+    init(context, flags, soFileLoader, null);
+  }
+
   /**
    * Initializes native code loading for this app; this class's other static facilities cannot be
    * used until this {@link #init} is called. This method is idempotent: calls after the first are
@@ -272,9 +278,14 @@ public class SoLoader {
    * @param context application context
    * @param flags Zero or more of the SOLOADER_* flags
    * @param soFileLoader the custom {@link SoFileLoader}, you can implement your own loader
+   * @param applicationInfoProvier
    * @throws IOException IOException
    */
-  public static void init(Context context, int flags, @Nullable SoFileLoader soFileLoader)
+  public static void init(
+      Context context,
+      int flags,
+      @Nullable SoFileLoader soFileLoader,
+      @Nullable Provider<ApplicationInfo> applicationInfoProvider)
       throws IOException {
     if (isInitialized()) {
       LogUtil.w(TAG, "SoLoader already initialized");
@@ -293,7 +304,7 @@ public class SoLoader {
           flags |= SOLOADER_DISABLE_BACKUP_SOSOURCE;
         }
 
-        initSoLoader(context, soFileLoader, flags);
+        initSoLoader(context, soFileLoader, applicationInfoProvider, flags);
         initSoSources(context, flags);
         LogUtil.v(TAG, "Init SoLoader delegate");
         NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
@@ -592,7 +603,10 @@ public class SoLoader {
   }
 
   private static synchronized void initSoLoader(
-      @Nullable Context context, @Nullable SoFileLoader soFileLoader, int flags) {
+      @Nullable Context context,
+      @Nullable SoFileLoader soFileLoader,
+      @Nullable Provider<ApplicationInfo> applicationInfoProvider,
+      int flags) {
     if (context != null) {
       Context applicationContext = context.getApplicationContext();
 
@@ -606,8 +620,12 @@ public class SoLoader {
       }
 
       sApplicationContext = applicationContext;
+      sApplicationInfoProvider =
+          applicationInfoProvider == null
+              ? new SimpleApplicationInfoProvider(applicationContext)
+              : applicationInfoProvider;
       sRecoveryStrategyFactory =
-          new DefaultRecoveryStrategyFactory(applicationContext, makeRecoveryFlags(flags));
+          new DefaultRecoveryStrategyFactory(makeRecoveryFlags(flags), sApplicationInfoProvider);
     }
 
     if (soFileLoader == null && sSoFileLoader != null) {
@@ -686,6 +704,7 @@ public class SoLoader {
         sLoadingLibraries.clear();
         sSoFileLoader = null;
         sApplicationContext = null;
+        sApplicationInfoProvider = null;
         sRecoveryStrategyFactory = null;
         ObserverHolder.resetObserversForTestsOnly();
       }
@@ -694,6 +713,7 @@ public class SoLoader {
 
     /* package */ static void setContext(Context context) {
       sApplicationContext = context;
+      sApplicationInfoProvider = new SimpleApplicationInfoProvider(context);
     }
   }
 

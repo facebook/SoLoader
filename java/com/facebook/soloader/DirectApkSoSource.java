@@ -17,6 +17,7 @@
 package com.facebook.soloader;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.StrictMode;
 import android.text.TextUtils;
@@ -49,9 +50,13 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
   private final Map<String, Set<String>> mDepsCache = new HashMap<>();
   private final Set<String> mDirectApkLdPaths;
 
-  public DirectApkSoSource(Context context) {
+  public DirectApkSoSource(ApplicationInfo aInfo) {
     super();
-    mDirectApkLdPaths = getDirectApkLdPaths(context);
+    mDirectApkLdPaths = getDirectApkLdPaths(aInfo);
+  }
+
+  public DirectApkSoSource(Context context) {
+    this(context.getApplicationInfo());
   }
 
   public DirectApkSoSource(Set<String> directApkLdPaths) {
@@ -112,18 +117,17 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
     return null;
   }
 
-  /*package*/ static Set<String> getDirectApkLdPaths(Context context) {
+  /*package*/ static Set<String> getDirectApkLdPaths(ApplicationInfo aInfo) {
     Set<String> directApkPathSet = new HashSet<>();
 
-    final String apkPath = context.getApplicationInfo().sourceDir;
+    final String apkPath = aInfo.sourceDir;
     final @Nullable String fallbackApkLdPath = getFallbackApkLdPath(apkPath);
     if (fallbackApkLdPath != null) {
       directApkPathSet.add(fallbackApkLdPath);
     }
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
-        && context.getApplicationInfo().splitSourceDirs != null) {
-      for (String splitApkPath : context.getApplicationInfo().splitSourceDirs) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && aInfo.splitSourceDirs != null) {
+      for (String splitApkPath : aInfo.splitSourceDirs) {
         final @Nullable String fallbackSplitApkLdPath = getFallbackApkLdPath(splitApkPath);
         if (fallbackSplitApkLdPath != null) {
           directApkPathSet.add(fallbackSplitApkLdPath);
@@ -283,8 +287,8 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
   }
 
   @Override
-  public SoSource recover(Context context) {
-    DirectApkSoSource recovered = new DirectApkSoSource(context);
+  public SoSource recover(ApplicationInfo aInfo) {
+    DirectApkSoSource recovered = new DirectApkSoSource(aInfo);
     try {
       recovered.prepare();
     } catch (IOException e) {

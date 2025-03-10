@@ -16,8 +16,9 @@
 
 package com.facebook.soloader.recovery;
 
-import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import com.facebook.soloader.LogUtil;
+import com.facebook.soloader.Provider;
 import com.facebook.soloader.RecoverableSoSource;
 import com.facebook.soloader.SoSource;
 import java.io.File;
@@ -25,20 +26,22 @@ import java.io.File;
 public class DetectDataAppMove implements RecoveryStrategy {
   private static final String TAG = "soloader.recovery.DetectDataAppMove";
 
-  private final Context mContext;
   private final BaseApkPathHistory mBaseApkPathHistory;
   private final int mInitialHistorySize;
+  private final Provider<ApplicationInfo> mApplicationInfoProvider;
 
-  public DetectDataAppMove(Context context, BaseApkPathHistory baseApkPathHistory) {
-    mContext = context;
+  public DetectDataAppMove(
+      BaseApkPathHistory baseApkPathHistory, Provider<ApplicationInfo> applicationInfoProvider) {
     mBaseApkPathHistory = baseApkPathHistory;
     mInitialHistorySize = baseApkPathHistory.size();
+    mApplicationInfoProvider = applicationInfoProvider;
   }
 
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
-    if (detectMove()) {
-      recoverSoSources(soSources);
+    ApplicationInfo aInfo = mApplicationInfoProvider.get();
+    if (detectMove(aInfo)) {
+      recoverSoSources(soSources, aInfo);
       return true;
     }
 
@@ -50,21 +53,17 @@ public class DetectDataAppMove implements RecoveryStrategy {
     return false;
   }
 
-  private boolean detectMove() {
-    String baseApkPath = getBaseApkPath();
+  private boolean detectMove(ApplicationInfo aInfo) {
+    String baseApkPath = aInfo.sourceDir;
     return new File(baseApkPath).exists() && mBaseApkPathHistory.recordPathIfNew(baseApkPath);
   }
 
-  private void recoverSoSources(SoSource[] soSources) {
+  private void recoverSoSources(SoSource[] soSources, ApplicationInfo aInfo) {
     for (int i = 0; i < soSources.length; ++i) {
       if (soSources[i] instanceof RecoverableSoSource) {
         RecoverableSoSource soSource = (RecoverableSoSource) soSources[i];
-        soSources[i] = soSource.recover(mContext);
+        soSources[i] = soSource.recover(aInfo);
       }
     }
-  }
-
-  private String getBaseApkPath() {
-    return mContext.getApplicationInfo().sourceDir;
   }
 }

@@ -17,6 +17,7 @@
 package com.facebook.soloader;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.Parcel;
 import android.os.StrictMode;
@@ -43,30 +44,34 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
   private final ArrayList<ExtractFromZipSoSource> mZipSources = new ArrayList<>();
   protected boolean mInitialized = false;
 
-  public BackupSoSource(Context context, String name, boolean resolveDependencies) {
+  public BackupSoSource(
+      Context context, ApplicationInfo aInfo, String name, boolean resolveDependencies) {
     super(context, name, resolveDependencies);
     mZipSources.add(
         new ExtractFromZipSoSource(
             context,
             name,
-            new File(context.getApplicationInfo().sourceDir),
+            new File(aInfo.sourceDir),
             // The regular expression matches libraries that would ordinarily be unpacked
             // during installation.
             ZIP_SEARCH_PATTERN));
-    addBackupsFromSplitApks(context, name);
+    addBackupsFromSplitApks(context, aInfo, name);
+  }
+
+  public BackupSoSource(Context context, String name, boolean resolveDependencies) {
+    this(context, context.getApplicationInfo(), name, resolveDependencies);
   }
 
   public BackupSoSource(Context context, String name) {
     this(context, name, true);
   }
 
-  private void addBackupsFromSplitApks(Context context, String name) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP
-        || context.getApplicationInfo().splitSourceDirs == null) {
+  private void addBackupsFromSplitApks(Context context, ApplicationInfo aInfo, String name) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP || aInfo.splitSourceDirs == null) {
       return;
     }
     try {
-      for (String splitApkDir : context.getApplicationInfo().splitSourceDirs) {
+      for (String splitApkDir : aInfo.splitSourceDirs) {
         ExtractFromZipSoSource splitApkSource =
             new ExtractFromZipSoSource(context, name, new File(splitApkDir), ZIP_SEARCH_PATTERN);
         if (splitApkSource.hasZippedLibs()) {
@@ -191,8 +196,8 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
   }
 
   @Override
-  public SoSource recover(Context context) {
-    BackupSoSource recovered = new BackupSoSource(context, soDirectory.getName());
+  public SoSource recover(ApplicationInfo aInfo) {
+    BackupSoSource recovered = new BackupSoSource(mContext, aInfo, soDirectory.getName(), true);
     try {
       recovered.prepare(0);
     } catch (IOException e) {

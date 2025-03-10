@@ -16,9 +16,10 @@
 
 package com.facebook.soloader.recovery;
 
-import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import com.facebook.soloader.LogUtil;
 import com.facebook.soloader.NoBaseApkException;
+import com.facebook.soloader.Provider;
 import com.facebook.soloader.SoSource;
 import java.io.File;
 
@@ -30,17 +31,18 @@ import java.io.File;
 public class CheckBaseApkExists implements RecoveryStrategy {
   private static final String TAG = "soloader.recovery.CheckBaseApkExists";
 
-  private final Context mContext;
   private final BaseApkPathHistory mBaseApkPathHistory;
+  private final Provider<ApplicationInfo> mApplicationInfoProvider;
 
-  public CheckBaseApkExists(Context context, BaseApkPathHistory pathHistory) {
-    mContext = context;
+  public CheckBaseApkExists(
+      BaseApkPathHistory pathHistory, Provider<ApplicationInfo> applicationInfoProvider) {
     mBaseApkPathHistory = pathHistory;
+    mApplicationInfoProvider = applicationInfoProvider;
   }
 
   @Override
   public boolean recover(UnsatisfiedLinkError error, SoSource[] soSources) {
-    String baseApkPath = mContext.getApplicationInfo().sourceDir;
+    String baseApkPath = mApplicationInfoProvider.get().sourceDir;
 
     if (!new File(baseApkPath).exists()) {
       StringBuilder sb =

@@ -16,27 +16,29 @@
 
 package com.facebook.soloader.recovery;
 
-import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import com.facebook.soloader.Provider;
 
 public class DefaultRecoveryStrategyFactory implements RecoveryStrategyFactory {
-  private final Context mContext;
+  private final Provider<ApplicationInfo> mApplicationInfoProvider;
   private final BaseApkPathHistory mBaseApkPathHistory;
   private final int mRecoveryFlags;
 
-  public DefaultRecoveryStrategyFactory(Context context, int recoveryFlags) {
-    mContext = context;
+  public DefaultRecoveryStrategyFactory(
+      int recoveryFlags, Provider<ApplicationInfo> applicationInfoProvider) {
     mRecoveryFlags = recoveryFlags;
+    mApplicationInfoProvider = applicationInfoProvider;
     mBaseApkPathHistory = new BaseApkPathHistory(5);
-    mBaseApkPathHistory.recordPathIfNew(context.getApplicationInfo().sourceDir);
+    mBaseApkPathHistory.recordPathIfNew(applicationInfoProvider.get().sourceDir);
   }
 
   @Override
   public RecoveryStrategy get() {
     return new CompositeRecoveryStrategy(
-        new DetectDataAppMove(mContext, mBaseApkPathHistory),
-        new CheckBaseApkExists(mContext, mBaseApkPathHistory),
+        new DetectDataAppMove(mBaseApkPathHistory, mApplicationInfoProvider),
+        new CheckBaseApkExists(mBaseApkPathHistory, mApplicationInfoProvider),
         new WaitForAsyncInit(),
-        new CheckOnDiskStateDataApp(mContext),
+        new CheckOnDiskStateDataApp(mApplicationInfoProvider),
         new ReunpackBackupSoSources(mRecoveryFlags),
         new CheckOnDiskStateDataData(),
         new ReunpackNonBackupSoSources(),

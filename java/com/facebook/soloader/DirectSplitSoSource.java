@@ -106,7 +106,10 @@ public class DirectSplitSoSource extends SoSource {
 
   static String getSplitPath(String splitName) {
     if ("base".equals(splitName)) {
-      return SoLoader.sApplicationContext.getApplicationInfo().sourceDir;
+      if (SoLoader.sApplicationInfoProvider == null) {
+        throw new IllegalStateException("SoLoader not initialized");
+      }
+      return SoLoader.sApplicationInfoProvider.get().sourceDir;
     }
 
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
