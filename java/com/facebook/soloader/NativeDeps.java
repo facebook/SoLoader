@@ -186,6 +186,25 @@ public final class NativeDeps {
     return true;
   }
 
+  public static boolean useDepsFileWithAssetManager(final Context context) {
+    try {
+      verifyUninitialized();
+      byte[] depsBytes = NativeDepsReader.readNativeDepsFromApk(context);
+      if (depsBytes == null) {
+        LogUtil.w(LOG_TAG, "depsBytes is null");
+      }
+
+      return processDepsBytes(null, depsBytes);
+    } catch (IOException e) {
+      LogUtil.w(
+          LOG_TAG,
+          "Failed to use native deps file in APK, falling back to using MinElf to get library"
+              + " dependencies:"
+              + e.getMessage());
+      return false;
+    }
+  }
+
   private static boolean useDepsFileFromApkSync(final Context context, boolean extractToDisk) {
     boolean success;
     try {
