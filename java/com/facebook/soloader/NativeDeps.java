@@ -147,65 +147,10 @@ public final class NativeDeps {
    * the ELF file.
    *
    * @param context Application context, used to find apk file and data directory.
-   * @param async If true, native deps file initialization will be performed in a background thread,
-   *     and fetching dependencies will wait for initialization to complete. If false,
-   *     initialization is performed synchronously on this call.
    * @param extractToDisk Whether the dependency file got extracted into disk.
    * @return true if initialization succeeded, false otherwise. If async, always returns true.
    */
-  public static boolean useDepsFile(
-      final Context context, boolean async, final boolean extractToDisk) {
-    if (!async) {
-      return useDepsFileFromApkSync(context, extractToDisk);
-    }
-
-    Runnable runnable =
-        new Runnable() {
-          @Override
-          public void run() {
-            sWaitForDepsFileLock.writeLock().lock();
-            sUseDepsFileAsync = true;
-            try {
-              useDepsFileFromApkSync(context, extractToDisk);
-            } finally {
-              int waitingThreads = sWaitForDepsFileLock.getReadLockCount();
-              if (waitingThreads >= WAITING_THREADS_WARNING_THRESHOLD) {
-                LogUtil.w(
-                    LOG_TAG,
-                    "NativeDeps initialization finished with "
-                        + Integer.toString(waitingThreads)
-                        + " threads waiting.");
-              }
-              sWaitForDepsFileLock.writeLock().unlock();
-              sUseDepsFileAsync = false;
-            }
-          }
-        };
-
-    new Thread(runnable, "soloader-nativedeps-init").start();
-    return true;
-  }
-
-  public static boolean useDepsFileWithAssetManager(final Context context) {
-    try {
-      verifyUninitialized();
-      byte[] depsBytes = NativeDepsReader.readNativeDepsFromApk(context);
-      if (depsBytes == null) {
-        LogUtil.w(LOG_TAG, "depsBytes is null");
-      }
-
-      return processDepsBytes(null, depsBytes);
-    } catch (IOException e) {
-      LogUtil.w(
-          LOG_TAG,
-          "Failed to use native deps file in APK, falling back to using MinElf to get library"
-              + " dependencies:"
-              + e.getMessage());
-      return false;
-    }
-  }
-
-  private static boolean useDepsFileFromApkSync(final Context context, boolean extractToDisk) {
+  public static boolean useDepsFile(final Context context, final boolean extractToDisk) {
     boolean success;
     try {
       success = initDeps(context, extractToDisk);
@@ -234,6 +179,25 @@ public final class NativeDeps {
     }
 
     return success;
+  }
+
+  public static boolean useDepsFileWithAssetManager(final Context context) {
+    try {
+      verifyUninitialized();
+      byte[] depsBytes = NativeDepsReader.readNativeDepsFromApk(context);
+      if (depsBytes == null) {
+        LogUtil.w(LOG_TAG, "depsBytes is null");
+      }
+
+      return processDepsBytes(null, depsBytes);
+    } catch (IOException e) {
+      LogUtil.w(
+          LOG_TAG,
+          "Failed to use native deps file in APK, falling back to using MinElf to get library"
+              + " dependencies:"
+              + e.getMessage());
+      return false;
+    }
   }
 
   private static boolean initDeps(final Context context, boolean extractToDisk) throws IOException {

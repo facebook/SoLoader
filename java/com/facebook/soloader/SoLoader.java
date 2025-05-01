@@ -1435,12 +1435,9 @@ public class SoLoader {
    *     true.
    */
   public static boolean useDepsFile(
-      Context context,
-      boolean async,
-      boolean extractToDisk,
-      boolean useAssetManagerForNativeDepsFile) {
+      Context context, boolean extractToDisk, boolean useAssetManagerForNativeDepsFile) {
     if (!useAssetManagerForNativeDepsFile) {
-      return NativeDeps.useDepsFile(context, async, extractToDisk);
+      return NativeDeps.useDepsFile(context, extractToDisk);
     }
 
     return NativeDeps.useDepsFileWithAssetManager(context);
