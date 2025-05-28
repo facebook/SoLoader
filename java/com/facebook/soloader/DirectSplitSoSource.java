@@ -269,6 +269,10 @@ public class DirectSplitSoSource extends SoSource {
 
   @Override
   public String getName() {
-    return "DirectSplitSoSource";
+    if (mSplitFileName == null) {
+      return "DirectSplitSoSource";
+    } else {
+      return "DirectSplitSoSource[" + mSplitFileName + "]";
+    }
   }
 }
