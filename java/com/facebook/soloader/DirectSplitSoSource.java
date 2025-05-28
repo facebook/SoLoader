@@ -140,7 +140,7 @@ public class DirectSplitSoSource extends SoSource {
       loadDependencies(lib, loadFlags, threadPolicy);
     }
 
-    System.load(getLibraryPath(lib));
+    SoLoader.sSoFileLoader.load(getLibraryPath(lib), loadFlags);
     return LOAD_RESULT_LOADED;
   }
 
