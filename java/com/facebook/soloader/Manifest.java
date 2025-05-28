@@ -23,12 +23,60 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 
 public class Manifest {
-  public final String arch;
-  public final List<String> libs;
+  public static final class Library {
+    public static final int FLAG_UNKNOWN_DEPS = 1 << 0;
+    public final String name;
+    public final int flags;
 
-  Manifest(String arch, List<String> libs) {
+    public Library(String name, int flags) {
+      this.name = name;
+      this.flags = flags;
+    }
+
+    public boolean hasUnknownDeps() {
+      return (flags & FLAG_UNKNOWN_DEPS) != 0;
+    }
+
+    private static Library read(DataInputStream data) throws IOException {
+      int nameLength = ((int) data.readShort()) & 0xFFFF;
+      byte[] name = new byte[nameLength];
+      data.readFully(name);
+      int flags = ((int) data.readByte()) & 0xFF;
+      return new Library(new String(name, StandardCharsets.UTF_8), flags);
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof Library)) {
+        return false;
+      }
+
+      Library library = (Library) o;
+
+      if (flags != library.flags) {
+        return false;
+      }
+      return name.equals(library.name);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = name.hashCode();
+      result = 31 * result + flags;
+      return result;
+    }
+  }
+
+  public final String arch;
+  public final List<Library> libs;
+
+  Manifest(String arch, List<Library> libs) {
     this.arch = arch;
     this.libs = Collections.unmodifiableList(libs);
   }
@@ -41,9 +89,9 @@ public class Manifest {
     String arch = readArch(data);
 
     int numOfLibs = ((int) data.readShort()) & 0xFFFF;
-    ArrayList<String> libs = new ArrayList<>();
+    ArrayList<Library> libs = new ArrayList<>();
     for (int i = 0; i < numOfLibs; ++i) {
-      libs.add(readLib(data));
+      libs.add(Library.read(data));
     }
 
     return new Manifest(arch, libs);
@@ -62,12 +110,5 @@ public class Manifest {
         return MinElf.ISA.X86;
     }
     throw new RuntimeException("Unrecognized arch id: " + arch);
-  }
-
-  private static String readLib(DataInputStream data) throws IOException {
-    int nameLength = ((int) data.readShort()) & 0xFFFF;
-    byte[] name = new byte[nameLength];
-    data.readFully(name);
-    return new String(name, StandardCharsets.UTF_8);
   }
 }

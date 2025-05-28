@@ -22,15 +22,17 @@ import android.os.StrictMode;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import javax.annotation.Nullable;
 
 public class DirectSplitSoSource extends SoSource {
   protected final String mSplitName;
 
   protected @Nullable Manifest mManifest = null;
-  protected @Nullable Set<String> mLibs = null;
+  protected @Nullable Map<String, Manifest.Library> mLibs = null;
 
   public DirectSplitSoSource(String splitName) {
     mSplitName = splitName;
@@ -50,31 +52,47 @@ public class DirectSplitSoSource extends SoSource {
       mManifest = Manifest.read(is);
     }
 
-    mLibs = new HashSet<String>(mManifest.libs);
+    mLibs = new HashMap<String, Manifest.Library>();
+    for (Manifest.Library lib : mManifest.libs) {
+      mLibs.put(lib.name, lib);
+    }
   }
 
   @Override
-  public int loadLibrary(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy) {
+  public int loadLibrary(String soName, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
+      throws IOException {
     if (mLibs == null) {
       throw new IllegalStateException("prepare not called");
     }
 
-    if (mLibs.contains(soName)) {
-      return loadLibraryImpl(soName, loadFlags);
+    Manifest.Library library = mLibs.get(soName);
+    if (library != null) {
+      return loadLibraryImpl(library, loadFlags, threadPolicy);
     }
 
     return LOAD_RESULT_NOT_FOUND;
   }
 
   @SuppressLint("MissingSoLoaderLibrary")
-  protected int loadLibraryImpl(String soName, int loadFlags) {
-    @Nullable String path = getLibraryPath(soName);
-    if (path == null) {
-      throw new NullPointerException();
+  protected int loadLibraryImpl(
+      Manifest.Library lib, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
+      throws IOException {
+    if (lib.hasUnknownDeps()) {
+      loadDependencies(lib, loadFlags, threadPolicy);
     }
 
-    System.load(path);
+    System.load(getLibraryPath(lib));
     return LOAD_RESULT_LOADED;
+  }
+
+  private void loadDependencies(
+      Manifest.Library lib, int loadFlags, StrictMode.ThreadPolicy threadPolicy)
+      throws IOException {
+    try (ZipFile apk = new ZipFile(getSplitPath())) {
+      try (ElfByteChannel bc = getElfByteChannel(apk, lib)) {
+        NativeDeps.loadDependencies(lib.name, bc, loadFlags, threadPolicy);
+      }
+    }
   }
 
   @Override
@@ -97,11 +115,23 @@ public class DirectSplitSoSource extends SoSource {
       throw new IllegalStateException("prepare not called");
     }
 
-    if (mLibs.contains(soName)) {
-      return getSplitPath(mSplitName) + "!/lib/" + mManifest.arch + "/" + soName;
+    Manifest.Library library = mLibs.get(soName);
+    if (library != null) {
+      return getLibraryPath(library);
     }
 
     return null;
+  }
+
+  private String getLibraryPath(Manifest.Library lib) {
+    if (mManifest == null) {
+      throw new IllegalStateException("prepare not called");
+    }
+    return getSplitPath() + "!/lib/" + mManifest.arch + "/" + lib.name;
+  }
+
+  private String getSplitPath() {
+    return getSplitPath(mSplitName);
   }
 
   static String getSplitPath(String splitName) {
@@ -133,18 +163,33 @@ public class DirectSplitSoSource extends SoSource {
 
   @Override
   @Nullable
-  public String[] getLibraryDependencies(String soName) {
+  public String[] getLibraryDependencies(String soName) throws IOException {
     if (mLibs == null) {
       throw new IllegalStateException("prepare not called");
     }
 
-    if (mLibs.contains(soName)) {
-      // No dependencies to report, the split is assumed to be registered with
-      // the linker namespace and no explicit dependency loading should happen.
-      return new String[0];
+    Manifest.Library library = mLibs.get(soName);
+    if (library != null) {
+      return getLibraryDependencies(library);
     }
 
     return null;
+  }
+
+  protected String[] getLibraryDependencies(Manifest.Library lib) throws IOException {
+    try (ZipFile apk = new ZipFile(getSplitPath())) {
+      try (ElfByteChannel bc = getElfByteChannel(apk, lib)) {
+        return NativeDeps.getDependencies(lib.name, bc);
+      }
+    }
+  }
+
+  private ElfByteChannel getElfByteChannel(ZipFile apk, Manifest.Library lib) throws IOException {
+    if (mManifest == null) {
+      throw new IllegalStateException("prepare not called");
+    }
+    final ZipEntry entry = apk.getEntry("lib/" + mManifest.arch + "/" + lib.name);
+    return new ElfZipFileChannel(apk, entry);
   }
 
   @Override
