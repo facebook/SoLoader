@@ -22,6 +22,7 @@ import android.os.StrictMode;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -49,9 +50,12 @@ public class DirectSplitSoSource extends SoSource {
   protected void prepare(int flags) throws IOException {
     try (InputStream is =
         SoLoader.sApplicationContext.getAssets().open(mSplitName + ".soloader-manifest")) {
-      mManifest = Manifest.read(is);
+      installManifest(Manifest.read(is));
     }
+  }
 
+  protected void installManifest(Manifest manifest) {
+    mManifest = manifest;
     mLibs = new HashMap<String, Manifest.Library>();
     for (Manifest.Library lib : mManifest.libs) {
       mLibs.put(lib.name, lib);
@@ -130,7 +134,7 @@ public class DirectSplitSoSource extends SoSource {
     return getSplitPath() + "!/lib/" + mManifest.arch + "/" + lib.name;
   }
 
-  private String getSplitPath() {
+  protected String getSplitPath() {
     return getSplitPath(mSplitName);
   }
 
@@ -198,6 +202,14 @@ public class DirectSplitSoSource extends SoSource {
       throw new IllegalStateException("prepare not called");
     }
     return new String[] {mManifest.arch};
+  }
+
+  @Override
+  public void addToLdLibraryPath(Collection<String> paths) {
+    if (mManifest == null) {
+      throw new IllegalStateException("prepare not called");
+    }
+    paths.add(getSplitPath() + "!/lib/" + mManifest.arch + "/");
   }
 
   @Override
