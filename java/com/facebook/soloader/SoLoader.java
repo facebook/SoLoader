@@ -418,6 +418,10 @@ public class SoLoader {
       } else if (systemSoSourceOnly) {
         addSystemLibSoSource(soSources);
       } else if (isEnabledBaseApkSplitSource) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+          throw new IllegalArgumentException(
+              "DirectSplitSoSource is not supported before Android L");
+        }
         addSystemLibSoSource(soSources);
         soSources.add(0, new DirectSplitSoSource("base"));
       } else {

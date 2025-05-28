@@ -17,6 +17,7 @@
 package com.facebook.soloader;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.os.Build;
 import android.os.StrictMode;
 import java.io.File;
@@ -29,6 +30,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import javax.annotation.Nullable;
 
+@TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class DirectSplitSoSource extends SoSource {
   protected final String mSplitName;
 
@@ -144,10 +146,6 @@ public class DirectSplitSoSource extends SoSource {
         throw new IllegalStateException("SoLoader not initialized");
       }
       return SoLoader.sApplicationInfoProvider.get().sourceDir;
-    }
-
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-      throw new IllegalStateException("Splits are not supported before Android L");
     }
 
     String[] splits = SoLoader.sApplicationContext.getApplicationInfo().splitSourceDirs;
