@@ -18,6 +18,8 @@ package com.facebook.soloader;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.StrictMode;
 import java.io.File;
@@ -32,13 +34,17 @@ import javax.annotation.Nullable;
 
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class DirectSplitSoSource extends SoSource {
-  protected final String mSplitName;
+  private static final String BASE = "base";
+  private static final String BASE_APK = "base.apk";
+
+  protected final String mFeatureName;
 
   protected @Nullable Manifest mManifest = null;
   protected @Nullable Map<String, Manifest.Library> mLibs = null;
+  protected @Nullable String mSplitFileName = null;
 
-  public DirectSplitSoSource(String splitName) {
-    mSplitName = splitName;
+  public DirectSplitSoSource(String featureName) {
+    mFeatureName = featureName;
   }
 
   Manifest getManifest() {
@@ -51,17 +57,64 @@ public class DirectSplitSoSource extends SoSource {
   @Override
   protected void prepare(int flags) throws IOException {
     try (InputStream is =
-        SoLoader.sApplicationContext.getAssets().open(mSplitName + ".soloader-manifest")) {
+        SoLoader.sApplicationContext.getAssets().open(mFeatureName + ".soloader-manifest")) {
       installManifest(Manifest.read(is));
     }
   }
 
   protected void installManifest(Manifest manifest) {
     mManifest = manifest;
+
     mLibs = new HashMap<String, Manifest.Library>();
     for (Manifest.Library lib : mManifest.libs) {
       mLibs.put(lib.name, lib);
     }
+
+    mSplitFileName = findSplitFileName(manifest);
+  }
+
+  protected String findSplitFileName(Manifest manifest) {
+    Context context = SoLoader.sApplicationContext;
+    if (context == null) {
+      throw new IllegalStateException("SoLoader.init() not yet called");
+    }
+
+    return findSplitFileName(mFeatureName, manifest.arch, context.getApplicationInfo());
+  }
+
+  protected static String findSplitFileName(String feature, String arch, ApplicationInfo aInfo) {
+    @Nullable String[] splitSourceDirs = aInfo.splitSourceDirs;
+    if (splitSourceDirs == null) {
+      return BASE_APK;
+    }
+
+    final String featureSplit;
+    final String configSplit;
+    if (BASE.equals(feature)) {
+      featureSplit = BASE_APK;
+      configSplit = "split_config." + arch.replace("-", "_") + ".apk";
+    } else {
+      featureSplit = "split_" + feature + ".apk";
+      configSplit = "split_" + feature + ".config." + arch.replace("-", "_") + ".apk";
+    }
+
+    for (String splitSourceDir : splitSourceDirs) {
+      if (splitSourceDir.endsWith(configSplit)) {
+        return configSplit;
+      }
+    }
+
+    if (BASE.equals(feature)) {
+      return BASE_APK;
+    }
+
+    for (String splitSourceDir : splitSourceDirs) {
+      if (splitSourceDir.endsWith(featureSplit)) {
+        return featureSplit;
+      }
+    }
+
+    return BASE_APK;
   }
 
   @Override
@@ -137,30 +190,34 @@ public class DirectSplitSoSource extends SoSource {
   }
 
   protected String getSplitPath() {
-    return getSplitPath(mSplitName);
+    if (mSplitFileName == null) {
+      throw new IllegalStateException("prepare not called");
+    }
+    return getSplitPath(mSplitFileName);
   }
 
-  static String getSplitPath(String splitName) {
-    if ("base".equals(splitName)) {
-      if (SoLoader.sApplicationInfoProvider == null) {
-        throw new IllegalStateException("SoLoader not initialized");
-      }
-      return SoLoader.sApplicationInfoProvider.get().sourceDir;
+  static String getSplitPath(String splitFileName) {
+    if (SoLoader.sApplicationInfoProvider == null) {
+      throw new IllegalStateException("SoLoader not initialized");
+    }
+    ApplicationInfo aInfo = SoLoader.sApplicationInfoProvider.get();
+
+    if (BASE_APK.equals(splitFileName)) {
+      return aInfo.sourceDir;
     }
 
-    String[] splits = SoLoader.sApplicationContext.getApplicationInfo().splitSourceDirs;
-    if (splits == null) {
+    @Nullable String[] splitsSourceDirs = aInfo.splitSourceDirs;
+    if (splitsSourceDirs == null) {
       throw new IllegalStateException("No splits avaiable");
     }
 
-    String fileName = "split_" + splitName + ".apk";
-    for (String split : splits) {
-      if (split.endsWith(fileName)) {
-        return split;
+    for (String splitSourceDir : splitsSourceDirs) {
+      if (splitSourceDir.endsWith(splitFileName)) {
+        return splitSourceDir;
       }
     }
 
-    throw new IllegalStateException("Could not find " + splitName + " split");
+    throw new IllegalStateException("Could not find " + splitFileName + " split");
   }
 
   @Override
