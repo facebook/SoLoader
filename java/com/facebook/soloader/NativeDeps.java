@@ -20,9 +20,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.StrictMode;
 import com.facebook.soloader.observer.ObserverHolder;
-import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -147,28 +145,16 @@ public final class NativeDeps {
    * the ELF file.
    *
    * @param context Application context, used to find apk file and data directory.
-   * @param extractToDisk Whether the dependency file got extracted into disk.
    * @return true if initialization succeeded, false otherwise. If async, always returns true.
    */
-  public static boolean useDepsFile(final Context context, final boolean extractToDisk) {
+  public static boolean useDepsFile(final Context context) {
     boolean success;
     try {
-      success = initDeps(context, extractToDisk);
+      success = initDeps(context);
     } catch (IOException e) {
       // File does not exist or reading failed for some reason. We need to make
       // sure the file was extracted from the APK.
       success = false;
-    }
-
-    if (!success && extractToDisk) {
-      try {
-        NativeDepsUnpacker.ensureNativeDepsAvailable(context);
-        // Retry, now that we made sure the file was extracted.
-        success = initDeps(context, extractToDisk);
-      } catch (IOException e) {
-        // Failed to read native deps file. We can ignore the exception since
-        // we will fall back to using MinElf.
-      }
     }
 
     if (!success) {
@@ -189,7 +175,7 @@ public final class NativeDeps {
         LogUtil.w(LOG_TAG, "depsBytes is null");
       }
 
-      return processDepsBytes(null, depsBytes);
+      return processDepsBytes(depsBytes);
     } catch (IOException e) {
       LogUtil.w(
           LOG_TAG,
@@ -200,20 +186,11 @@ public final class NativeDeps {
     }
   }
 
-  private static boolean initDeps(final Context context, boolean extractToDisk) throws IOException {
+  private static boolean initDeps(final Context context) throws IOException {
     verifyUninitialized();
-    byte[] depsBytes = null;
-    byte[] apkId = null;
-    if (extractToDisk) {
-      File apkFile = new File(context.getApplicationInfo().sourceDir);
-      apkId = SysUtil.makeApkDepBlock(apkFile, context);
-      depsBytes = NativeDepsUnpacker.readNativeDepsFromDisk(context);
-    } else {
-      depsBytes = NativeDepsUnpacker.readNativeDepsFromApk(context);
-      // ApkDepBlock is not needed if we are reading directly from APK
-    }
+    byte[] depsBytes = NativeDepsUnpacker.readNativeDepsFromApk(context);
 
-    return processDepsBytes(apkId, depsBytes);
+    return processDepsBytes(depsBytes);
   }
 
   // Given the offset where the dependencies for a library begin in
@@ -273,29 +250,6 @@ public final class NativeDeps {
     }
   }
 
-  private static int verifyBytesAndGetOffset(@Nullable byte[] apkId, @Nullable byte[] bytes) {
-    if (apkId == null || apkId.length == 0) {
-      return -1;
-    }
-
-    if (bytes.length < apkId.length + 4) {
-      return -1;
-    }
-
-    int depsLen = ByteBuffer.wrap(bytes, apkId.length, 4).getInt();
-    if (bytes.length != apkId.length + 4 + depsLen) {
-      return -1;
-    }
-
-    for (int i = 0; i < apkId.length; ++i) {
-      if (apkId[i] != bytes[i]) {
-        return -1;
-      }
-    }
-
-    return apkId.length + 4;
-  }
-
   private static int findNextLine(byte[] bytes, int offset) {
     while (offset < bytes.length && bytes[offset] != '\n') {
       offset++;
@@ -317,15 +271,8 @@ public final class NativeDeps {
     }
   }
 
-  static boolean processDepsBytes(byte[] apkId, byte[] deps) throws IOException {
+  static boolean processDepsBytes(byte[] deps) throws IOException {
     int offset = 0;
-    if (apkId != null) {
-      offset = verifyBytesAndGetOffset(apkId, deps);
-      if (offset == -1) {
-        LogUtil.w(LOG_TAG, "Invalid native deps file, offset=-1");
-        return false;
-      }
-    }
 
     int deps_offset = findNextLine(deps, offset);
     if (deps_offset >= deps.length) {

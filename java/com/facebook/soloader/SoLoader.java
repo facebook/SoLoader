@@ -1438,10 +1438,9 @@ public class SoLoader {
    * @return True if initialization succeeded, false otherwise. Always returns true if async is
    *     true.
    */
-  public static boolean useDepsFile(
-      Context context, boolean extractToDisk, boolean useAssetManagerForNativeDepsFile) {
+  public static boolean useDepsFile(Context context, boolean useAssetManagerForNativeDepsFile) {
     if (!useAssetManagerForNativeDepsFile) {
-      return NativeDeps.useDepsFile(context, extractToDisk);
+      return NativeDeps.useDepsFile(context);
     }
 
     return NativeDeps.useDepsFileWithAssetManager(context);
