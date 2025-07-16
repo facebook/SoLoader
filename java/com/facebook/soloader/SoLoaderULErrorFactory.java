@@ -23,15 +23,18 @@ import java.util.regex.Pattern;
 public class SoLoaderULErrorFactory {
   public static SoLoaderULError create(String soName, UnsatisfiedLinkError e) {
     SoLoaderULError err;
+    String soNameSuffix = " (soName: " + soName + ")";
     if (e.getMessage() != null && e.getMessage().contains("ELF")) {
       LogUtil.d(SoLoader.TAG, "Corrupted lib file detected");
-      err = new SoLoaderCorruptedLibFileError(soName, e.toString());
+      err = new SoLoaderCorruptedLibFileError(soName, e.toString() + soNameSuffix);
     } else if (corruptedLibName(soName)) {
       LogUtil.d(SoLoader.TAG, "Corrupted lib name detected");
-      err = new SoLoaderCorruptedLibNameError(soName, "corrupted lib name: " + e.toString());
+      err =
+          new SoLoaderCorruptedLibNameError(
+              soName, "corrupted lib name: " + e.toString() + soNameSuffix);
     } else {
       // General ULE exception
-      err = new SoLoaderULError(soName, e.toString());
+      err = new SoLoaderULError(soName, e.toString() + soNameSuffix);
     }
     err.initCause(e);
     return err;
