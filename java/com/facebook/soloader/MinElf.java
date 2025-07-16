@@ -121,7 +121,9 @@ public final class MinElf {
           "file is not ELF: magic is 0x"
               + Long.toHexString(magic)
               + ", it should be "
-              + Long.toHexString(ELF_MAGIC));
+              + Long.toHexString(ELF_MAGIC)
+              + ", file size: "
+              + bc.size());
     }
 
     boolean is32 = (getu8(bc, bb, Elf32.Ehdr.E_IDENT + 0x4) == 1);
