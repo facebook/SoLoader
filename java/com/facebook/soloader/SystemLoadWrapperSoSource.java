@@ -19,6 +19,7 @@ package com.facebook.soloader;
 import android.annotation.SuppressLint;
 import android.os.StrictMode;
 import android.text.TextUtils;
+import dalvik.system.BaseDexClassLoader;
 import java.io.File;
 import java.io.IOException;
 import javax.annotation.Nullable;
@@ -34,11 +35,25 @@ public class SystemLoadWrapperSoSource extends SoSource {
       throws IOException {
     try {
       System.loadLibrary(soName.substring("lib".length(), soName.length() - ".so".length()));
-    } catch (Throwable e) {
+    } catch (UnsatisfiedLinkError e) {
+      if (libraryIsKnown(soName)) {
+        throw e;
+      }
+
       LogUtil.e(SoLoader.TAG, "Error loading library: " + soName, e);
       return LOAD_RESULT_NOT_FOUND;
     }
     return LOAD_RESULT_LOADED;
+  }
+
+  private static boolean libraryIsKnown(String soName) {
+    ClassLoader cl = SystemLoadWrapperSoSource.class.getClassLoader();
+    if (cl instanceof BaseDexClassLoader) {
+      return ((BaseDexClassLoader) cl).findLibrary(soName) != null;
+    }
+
+    LogUtil.w(SoLoader.TAG, "ClassLoader is not a BaseDexClassLoader");
+    return false;
   }
 
   @Nullable
