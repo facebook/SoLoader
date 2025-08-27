@@ -18,8 +18,6 @@ package com.facebook.soloader;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
-import android.content.Context;
-import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.StrictMode;
 import java.io.File;
@@ -34,16 +32,19 @@ import javax.annotation.Nullable;
 
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class DirectSplitSoSource extends SoSource {
-  private static final String BASE = "base";
-  private static final String BASE_APK = "base.apk";
 
   protected final String mFeatureName;
+  protected final String mSplitName;
 
   protected @Nullable Map<String, Manifest.Library> mLibs = null;
-  protected @Nullable String mSplitFileName = null;
 
   public DirectSplitSoSource(String featureName) {
+    this(featureName, Splits.findAbiSplit(featureName));
+  }
+
+  public DirectSplitSoSource(String featureName, String splitName) {
     mFeatureName = featureName;
+    mSplitName = splitName;
   }
 
   @Override
@@ -67,53 +68,6 @@ public class DirectSplitSoSource extends SoSource {
     for (Manifest.Library lib : manifest.libs) {
       mLibs.put(lib.name, lib);
     }
-
-    mSplitFileName = findSplitFileName(manifest);
-  }
-
-  protected String findSplitFileName(Manifest manifest) {
-    Context context = SoLoader.sApplicationContext;
-    if (context == null) {
-      throw new IllegalStateException("SoLoader.init() not yet called");
-    }
-
-    return findSplitFileName(mFeatureName, context.getApplicationInfo());
-  }
-
-  protected static String findSplitFileName(String feature, ApplicationInfo aInfo) {
-    @Nullable String[] splitSourceDirs = aInfo.splitSourceDirs;
-    if (splitSourceDirs == null) {
-      return BASE_APK;
-    }
-
-    final String featureSplit;
-    final String configSplit;
-    if (BASE.equals(feature)) {
-      featureSplit = BASE_APK;
-      configSplit = "split_config." + SoLoader.getPrimaryAbi().replace("-", "_") + ".apk";
-    } else {
-      featureSplit = "split_" + feature + ".apk";
-      configSplit =
-          "split_" + feature + ".config." + SoLoader.getPrimaryAbi().replace("-", "_") + ".apk";
-    }
-
-    for (String splitSourceDir : splitSourceDirs) {
-      if (splitSourceDir.endsWith(configSplit)) {
-        return configSplit;
-      }
-    }
-
-    if (BASE.equals(feature)) {
-      return BASE_APK;
-    }
-
-    for (String splitSourceDir : splitSourceDirs) {
-      if (splitSourceDir.endsWith(featureSplit)) {
-        return featureSplit;
-      }
-    }
-
-    return BASE_APK;
   }
 
   @Override
@@ -186,34 +140,7 @@ public class DirectSplitSoSource extends SoSource {
   }
 
   protected String getSplitPath() {
-    if (mSplitFileName == null) {
-      throw new IllegalStateException("prepare not called");
-    }
-    return getSplitPath(mSplitFileName);
-  }
-
-  static String getSplitPath(String splitFileName) {
-    if (SoLoader.sApplicationInfoProvider == null) {
-      throw new IllegalStateException("SoLoader not initialized");
-    }
-    ApplicationInfo aInfo = SoLoader.sApplicationInfoProvider.get();
-
-    if (BASE_APK.equals(splitFileName)) {
-      return aInfo.sourceDir;
-    }
-
-    @Nullable String[] splitsSourceDirs = aInfo.splitSourceDirs;
-    if (splitsSourceDirs == null) {
-      throw new IllegalStateException("No splits avaiable");
-    }
-
-    for (String splitSourceDir : splitsSourceDirs) {
-      if (splitSourceDir.endsWith(splitFileName)) {
-        return splitSourceDir;
-      }
-    }
-
-    throw new IllegalStateException("Could not find " + splitFileName + " split");
+    return Splits.getSplitPath(mSplitName);
   }
 
   @Override
@@ -256,10 +183,6 @@ public class DirectSplitSoSource extends SoSource {
 
   @Override
   public String getName() {
-    if (mSplitFileName == null) {
-      return "DirectSplitSoSource";
-    } else {
-      return "DirectSplitSoSource[" + mSplitFileName + "]";
-    }
+    return "DirectSplitSoSource[" + mSplitName + "]";
   }
 }
