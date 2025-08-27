@@ -20,6 +20,7 @@ def fb_java_library(**kwargs):
     native.java_library(**_deps_decorator(**kwargs))
 
 def fb_core_android_library(**kwargs):
+    kwargs.pop("nullchecker_mode")
     android_library(**kwargs)
 
 def export_file(**kwargs):
