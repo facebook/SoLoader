@@ -63,8 +63,15 @@ public class DirectSplitSoSource extends SoSource {
   }
 
   protected void installManifest(Manifest manifest) {
-    mManifest = manifest;
+    if (!manifest.abi.equals(SoLoader.getPrimaryAbi())) {
+      throw new IllegalStateException(
+          "DirectSplitSoSource only supports primary abi: "
+              + SoLoader.getPrimaryAbi()
+              + "; manifest abi: "
+              + manifest.abi);
+    }
 
+    mManifest = manifest;
     mLibs = new HashMap<String, Manifest.Library>();
     for (Manifest.Library lib : mManifest.libs) {
       mLibs.put(lib.name, lib);
@@ -79,10 +86,10 @@ public class DirectSplitSoSource extends SoSource {
       throw new IllegalStateException("SoLoader.init() not yet called");
     }
 
-    return findSplitFileName(mFeatureName, manifest.arch, context.getApplicationInfo());
+    return findSplitFileName(mFeatureName, context.getApplicationInfo());
   }
 
-  protected static String findSplitFileName(String feature, String arch, ApplicationInfo aInfo) {
+  protected static String findSplitFileName(String feature, ApplicationInfo aInfo) {
     @Nullable String[] splitSourceDirs = aInfo.splitSourceDirs;
     if (splitSourceDirs == null) {
       return BASE_APK;
@@ -92,10 +99,11 @@ public class DirectSplitSoSource extends SoSource {
     final String configSplit;
     if (BASE.equals(feature)) {
       featureSplit = BASE_APK;
-      configSplit = "split_config." + arch.replace("-", "_") + ".apk";
+      configSplit = "split_config." + SoLoader.getPrimaryAbi().replace("-", "_") + ".apk";
     } else {
       featureSplit = "split_" + feature + ".apk";
-      configSplit = "split_" + feature + ".config." + arch.replace("-", "_") + ".apk";
+      configSplit =
+          "split_" + feature + ".config." + SoLoader.getPrimaryAbi().replace("-", "_") + ".apk";
     }
 
     for (String splitSourceDir : splitSourceDirs) {
@@ -170,7 +178,7 @@ public class DirectSplitSoSource extends SoSource {
   @Override
   @Nullable
   public String getLibraryPath(String soName) {
-    if (mLibs == null || mManifest == null) {
+    if (mLibs == null) {
       throw new IllegalStateException("prepare not called");
     }
 
@@ -183,10 +191,7 @@ public class DirectSplitSoSource extends SoSource {
   }
 
   private String getLibraryPath(Manifest.Library lib) {
-    if (mManifest == null) {
-      throw new IllegalStateException("prepare not called");
-    }
-    return getSplitPath() + "!/lib/" + mManifest.arch + "/" + lib.name;
+    return getSplitPath() + "!/lib/" + SoLoader.getPrimaryAbi() + "/" + lib.name;
   }
 
   protected String getSplitPath() {
@@ -244,27 +249,18 @@ public class DirectSplitSoSource extends SoSource {
   }
 
   private ElfByteChannel getElfByteChannel(ZipFile apk, Manifest.Library lib) throws IOException {
-    if (mManifest == null) {
-      throw new IllegalStateException("prepare not called");
-    }
-    final ZipEntry entry = apk.getEntry("lib/" + mManifest.arch + "/" + lib.name);
+    final ZipEntry entry = apk.getEntry("lib/" + SoLoader.getPrimaryAbi() + "/" + lib.name);
     return new ElfZipFileChannel(apk, entry);
   }
 
   @Override
   public String[] getSoSourceAbis() {
-    if (mManifest == null) {
-      throw new IllegalStateException("prepare not called");
-    }
-    return new String[] {mManifest.arch};
+    return new String[] {SoLoader.getPrimaryAbi()};
   }
 
   @Override
   public void addToLdLibraryPath(Collection<String> paths) {
-    if (mManifest == null) {
-      throw new IllegalStateException("prepare not called");
-    }
-    paths.add(getSplitPath() + "!/lib/" + mManifest.arch + "/");
+    paths.add(getSplitPath() + "!/lib/" + SoLoader.getPrimaryAbi() + "/");
   }
 
   @Override

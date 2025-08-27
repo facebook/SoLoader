@@ -73,11 +73,11 @@ public class Manifest {
     }
   }
 
-  public final String arch;
+  public final String abi;
   public final List<Library> libs;
 
-  Manifest(String arch, List<Library> libs) {
-    this.arch = arch;
+  Manifest(String abi, List<Library> libs) {
+    this.abi = abi;
     this.libs = Collections.unmodifiableList(libs);
   }
 
@@ -86,7 +86,7 @@ public class Manifest {
   }
 
   public static Manifest read(DataInputStream data) throws IOException {
-    String arch = readArch(data);
+    String abi = readAbi(data);
 
     int numOfLibs = ((int) data.readShort()) & 0xFFFF;
     ArrayList<Library> libs = new ArrayList<>();
@@ -94,12 +94,12 @@ public class Manifest {
       libs.add(Library.read(data));
     }
 
-    return new Manifest(arch, libs);
+    return new Manifest(abi, libs);
   }
 
-  private static String readArch(DataInputStream data) throws IOException {
-    int arch = data.readByte();
-    switch (arch) {
+  private static String readAbi(DataInputStream data) throws IOException {
+    int abi = data.readByte();
+    switch (abi) {
       case 1:
         return MinElf.ISA.AARCH64;
       case 2:
@@ -109,6 +109,6 @@ public class Manifest {
       case 4:
         return MinElf.ISA.X86;
     }
-    throw new RuntimeException("Unrecognized arch id: " + arch);
+    throw new RuntimeException("Unrecognized abi id: " + abi);
   }
 }
