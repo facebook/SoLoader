@@ -39,19 +39,11 @@ public class DirectSplitSoSource extends SoSource {
 
   protected final String mFeatureName;
 
-  protected @Nullable Manifest mManifest = null;
   protected @Nullable Map<String, Manifest.Library> mLibs = null;
   protected @Nullable String mSplitFileName = null;
 
   public DirectSplitSoSource(String featureName) {
     mFeatureName = featureName;
-  }
-
-  Manifest getManifest() {
-    if (mManifest == null) {
-      throw new IllegalStateException("prepare not called");
-    }
-    return mManifest;
   }
 
   @Override
@@ -71,9 +63,8 @@ public class DirectSplitSoSource extends SoSource {
               + manifest.abi);
     }
 
-    mManifest = manifest;
     mLibs = new HashMap<String, Manifest.Library>();
-    for (Manifest.Library lib : mManifest.libs) {
+    for (Manifest.Library lib : manifest.libs) {
       mLibs.put(lib.name, lib);
     }
 
