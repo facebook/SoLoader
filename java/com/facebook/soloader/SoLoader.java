@@ -104,6 +104,7 @@ public class SoLoader {
   private static final ReentrantReadWriteLock sSoSourcesLock = new ReentrantReadWriteLock();
 
   /* package */ @Nullable static Context sApplicationContext = null;
+  /* package */ @Nullable static String sPrimaryAbi = null;
   /* package */ @Nullable static Provider<ApplicationInfo> sApplicationInfoProvider = null;
 
   /**
@@ -477,6 +478,13 @@ public class SoLoader {
     }
   }
 
+  static String getPrimaryAbi() {
+    if (sPrimaryAbi == null) {
+      throw new IllegalStateException("no primary abi");
+    }
+    return sPrimaryAbi;
+  }
+
   private static void initDummySoSource() {
     if (sSoSources != null) {
       return;
@@ -628,6 +636,7 @@ public class SoLoader {
           applicationInfoProvider == null
               ? new SimpleApplicationInfoProvider(applicationContext)
               : applicationInfoProvider;
+      sPrimaryAbi = SysUtil.getPrimaryAbi(applicationContext.getApplicationInfo());
       sRecoveryStrategyFactory =
           new DefaultRecoveryStrategyFactory(makeRecoveryFlags(flags), sApplicationInfoProvider);
     }
@@ -708,6 +717,7 @@ public class SoLoader {
         sLoadingLibraries.clear();
         sSoFileLoader = null;
         sApplicationContext = null;
+        sPrimaryAbi = null;
         sApplicationInfoProvider = null;
         sRecoveryStrategyFactory = null;
         ObserverHolder.resetObserversForTestsOnly();
@@ -717,6 +727,7 @@ public class SoLoader {
 
     /* package */ static void setContext(Context context) {
       sApplicationContext = context;
+      sPrimaryAbi = SysUtil.getPrimaryAbi(context.getApplicationInfo());
       sApplicationInfoProvider = new SimpleApplicationInfoProvider(context);
     }
   }

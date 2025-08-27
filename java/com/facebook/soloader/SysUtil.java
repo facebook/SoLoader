@@ -35,6 +35,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -559,5 +560,18 @@ public final class SysUtil {
     } catch (IOException e) {
       return file.getName();
     }
+  }
+
+  public static @Nullable String getPrimaryAbi(ApplicationInfo applicationInfo) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      try {
+        Field primaryCpuAbi = ApplicationInfo.class.getDeclaredField("primaryCpuAbi");
+        return (String) primaryCpuAbi.get(applicationInfo);
+      } catch (NoSuchFieldException | IllegalAccessException e) {
+        LogUtil.e(TAG, "Cannot get primaryCpuAbi", e);
+      }
+    }
+
+    return null;
   }
 }
