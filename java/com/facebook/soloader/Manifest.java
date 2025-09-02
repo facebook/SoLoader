@@ -89,6 +89,10 @@ public class Manifest {
     this.libs = Collections.unmodifiableList(libs);
   }
 
+  public static Manifest buildDeoptimisedManifestForLibs(ZipFile zipFile) throws IOException {
+    return buildDeoptimisedManifestForLibs(zipFile, SoLoader.getPrimaryAbi());
+  }
+
   public static Manifest buildDeoptimisedManifestForLibs(ZipFile zipFile, String abi)
       throws IOException {
     final String prefix = "lib/" + abi + "/";
