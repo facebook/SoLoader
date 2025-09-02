@@ -22,12 +22,16 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import javax.annotation.Nullable;
 
 public class Manifest {
   public static final class Library {
     public static final int FLAG_UNKNOWN_DEPS = 1 << 0;
+    public static final int FLAG_COMPRESSED = 1 << 1;
     public final String name;
     public final int flags;
 
@@ -38,6 +42,10 @@ public class Manifest {
 
     public boolean hasUnknownDeps() {
       return (flags & FLAG_UNKNOWN_DEPS) != 0;
+    }
+
+    public boolean isCompressed() {
+      return (flags & FLAG_COMPRESSED) != 0;
     }
 
     private static Library read(DataInputStream data) throws IOException {
@@ -79,6 +87,27 @@ public class Manifest {
   Manifest(String abi, List<Library> libs) {
     this.abi = abi;
     this.libs = Collections.unmodifiableList(libs);
+  }
+
+  public static Manifest buildDeoptimisedManifestForLibs(ZipFile zipFile, String abi)
+      throws IOException {
+    final String prefix = "lib/" + abi + "/";
+    List<Library> libs = new ArrayList<>();
+
+    Enumeration<? extends ZipEntry> entries = zipFile.entries();
+    while (entries.hasMoreElements()) {
+      ZipEntry entry = entries.nextElement();
+      String name = entry.getName();
+      if (name.startsWith(prefix) && name.endsWith(".so")) {
+        int flags = Library.FLAG_UNKNOWN_DEPS;
+        if (entry.getMethod() != ZipEntry.STORED) {
+          flags |= Library.FLAG_COMPRESSED;
+        }
+        libs.add(new Library(name.substring(prefix.length()), flags));
+      }
+    }
+
+    return new Manifest(abi, libs);
   }
 
   public static Manifest read(InputStream input) throws IOException {
