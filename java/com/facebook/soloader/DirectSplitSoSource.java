@@ -33,9 +33,9 @@ import javax.annotation.Nullable;
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class DirectSplitSoSource extends SoSource {
 
-  protected final String mFeatureName;
   protected final String mSplitName;
 
+  protected final @Nullable String mFeatureName;
   protected @Nullable Map<String, Manifest.Library> mLibs = null;
 
   public DirectSplitSoSource(String featureName) {
@@ -47,8 +47,22 @@ public class DirectSplitSoSource extends SoSource {
     mSplitName = splitName;
   }
 
+  public DirectSplitSoSource(String splitName, Manifest manifest) {
+    mFeatureName = null;
+    mSplitName = splitName;
+    installManifest(manifest);
+  }
+
   @Override
   protected void prepare(int flags) throws IOException {
+    if (mLibs != null) {
+      // Constructed with manifest, library data is already initialized.
+      return;
+    }
+
+    if (mFeatureName == null) {
+      throw new NullPointerException();
+    }
     try (InputStream is =
         SoLoader.sApplicationContext.getAssets().open(mFeatureName + ".soloader-manifest")) {
       installManifest(Manifest.read(is));
