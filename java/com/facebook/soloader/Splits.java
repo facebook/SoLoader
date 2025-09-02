@@ -19,6 +19,9 @@ package com.facebook.soloader;
 import android.annotation.TargetApi;
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
 import javax.annotation.Nullable;
 
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -27,11 +30,7 @@ public class Splits {
   private static final String BASE_APK = "base.apk";
 
   public static String findAbiSplit(String feature) {
-    if (SoLoader.sApplicationInfoProvider == null) {
-      throw new IllegalStateException("SoLoader not initialized");
-    }
-    ApplicationInfo aInfo = SoLoader.sApplicationInfoProvider.get();
-    return findAbiSplit(feature, aInfo);
+    return findAbiSplit(feature, SoLoader.getApplicationInfo());
   }
 
   public static String findAbiSplit(String feature, ApplicationInfo aInfo) {
@@ -71,10 +70,7 @@ public class Splits {
   }
 
   public static String getSplitPath(String splitFileName) {
-    if (SoLoader.sApplicationInfoProvider == null) {
-      throw new IllegalStateException("SoLoader not initialized");
-    }
-    return getSplitPath(splitFileName, SoLoader.sApplicationInfoProvider.get());
+    return getSplitPath(splitFileName, SoLoader.getApplicationInfo());
   }
 
   public static String getSplitPath(String splitFileName, ApplicationInfo aInfo) {
@@ -94,5 +90,63 @@ public class Splits {
     }
 
     throw new IllegalStateException("Could not find " + splitFileName + " split");
+  }
+
+  public static boolean isApplicationSplit(File path) throws IOException {
+    return isApplicationSplit(path, SoLoader.getApplicationInfo());
+  }
+
+  public static boolean isApplicationSplit(File path, ApplicationInfo aInfo) throws IOException {
+    String splitName = getSplitName(path);
+    if (splitName == null) {
+      return false;
+    }
+
+    path = path.getCanonicalFile();
+    String parent = path.getParent();
+
+    if (parent == null) {
+      return false;
+    }
+
+    if (!parent.equals(new File(aInfo.sourceDir).getParent())) {
+      return false;
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      return isApplicationSplitName(splitName, aInfo);
+    }
+
+    @Nullable String[] splitsSourceDirs = aInfo.splitSourceDirs;
+    if (splitsSourceDirs == null) {
+      return false;
+    }
+
+    final String needle = path.getPath();
+    for (String splitSourceDir : splitsSourceDirs) {
+      if (splitSourceDir.equals(needle)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  public static @Nullable String getSplitName(File path) {
+    String name = path.getName();
+    if (name.startsWith("split_") && name.endsWith(".apk")) {
+      return name.substring(6, name.length() - 4);
+    }
+    return null;
+  }
+
+  @TargetApi(Build.VERSION_CODES.O)
+  public static boolean isApplicationSplitName(String name, ApplicationInfo aInfo) {
+    String[] splitNames = aInfo.splitNames;
+    if (splitNames == null) {
+      return false;
+    }
+
+    return Arrays.binarySearch(splitNames, name) >= 0;
   }
 }

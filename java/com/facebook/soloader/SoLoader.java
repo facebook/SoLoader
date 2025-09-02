@@ -485,6 +485,13 @@ public class SoLoader {
     return sPrimaryAbi;
   }
 
+  static ApplicationInfo getApplicationInfo() {
+    if (sApplicationInfoProvider == null) {
+      throw new IllegalStateException("SoLoader not initialized");
+    }
+    return sApplicationInfoProvider.get();
+  }
+
   private static void initDummySoSource() {
     if (sSoSources != null) {
       return;
