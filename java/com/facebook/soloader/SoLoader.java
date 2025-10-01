@@ -485,6 +485,13 @@ public class SoLoader {
     return sPrimaryAbi;
   }
 
+  public static Context getApplicationContext() {
+    if (sApplicationContext == null) {
+      throw new IllegalStateException("SoLoader.init() not yet called");
+    }
+    return sApplicationContext;
+  }
+
   static ApplicationInfo getApplicationInfo() {
     if (sApplicationInfoProvider == null) {
       throw new IllegalStateException("SoLoader not initialized");
@@ -1339,7 +1346,7 @@ public class SoLoader {
 
   private static void assertInitialized() {
     if (!isInitialized()) {
-      throw new IllegalStateException("SoLoader.init() not yet called");
+      throw new IllegalStateException("SoLoader.init() not called yet");
     }
   }
 
