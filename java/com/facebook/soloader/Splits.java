@@ -132,6 +132,10 @@ public class Splits {
     return false;
   }
 
+  public static boolean isBaseApk(File path) {
+    return path.getName().equals(BASE_APK);
+  }
+
   public static @Nullable String getSplitName(File path) {
     String name = path.getName();
     if (name.startsWith("split_") && name.endsWith(".apk")) {
