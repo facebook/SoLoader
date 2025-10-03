@@ -289,11 +289,11 @@ public class SoLoader {
       @Nullable Provider<ApplicationInfo> applicationInfoProvider)
       throws IOException {
     if (isInitialized()) {
-      LogUtil.w(TAG, "SoLoader already initialized");
+      LogUtil.e(TAG, "SoLoader already initialized");
       return;
     }
 
-    LogUtil.w(TAG, "Initializing SoLoader: " + flags);
+    LogUtil.e(TAG, "Initializing SoLoader: " + flags);
     StrictMode.ThreadPolicy oldPolicy = StrictMode.allowThreadDiskWrites();
     try {
       isEnabled = initEnableConfig(context);
@@ -307,14 +307,14 @@ public class SoLoader {
 
         initSoLoader(context, soFileLoader, applicationInfoProvider, flags);
         initSoSources(context, flags);
-        LogUtil.v(TAG, "Init SoLoader delegate");
+        LogUtil.e(TAG, "Init SoLoader delegate");
         NativeLoader.initIfUninitialized(new NativeLoaderToSoLoaderDelegate());
       } else {
         initDummySoSource();
-        LogUtil.v(TAG, "Init System Loader delegate");
+        LogUtil.e(TAG, "Init System Loader delegate");
         NativeLoader.initIfUninitialized(new SystemDelegate());
       }
-      LogUtil.w(TAG, "SoLoader initialized: " + flags);
+      LogUtil.e(TAG, "SoLoader initialized: " + flags);
     } finally {
       StrictMode.setThreadPolicy(oldPolicy);
     }
@@ -387,7 +387,7 @@ public class SoLoader {
               .metaData;
     } catch (Exception e) {
       // cannot happen, our package exists while app is running
-      LogUtil.w(TAG, "Unexpected issue with package manager (" + packageName + ")", e);
+      LogUtil.e(TAG, "Unexpected issue with package manager (" + packageName + ")", e);
     }
 
     // Keep the fallback value as true for backward compatibility.
@@ -441,7 +441,7 @@ public class SoLoader {
             // a wrap.sh script [1]), so make sure we can load them.
             // [1] https://developer.android.com/ndk/guides/wrap-script
             addApplicationSoSource(soSources, getApplicationSoSourceFlags());
-            LogUtil.d(TAG, "Adding exo package source: " + SO_STORE_NAME_MAIN);
+            LogUtil.e(TAG, "Adding exo package source: " + SO_STORE_NAME_MAIN);
             soSources.add(0, new ExoSoSource(context, SO_STORE_NAME_MAIN));
           } else {
             if (SysUtil.isSupportedDirectLoad(context, sAppType)) {
@@ -460,7 +460,7 @@ public class SoLoader {
       SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
       int prepareFlags = makePrepareFlags();
       for (int i = finalSoSources.length; i-- > 0; ) {
-        LogUtil.i(TAG, "Preparing SO source: " + finalSoSources[i]);
+        LogUtil.e(TAG, "Preparing SO source: " + finalSoSources[i]);
 
         if (SYSTRACE_LIBRARY_LOADING) {
           Api18TraceUtils.beginTraceSection(TAG, "_", finalSoSources[i].getClass().getSimpleName());
@@ -472,7 +472,7 @@ public class SoLoader {
       }
       sSoSources = finalSoSources;
       sSoSourcesVersion.getAndIncrement();
-      LogUtil.i(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
+      LogUtil.e(TAG, "init finish: " + sSoSources.length + " SO sources prepared");
     } finally {
       sSoSourcesLock.writeLock().unlock();
     }
@@ -531,7 +531,7 @@ public class SoLoader {
   /** Add DirectApk SoSources for disabling android:extractNativeLibs */
   private static void addDirectApkSoSource(Context context, ArrayList<SoSource> soSources) {
     DirectApkSoSource directApkSoSource = new DirectApkSoSource(context);
-    LogUtil.d(TAG, "validating/adding directApk source: " + directApkSoSource.toString());
+    LogUtil.e(TAG, "validating/adding directApk source: " + directApkSoSource.toString());
     if (directApkSoSource.isValid()) {
       soSources.add(0, directApkSoSource);
     }
@@ -550,7 +550,7 @@ public class SoLoader {
     }
 
     SoSource applicationSoSource = new ApplicationSoSource(sApplicationContext, flags);
-    LogUtil.d(TAG, "Adding application source: " + applicationSoSource.toString());
+    LogUtil.e(TAG, "Adding application source: " + applicationSoSource.toString());
     soSources.add(0, applicationSoSource);
   }
 
@@ -587,7 +587,7 @@ public class SoLoader {
       // Don't pass DirectorySoSource.RESOLVE_DEPENDENCIES for directories we find on
       // LD_LIBRARY_PATH: Bionic's dynamic linker is capable of correctly resolving dependencies
       // these libraries have on each other, so doing that ourselves would be a waste.
-      LogUtil.d(TAG, "adding system library source: " + libPath);
+      LogUtil.e(TAG, "adding system library source: " + libPath);
       File systemSoDirectory = new File(libPath);
       soSources.add(new DirectorySoSource(systemSoDirectory, DirectorySoSource.ON_LD_LIBRARY_PATH));
     }
@@ -595,7 +595,7 @@ public class SoLoader {
 
   private static void addSystemLoadWrapperSoSource(Context context, ArrayList<SoSource> soSources) {
     SystemLoadWrapperSoSource systemLoadWrapperSoSource = new SystemLoadWrapperSoSource();
-    LogUtil.d(TAG, "adding systemLoadWrapper source: " + systemLoadWrapperSoSource);
+    LogUtil.e(TAG, "adding systemLoadWrapper source: " + systemLoadWrapperSoSource);
     soSources.add(0, systemLoadWrapperSoSource);
   }
 
@@ -638,7 +638,7 @@ public class SoLoader {
 
       if (applicationContext == null) {
         applicationContext = context;
-        LogUtil.w(
+        LogUtil.e(
             TAG,
             "context.getApplicationContext returned null, holding reference to original context."
                 + "ApplicationSoSource fallbacks to: "
@@ -671,7 +671,7 @@ public class SoLoader {
       return sAppType;
     }
     if (context == null) {
-      LogUtil.d(TAG, "context is null, fallback to THIRD_PARTY_APP appType");
+      LogUtil.e(TAG, "context is null, fallback to THIRD_PARTY_APP appType");
       return AppType.THIRD_PARTY_APP;
     }
 
@@ -685,7 +685,7 @@ public class SoLoader {
     } else {
       type = AppType.SYSTEM_APP;
     }
-    LogUtil.d(TAG, "ApplicationInfo.flags is: " + appInfo.flags + " appType is: " + type);
+    LogUtil.e(TAG, "ApplicationInfo.flags is: " + appInfo.flags + " appType is: " + type);
     return type;
   }
 
@@ -900,7 +900,7 @@ public class SoLoader {
     }
 
     if (Thread.currentThread() == Looper.getMainLooper().getThread()) {
-      LogUtil.w(TAG, "Loading " + shortName + " on the main thread");
+      LogUtil.e(TAG, "Loading " + shortName + " on the main thread");
     }
 
     if (!isEnabled) {
@@ -1026,13 +1026,13 @@ public class SoLoader {
   @SuppressLint("CatchGeneralException")
   private static RecoveryStrategy recover(
       String soName, UnsatisfiedLinkError e, @Nullable RecoveryStrategy recovery) {
-    LogUtil.w(TAG, "Running a recovery step for " + soName + " due to " + e.toString());
+    LogUtil.e(TAG, "Running a recovery step for " + soName + " due to " + e.toString());
     sSoSourcesLock.writeLock().lock();
     try {
       if (recovery == null) {
         recovery = getRecoveryStrategy();
         if (recovery == null) {
-          LogUtil.w(TAG, "No recovery strategy");
+          LogUtil.e(TAG, "No recovery strategy");
           throw e;
         }
       }
@@ -1057,7 +1057,7 @@ public class SoLoader {
     }
 
     // No recovery mechanism worked, throwing initial error
-    LogUtil.w(TAG, "Failed to recover");
+    LogUtil.e(TAG, "Failed to recover");
     throw e;
   }
 
@@ -1150,7 +1150,7 @@ public class SoLoader {
 
           if (!loaded) {
             try {
-              LogUtil.d(TAG, "About to load: " + soName);
+              LogUtil.e(TAG, "About to load: " + soName);
               doLoadLibraryBySoName(soName, shortName, loadFlags, oldPolicy);
             } catch (UnsatisfiedLinkError ex) {
               String message = ex.getMessage();
@@ -1161,7 +1161,7 @@ public class SoLoader {
               }
               throw ex;
             }
-            LogUtil.d(TAG, "Loaded: " + soName);
+            LogUtil.e(TAG, "Loaded: " + soName);
             sLoadedLibraries.add(soName);
           }
         }
@@ -1179,7 +1179,7 @@ public class SoLoader {
               Api18TraceUtils.beginTraceSection("MergedSoMapping.invokeJniOnload[", shortName, "]");
             }
             try {
-              LogUtil.d(
+              LogUtil.e(
                   TAG,
                   "About to invoke JNI_OnLoad for merged library "
                       + shortName
@@ -1383,7 +1383,7 @@ public class SoLoader {
       System.arraycopy(sSoSources, 0, newSoSources, 1, sSoSources.length);
       sSoSources = newSoSources;
       sSoSourcesVersion.getAndIncrement();
-      LogUtil.d(TAG, "Prepended to SO sources: " + extraSoSource);
+      LogUtil.e(TAG, "Prepended to SO sources: " + extraSoSource);
     } finally {
       sSoSourcesLock.writeLock().unlock();
     }
@@ -1407,7 +1407,7 @@ public class SoLoader {
         }
       }
       String joinedPaths = TextUtils.join(":", pathElements);
-      LogUtil.d(TAG, "makeLdLibraryPath final path: " + joinedPaths);
+      LogUtil.e(TAG, "makeLdLibraryPath final path: " + joinedPaths);
       return joinedPaths;
     } finally {
       sSoSourcesLock.readLock().unlock();
