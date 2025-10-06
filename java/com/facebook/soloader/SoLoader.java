@@ -252,11 +252,12 @@ public class SoLoader {
   @Nullable private static ExternalSoMapping externalSoMapping = null;
 
   static {
-    boolean shouldSystrace = false;
+    boolean shouldSystrace = true;
     try {
-      shouldSystrace = Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2;
+      // Since we support API 21+, systrace is always available
     } catch (NoClassDefFoundError | UnsatisfiedLinkError e) {
       // In some test contexts, the Build class and/or some of its dependencies do not exist.
+      shouldSystrace = false;
     }
 
     SYSTRACE_LIBRARY_LOADING = shouldSystrace;
@@ -363,10 +364,6 @@ public class SoLoader {
    * @return Whether SoLoader is enabled
    */
   private static boolean initEnableConfig(Context context) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-      return true;
-    }
-
     if (SoLoader.externalSoMapping != null) {
       // This case is used by React Native apps that use SoMerging in OSS.
       // if the externalSoMapping has been provided, we don't need to check inside the Manifest
@@ -419,10 +416,6 @@ public class SoLoader {
       } else if (systemSoSourceOnly) {
         addSystemLibSoSource(soSources);
       } else if (isEnabledBaseApkSplitSource) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-          throw new IllegalArgumentException(
-              "DirectSplitSoSource is not supported before Android L");
-        }
         addSystemLibSoSource(soSources);
         soSources.add(0, new DirectSplitSoSource("base"));
       } else {
@@ -540,14 +533,7 @@ public class SoLoader {
   /** Add a DirectorySoSource for the application's nativeLibraryDir . */
   private static void addApplicationSoSource(ArrayList<SoSource> soSources, int flags) {
 
-    // On old versions of Android, Bionic doesn't add our library directory to its
-    // internal search path, and the system doesn't resolve dependencies between
-    // modules we ship. On these systems, we resolve dependencies ourselves. On other
-    // systems, Bionic's built-in resolver suffices.
-
-    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-      flags |= DirectorySoSource.RESOLVE_DEPENDENCIES;
-    }
+    // Since we support API 21+, Bionic's built-in resolver suffices for dependency resolution.
 
     SoSource applicationSoSource = new ApplicationSoSource(sApplicationContext, flags);
     LogUtil.e(TAG, "Adding application source: " + applicationSoSource.toString());
