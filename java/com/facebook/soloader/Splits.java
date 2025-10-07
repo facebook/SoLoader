@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import javax.annotation.Nullable;
 
-@TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class Splits {
   private static final String BASE = "base";
   private static final String BASE_APK = "base.apk";
