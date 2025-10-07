@@ -18,7 +18,6 @@ package com.facebook.soloader;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
-import android.os.Build;
 import android.os.Parcel;
 import android.os.StrictMode;
 import com.facebook.soloader.ExtractFromZipSoSource.ZipUnpacker;
@@ -67,7 +66,7 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
   }
 
   private void addBackupsFromSplitApks(Context context, ApplicationInfo aInfo, String name) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP || aInfo.splitSourceDirs == null) {
+    if (aInfo.splitSourceDirs == null) {
       return;
     }
     try {
