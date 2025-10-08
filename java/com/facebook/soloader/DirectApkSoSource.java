@@ -18,7 +18,6 @@ package com.facebook.soloader;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
-import android.os.Build;
 import android.os.StrictMode;
 import android.text.TextUtils;
 import java.io.File;
@@ -126,7 +125,7 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
       directApkPathSet.add(fallbackApkLdPath);
     }
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && aInfo.splitSourceDirs != null) {
+    if (aInfo.splitSourceDirs != null) {
       for (String splitApkPath : aInfo.splitSourceDirs) {
         final @Nullable String fallbackSplitApkLdPath = getFallbackApkLdPath(splitApkPath);
         if (fallbackSplitApkLdPath != null) {
