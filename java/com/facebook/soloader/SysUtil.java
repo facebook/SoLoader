@@ -97,10 +97,8 @@ public final class SysUtil {
   public static String[] getSupportedAbis() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
       return MarshmallowSysdeps.getSupportedAbis();
-    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-      return LollipopSysdeps.getSupportedAbis();
     } else {
-      return new String[] {Build.CPU_ABI, Build.CPU_ABI2};
+      return LollipopSysdeps.getSupportedAbis();
     }
   }
 
@@ -112,9 +110,7 @@ public final class SysUtil {
    * @throws IOException IOException
    */
   public static void fallocateIfSupported(FileDescriptor fd, long length) throws IOException {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-      LollipopSysdeps.fallocateIfSupported(fd, length);
-    }
+    LollipopSysdeps.fallocateIfSupported(fd, length);
   }
 
   /**
@@ -412,17 +408,16 @@ public final class SysUtil {
 
   @SuppressLint("CatchGeneralException")
   public static boolean is64Bit() {
-    boolean is64bit = false;
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      is64bit = MarshmallowSysdeps.is64Bit();
-    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      return MarshmallowSysdeps.is64Bit();
+    } else {
       try {
-        is64bit = LollipopSysdeps.is64Bit();
+        return LollipopSysdeps.is64Bit();
       } catch (Exception e) {
         LogUtil.e(TAG, String.format("Could not read /proc/self/exe. Err msg: %s", e.getMessage()));
+        return false;
       }
     }
-    return is64bit;
   }
 
   public static boolean isSupportedDirectLoad(@Nullable Context context, int appType) {
@@ -563,13 +558,11 @@ public final class SysUtil {
   }
 
   public static @Nullable String getPrimaryAbi(ApplicationInfo applicationInfo) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-      try {
-        Field primaryCpuAbi = ApplicationInfo.class.getDeclaredField("primaryCpuAbi");
-        return (String) primaryCpuAbi.get(applicationInfo);
-      } catch (NoSuchFieldException | IllegalAccessException e) {
-        LogUtil.e(TAG, "Cannot get primaryCpuAbi", e);
-      }
+    try {
+      Field primaryCpuAbi = ApplicationInfo.class.getDeclaredField("primaryCpuAbi");
+      return (String) primaryCpuAbi.get(applicationInfo);
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      LogUtil.e(TAG, "Cannot get primaryCpuAbi", e);
     }
 
     return null;
