@@ -35,7 +35,12 @@ public class SoLoaderDSONotFoundError extends SoLoaderULError {
     StringBuilder sb = new StringBuilder("couldn't find DSO to load: ").append(soName);
     sb.append("\n\texisting SO sources: ");
     for (int i = 0; i < soSources.length; ++i) {
-      sb.append("\n\t\tSoSource ").append(i).append(": ").append(soSources[i].toString());
+      sb.append("\n\t\tSoSource ").append(i).append(": ");
+      if (soSources[i] != null) {
+        sb.append(soSources[i].toString());
+      } else {
+        sb.append("null");
+      }
     }
     if (ctx != null) {
       sb.append("\n\tNative lib dir: ")

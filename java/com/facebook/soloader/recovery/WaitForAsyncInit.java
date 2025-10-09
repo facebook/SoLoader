@@ -25,7 +25,7 @@ public class WaitForAsyncInit implements RecoveryStrategy {
   @Override
   public boolean recover(UnsatisfiedLinkError e, SoSource[] soSources) {
     for (SoSource soSource : soSources) {
-      if (soSource instanceof AsyncInitSoSource) {
+      if (soSource != null && soSource instanceof AsyncInitSoSource) {
         AsyncInitSoSource source = (AsyncInitSoSource) soSource;
         LogUtil.e(SoLoader.TAG, "Waiting on SoSource " + soSource.getName());
         source.waitUntilInitCompleted();

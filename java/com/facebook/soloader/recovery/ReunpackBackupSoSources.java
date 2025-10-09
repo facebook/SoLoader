@@ -84,7 +84,7 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
   private boolean recoverDSONotFoundError(SoSource[] soSources, String soName, int prepareFlags) {
     try {
       for (SoSource soSource : soSources) {
-        if (!(soSource instanceof BackupSoSource)) {
+        if (soSource == null || !(soSource instanceof BackupSoSource)) {
           continue;
         }
         BackupSoSource uss = (BackupSoSource) soSource;
@@ -103,7 +103,7 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
   private boolean lazyPrepareBackupSoSource(SoSource[] soSources, String soName) {
     boolean recovered = false;
     for (SoSource soSource : soSources) {
-      if (!(soSource instanceof BackupSoSource)) {
+      if (soSource == null || !(soSource instanceof BackupSoSource)) {
         // NonApk SoSources get reunpacked in ReunpackNonBackupSoSource recovery strategy
         continue;
       }
@@ -133,7 +133,7 @@ public class ReunpackBackupSoSources implements RecoveryStrategy {
 
     if (recovered) {
       for (SoSource soSource : soSources) {
-        if (!(soSource instanceof DirectorySoSource)) {
+        if (soSource == null || !(soSource instanceof DirectorySoSource)) {
           continue;
         }
         if (soSource instanceof BackupSoSource) {

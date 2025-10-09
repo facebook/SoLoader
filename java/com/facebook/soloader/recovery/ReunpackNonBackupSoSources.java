@@ -52,7 +52,7 @@ public class ReunpackNonBackupSoSources implements RecoveryStrategy {
             + ((soName == null) ? "" : (", retrying for specific library " + soName)));
 
     for (SoSource soSource : soSources) {
-      if (!(soSource instanceof UnpackingSoSource)) {
+      if (soSource == null || !(soSource instanceof UnpackingSoSource)) {
         continue;
       }
       UnpackingSoSource uss = (UnpackingSoSource) soSource;
