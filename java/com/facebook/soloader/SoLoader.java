@@ -364,6 +364,10 @@ public class SoLoader {
    * @return Whether SoLoader is enabled
    */
   private static boolean initEnableConfig(Context context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+      return true;
+    }
+
     if (SoLoader.externalSoMapping != null) {
       // This case is used by React Native apps that use SoMerging in OSS.
       // if the externalSoMapping has been provided, we don't need to check inside the Manifest
