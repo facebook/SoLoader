@@ -127,8 +127,18 @@ public class NativeLoader {
    * @param delegate the NativeLoaderDelegate
    */
   public static void initIfUninitialized(NativeLoaderDelegate delegate) {
-    if (!isInitialized()) {
-      init(delegate);
+    // The following code is wrong - see
+    // https://fb.workplace.com/groups/mwaiosqna/permalink/1339018601212706/
+    /*
+      if (!isInitialized()) {
+        init(delegate);
+      }
+    */
+
+    synchronized (NativeLoader.class) {
+      if (sDelegate == null) {
+        sDelegate = delegate;
+      }
     }
   }
 }
