@@ -127,8 +127,10 @@ public class NativeLoader {
    * @param delegate the NativeLoaderDelegate
    */
   public static void initIfUninitialized(NativeLoaderDelegate delegate) {
-    // The following code is wrong - see
-    // https://fb.workplace.com/groups/mwaiosqna/permalink/1339018601212706/
+    // The following code is wrong.
+    // If two threads are checking `!isInitialized()` at the same time, and both threads pass the
+    // check, then both threads will try to call `init(delegate);`. One thread will succeed, and the
+    // other thread will fail (throw an exception).
     /*
       if (!isInitialized()) {
         init(delegate);
