@@ -648,12 +648,15 @@ public class SoLoader {
     if (soFileLoader == null && sSoFileLoader != null) {
       return;
     }
-    if (soFileLoader != null) {
-      sSoFileLoader = soFileLoader;
-      return;
+
+    if (soFileLoader == null) {
+      soFileLoader = new SoFileLoaderImpl();
+    }
+    if (!(soFileLoader instanceof InstrumentedSoFileLoader)) {
+      soFileLoader = new InstrumentedSoFileLoader(soFileLoader);
     }
 
-    sSoFileLoader = new InstrumentedSoFileLoader(new SoFileLoaderImpl());
+    sSoFileLoader = soFileLoader;
   }
 
   private static int getAppType(@Nullable Context context) {
