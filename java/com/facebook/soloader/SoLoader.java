@@ -115,6 +115,9 @@ public class SoLoader {
   @Nullable
   private static volatile SoSource[] sSoSources = null;
 
+  @GuardedBy("SoLoader.class")
+  private static boolean sTestMode = false;
+
   @GuardedBy("sSoSourcesLock")
   private static final AtomicInteger sSoSourcesVersion = new AtomicInteger(0);
 
@@ -684,18 +687,22 @@ public class SoLoader {
 
   /** Turn shared-library loading into a no-op. Useful in special circumstances. */
   public static void setInTestMode() {
-    TestOnlyUtils.setSoSources(new SoSource[] {new NoopSoSource()});
+    TestOnlyUtils.setInTestMode();
+  }
+
+  public static synchronized boolean isInTestMode() {
+    return sTestMode;
   }
 
   /** Make shared-library loading delegate to the system. Useful for tests. */
   public static void deinitForTest() {
-    TestOnlyUtils.setSoSources(null);
+    TestOnlyUtils.deinit();
   }
 
   @NotThreadSafe
   static class TestOnlyUtils {
     /* Set so sources. Useful for tests. */
-    /* package */ static void setSoSources(SoSource[] sources) {
+    /* package */ static void setSoSources(@Nullable SoSource[] sources) {
       sSoSourcesLock.writeLock().lock();
       try {
         sSoSources = sources;
@@ -723,6 +730,7 @@ public class SoLoader {
         sLoadedAndJniInvoked.clear();
         sLoadingLibraries.clear();
         sSoFileLoader = null;
+        sTestMode = false;
         sApplicationContext = null;
         sPrimaryAbi = null;
         sApplicationInfoProvider = null;
@@ -736,6 +744,20 @@ public class SoLoader {
       sApplicationContext = context;
       sPrimaryAbi = SysUtil.getPrimaryAbi(context.getApplicationInfo());
       sApplicationInfoProvider = new SimpleApplicationInfoProvider(context);
+    }
+
+    /* package */ static void setInTestMode() {
+      setSoSources(new SoSource[] {new NoopSoSource()});
+      synchronized (SoLoader.class) {
+        sTestMode = true;
+      }
+    }
+
+    /* package */ static void deinit() {
+      synchronized (SoLoader.class) {
+        sTestMode = false;
+      }
+      setSoSources(null);
     }
   }
 
