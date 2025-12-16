@@ -34,7 +34,6 @@ LOADER_SRCS = glob(
 fb_core_android_library(
     name = "loader",
     srcs = LOADER_SRCS,
-    k2 = True,
     # NullChecker use this module, so using nullchecker here will result in circular dependency
     nullchecker_mode = "none",
     proguard_config = "soloader.pro",
