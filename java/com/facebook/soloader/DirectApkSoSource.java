@@ -120,16 +120,16 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
     Set<String> directApkPathSet = new HashSet<>();
 
     final String apkPath = aInfo.sourceDir;
-    final @Nullable String fallbackApkLdPath = getFallbackApkLdPath(apkPath);
-    if (fallbackApkLdPath != null) {
-      directApkPathSet.add(fallbackApkLdPath);
+    final @Nullable Set<String> fallbackApkLdPath = getFallbackApkLdPath(apkPath);
+    if (fallbackApkLdPath != null && fallbackApkLdPath.size() != 0) {
+      directApkPathSet.addAll(fallbackApkLdPath);
     }
 
     if (aInfo.splitSourceDirs != null) {
       for (String splitApkPath : aInfo.splitSourceDirs) {
-        final @Nullable String fallbackSplitApkLdPath = getFallbackApkLdPath(splitApkPath);
-        if (fallbackSplitApkLdPath != null) {
-          directApkPathSet.add(fallbackSplitApkLdPath);
+        final @Nullable Set<String> fallbackSplitApkLdPath = getFallbackApkLdPath(splitApkPath);
+        if (fallbackSplitApkLdPath != null && fallbackSplitApkLdPath != 0) {
+          directApkPathSet.addAll(fallbackSplitApkLdPath);
         }
       }
     }
@@ -137,7 +137,7 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
     return directApkPathSet;
   }
 
-  private static @Nullable String getFallbackApkLdPath(String apkPath) {
+  private static @Nullable Set<String> getFallbackApkLdPath(String apkPath) {
     final String[] supportedAbis = SysUtil.getSupportedAbis();
     if (apkPath == null || apkPath.isEmpty()) {
       LogUtil.w(
@@ -152,7 +152,11 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
               + ((supportedAbis == null) ? "null" : "empty"));
       return null;
     }
-    return apkPath + "!/lib/" + supportedAbis[0];
+    Set<String> apkLdPaths = new HashSet<>();
+    for (String supportedAbi : supportedAbis) {
+        apkLdPaths.add(apkPath + "!/lib/" + supportedAbi);
+    }
+    return apkLdPaths;
   }
 
   private void loadDependencies(
