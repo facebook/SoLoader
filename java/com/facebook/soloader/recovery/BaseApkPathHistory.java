@@ -48,7 +48,12 @@ public class BaseApkPathHistory {
 
     StringBuilder sb = new StringBuilder("Recording new base apk path: ").append(path).append("\n");
     report(sb);
-    LogUtil.w(SoLoader.TAG, sb.toString());
+    // Log at INFO level for initial recording, WARNING level for path changes
+    if (mCounter == 0) {
+      LogUtil.i(SoLoader.TAG, sb.toString());
+    } else {
+      LogUtil.w(SoLoader.TAG, sb.toString());
+    }
 
     mPaths[mCounter % mPaths.length] = path;
     mCounter++;
