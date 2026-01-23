@@ -143,6 +143,14 @@ public class Splits {
     return null;
   }
 
+  public static String getFullLibraryPath(String libraryName, String splitName) {
+    return getFullLibraryPath(libraryName, splitName, SoLoader.getPrimaryAbi());
+  }
+
+  public static String getFullLibraryPath(String libraryName, String splitName, String abi) {
+    return getSplitPath(splitName) + "!/lib/" + abi + "/" + libraryName;
+  }
+
   @TargetApi(Build.VERSION_CODES.O)
   public static boolean isApplicationSplitName(String name, ApplicationInfo aInfo) {
     String[] splitNames = aInfo.splitNames;
