@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
@@ -117,19 +118,19 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
   }
 
   /*package*/ static Set<String> getDirectApkLdPaths(ApplicationInfo aInfo) {
-    Set<String> directApkPathSet = new HashSet<>();
+    Set<String> directApkPathSet = new LinkedHashSet<>();
 
     final String apkPath = aInfo.sourceDir;
-    final @Nullable String fallbackApkLdPath = getFallbackApkLdPath(apkPath);
-    if (fallbackApkLdPath != null) {
-      directApkPathSet.add(fallbackApkLdPath);
+    final @Nullable Set<String> fallbackApkLdPath = getFallbackApkLdPath(apkPath);
+    if (fallbackApkLdPath != null && !fallbackApkLdPath.isEmpty()) {
+      directApkPathSet.addAll(fallbackApkLdPath);
     }
 
     if (aInfo.splitSourceDirs != null) {
       for (String splitApkPath : aInfo.splitSourceDirs) {
-        final @Nullable String fallbackSplitApkLdPath = getFallbackApkLdPath(splitApkPath);
-        if (fallbackSplitApkLdPath != null) {
-          directApkPathSet.add(fallbackSplitApkLdPath);
+        final @Nullable Set<String> fallbackSplitApkLdPath = getFallbackApkLdPath(splitApkPath);
+        if (fallbackSplitApkLdPath != null && !fallbackSplitApkLdPath.isEmpty()) {
+          directApkPathSet.addAll(fallbackSplitApkLdPath);
         }
       }
     }
@@ -137,7 +138,7 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
     return directApkPathSet;
   }
 
-  private static @Nullable String getFallbackApkLdPath(String apkPath) {
+  private static @Nullable Set<String> getFallbackApkLdPath(String apkPath) {
     final String[] supportedAbis = SysUtil.getSupportedAbis();
     if (apkPath == null || apkPath.isEmpty()) {
       LogUtil.w(
@@ -152,7 +153,11 @@ public class DirectApkSoSource extends SoSource implements RecoverableSoSource {
               + ((supportedAbis == null) ? "null" : "empty"));
       return null;
     }
-    return apkPath + "!/lib/" + supportedAbis[0];
+    Set<String> apkLdPaths = new LinkedHashSet<>();
+    for (String supportedAbi : supportedAbis) {
+      apkLdPaths.add(apkPath + "!/lib/" + supportedAbi);
+    }
+    return apkLdPaths;
   }
 
   private void loadDependencies(
