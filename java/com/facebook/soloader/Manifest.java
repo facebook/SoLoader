@@ -107,6 +107,9 @@ public class Manifest {
         if (libName.startsWith("lib_soa_")) {
           continue; // Skip SO archive entries
         }
+        if (libName.endsWith(".soloader-manifest.so")) {
+          continue; // Skip soloader manifest files
+        }
         int flags = Library.FLAG_UNKNOWN_DEPS;
         if (entry.getMethod() != ZipEntry.STORED) {
           flags |= Library.FLAG_COMPRESSED;
