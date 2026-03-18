@@ -118,21 +118,22 @@ public abstract class Split {
 
   /** Finds the installed ABI split for the given feature. */
   public static Installed findAbiSplit(String feature) {
-    return new Installed(Splits.findAbiSplit(feature));
+    return new Installed(Splits.findNameOfAbiSplit(feature));
   }
 
   /** Returns the installed base split for the given feature. */
   public static Installed findMasterSplit(String feature) {
-    if ("base".equals(feature)) {
-      return new Installed("base.apk");
-    }
-    return new Installed("split_" + feature + ".apk");
+    return new Installed(feature);
   }
 
   /** Creates a Split from a file path. Uses Installed if the file is an application split. */
   public static Split fromPath(File path) throws IOException {
     if (Splits.isApplicationSplit(path)) {
-      return new Installed(path.getName());
+      String splitName = Splits.getSplitName(path);
+      if (splitName == null) {
+        throw new NullPointerException("getSplitName returned null for application split: " + path);
+      }
+      return new Installed(splitName);
     }
     return new StaticPathArchive(path);
   }
@@ -151,7 +152,7 @@ public abstract class Split {
     }
 
     private boolean isBaseFeature() {
-      return "base.apk".equals(mSplitName) || mSplitName.startsWith("split_config.");
+      return "base".equals(mSplitName) || mSplitName.startsWith("config.");
     }
 
     @Override

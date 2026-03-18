@@ -28,52 +28,51 @@ public class Splits {
   private static final String BASE = "base";
   private static final String BASE_APK = "base.apk";
 
-  public static String findAbiSplit(String feature) {
-    return findAbiSplit(feature, SoLoader.getApplicationInfo());
+  static String findNameOfAbiSplit(String feature) {
+    return findNameOfAbiSplit(feature, SoLoader.getApplicationInfo());
   }
 
-  public static String findAbiSplit(String feature, ApplicationInfo aInfo) {
+  static String findNameOfAbiSplit(String feature, ApplicationInfo aInfo) {
     @Nullable String[] splitSourceDirs = aInfo.splitSourceDirs;
     if (splitSourceDirs == null) {
-      return BASE_APK;
+      return BASE;
     }
 
-    final String featureSplit;
-    final String configSplit;
+    final String abi = SoLoader.getPrimaryAbi().replace("-", "_");
+    final String configName;
     if (BASE.equals(feature)) {
-      featureSplit = BASE_APK;
-      configSplit = "split_config." + SoLoader.getPrimaryAbi().replace("-", "_") + ".apk";
+      configName = "config." + abi;
     } else {
-      featureSplit = "split_" + feature + ".apk";
-      configSplit =
-          "split_" + feature + ".config." + SoLoader.getPrimaryAbi().replace("-", "_") + ".apk";
+      configName = feature + ".config." + abi;
     }
 
+    String configFileName = "split_" + configName + ".apk";
     for (String splitSourceDir : splitSourceDirs) {
-      if (splitSourceDir.endsWith(configSplit)) {
-        return configSplit;
+      if (splitSourceDir.endsWith(configFileName)) {
+        return configName;
       }
     }
 
     if (BASE.equals(feature)) {
-      return BASE_APK;
+      return BASE;
     }
 
+    String featureFileName = "split_" + feature + ".apk";
     for (String splitSourceDir : splitSourceDirs) {
-      if (splitSourceDir.endsWith(featureSplit)) {
-        return featureSplit;
+      if (splitSourceDir.endsWith(featureFileName)) {
+        return feature;
       }
     }
 
-    return BASE_APK;
+    return BASE;
   }
 
-  public static String getSplitPath(String splitFileName) {
-    return getSplitPath(splitFileName, SoLoader.getApplicationInfo());
+  static String getSplitPath(String splitName) {
+    return getSplitPath(splitName, SoLoader.getApplicationInfo());
   }
 
-  public static String getSplitPath(String splitFileName, ApplicationInfo aInfo) {
-    if (BASE_APK.equals(splitFileName)) {
+  static String getSplitPath(String splitName, ApplicationInfo aInfo) {
+    if (BASE.equals(splitName)) {
       return aInfo.sourceDir;
     }
 
@@ -82,13 +81,14 @@ public class Splits {
       throw new IllegalStateException("No splits avaiable");
     }
 
+    String splitFileName = "split_" + splitName + ".apk";
     for (String splitSourceDir : splitsSourceDirs) {
       if (splitSourceDir.endsWith(splitFileName)) {
         return splitSourceDir;
       }
     }
 
-    throw new IllegalStateException("Could not find " + splitFileName + " split");
+    throw new IllegalStateException("Could not find " + splitName + " split");
   }
 
   public static boolean isApplicationSplit(File path) throws IOException {
