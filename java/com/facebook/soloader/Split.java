@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 /**
  * Represents an APK split that contains native libraries. There are two kinds:
@@ -142,13 +144,24 @@ public abstract class Split {
   public static class Installed extends Split {
     private final String mSplitName;
 
+    @GuardedBy("this")
+    @Nullable
+    private String mCachedPath;
+
     public Installed(String splitName) {
       mSplitName = splitName;
     }
 
     @Override
-    public String getPath() {
-      return Splits.getSplitPath(mSplitName);
+    public synchronized String getPath() {
+      if (mCachedPath == null || !new File(mCachedPath).exists()) {
+        String newPath = Splits.findSplitPath(mSplitName);
+        if (newPath == null) {
+          throw new IllegalStateException("Could not find " + mSplitName + " split");
+        }
+        mCachedPath = newPath;
+      }
+      return mCachedPath;
     }
 
     private boolean isBaseFeature() {

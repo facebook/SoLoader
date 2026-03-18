@@ -67,24 +67,24 @@ public class Splits {
     return BASE;
   }
 
-  static String getSplitPath(String splitName) {
-    return getSplitPath(splitName, SoLoader.getApplicationInfo());
+  static @Nullable String findSplitPath(String splitName) {
+    return findSplitPath(splitName, SoLoader.getApplicationInfo());
   }
 
-  static String getSplitPath(String splitName, ApplicationInfo aInfo) {
+  static @Nullable String findSplitPath(String splitName, ApplicationInfo aInfo) {
     if (BASE.equals(splitName)) {
       return aInfo.sourceDir;
     }
 
     @Nullable String[] splitsSourceDirs = aInfo.splitSourceDirs;
     if (splitsSourceDirs == null) {
-      throw new IllegalStateException("No splits avaiable");
+      return null;
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       int index = indexOfSplitO(splitName, aInfo);
       if (index < 0) {
-        throw new IllegalStateException("Could not find " + splitName + " split");
+        return null;
       }
       return splitsSourceDirs[index];
     }
@@ -96,7 +96,19 @@ public class Splits {
       }
     }
 
-    throw new IllegalStateException("Could not find " + splitName + " split");
+    return null;
+  }
+
+  static String getSplitPath(String splitName) {
+    return getSplitPath(splitName, SoLoader.getApplicationInfo());
+  }
+
+  static String getSplitPath(String splitName, ApplicationInfo aInfo) {
+    String path = findSplitPath(splitName, aInfo);
+    if (path == null) {
+      throw new IllegalStateException("Could not find " + splitName + " split");
+    }
+    return path;
   }
 
   public static boolean isApplicationSplit(File path) throws IOException {
