@@ -81,6 +81,14 @@ public class Splits {
       throw new IllegalStateException("No splits avaiable");
     }
 
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      int index = indexOfSplitO(splitName, aInfo);
+      if (index < 0) {
+        throw new IllegalStateException("Could not find " + splitName + " split");
+      }
+      return splitsSourceDirs[index];
+    }
+
     String splitFileName = "split_" + splitName + ".apk";
     for (String splitSourceDir : splitsSourceDirs) {
       if (splitSourceDir.endsWith(splitFileName)) {
@@ -136,7 +144,7 @@ public class Splits {
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      return isApplicationSplitNameO(name, aInfo);
+      return indexOfSplitO(name, aInfo) >= 0;
     }
 
     @Nullable String[] splitsSourceDirs = aInfo.splitSourceDirs;
@@ -155,12 +163,12 @@ public class Splits {
   }
 
   @TargetApi(Build.VERSION_CODES.O)
-  private static boolean isApplicationSplitNameO(String name, ApplicationInfo aInfo) {
+  private static int indexOfSplitO(String name, ApplicationInfo aInfo) {
     String[] splitNames = aInfo.splitNames;
     if (splitNames == null) {
-      return false;
+      return -1;
     }
 
-    return Arrays.binarySearch(splitNames, name) >= 0;
+    return Arrays.binarySearch(splitNames, name);
   }
 }
