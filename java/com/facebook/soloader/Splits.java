@@ -68,14 +68,6 @@ public class Splits {
     return BASE_APK;
   }
 
-  public static String findAbiSplitPath(String feature) {
-    return findAbiSplitPath(feature, SoLoader.getApplicationInfo());
-  }
-
-  public static String findAbiSplitPath(String feature, ApplicationInfo aInfo) {
-    return getSplitPath(findAbiSplit(feature, aInfo), aInfo);
-  }
-
   public static String getSplitPath(String splitFileName) {
     return getSplitPath(splitFileName, SoLoader.getApplicationInfo());
   }
@@ -120,8 +112,31 @@ public class Splits {
       return false;
     }
 
+    return isApplicationSplitName(splitName, aInfo);
+  }
+
+  public static boolean isBaseApk(File path) {
+    return path.getName().equals(BASE_APK);
+  }
+
+  static @Nullable String getSplitName(File path) {
+    String name = path.getName();
+    if (name.equals(BASE_APK)) {
+      return BASE;
+    }
+    if (name.startsWith("split_") && name.endsWith(".apk")) {
+      return name.substring(6, name.length() - 4);
+    }
+    return null;
+  }
+
+  static boolean isApplicationSplitName(String name, ApplicationInfo aInfo) {
+    if (name.equals(BASE)) {
+      return true;
+    }
+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      return isApplicationSplitName(splitName, aInfo);
+      return isApplicationSplitNameO(name, aInfo);
     }
 
     @Nullable String[] splitsSourceDirs = aInfo.splitSourceDirs;
@@ -129,9 +144,9 @@ public class Splits {
       return false;
     }
 
-    final String needle = path.getPath();
     for (String splitSourceDir : splitsSourceDirs) {
-      if (splitSourceDir.equals(needle)) {
+      String dirSplitName = getSplitName(new File(splitSourceDir));
+      if (name.equals(dirSplitName)) {
         return true;
       }
     }
@@ -139,20 +154,8 @@ public class Splits {
     return false;
   }
 
-  public static boolean isBaseApk(File path) {
-    return path.getName().equals(BASE_APK);
-  }
-
-  public static @Nullable String getSplitName(File path) {
-    String name = path.getName();
-    if (name.startsWith("split_") && name.endsWith(".apk")) {
-      return name.substring(6, name.length() - 4);
-    }
-    return null;
-  }
-
   @TargetApi(Build.VERSION_CODES.O)
-  public static boolean isApplicationSplitName(String name, ApplicationInfo aInfo) {
+  private static boolean isApplicationSplitNameO(String name, ApplicationInfo aInfo) {
     String[] splitNames = aInfo.splitNames;
     if (splitNames == null) {
       return false;
