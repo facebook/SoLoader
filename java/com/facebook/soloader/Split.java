@@ -30,8 +30,8 @@ import javax.annotation.concurrent.GuardedBy;
  * Represents an APK split that contains native libraries. There are two kinds:
  *
  * <ul>
- *   <li>{@link Installed} — an installed split whose name is known but whose path must be resolved
- *       from application info at runtime.
+ *   <li>{@link DynamicPathArchive} — a split whose path is resolved from application info at
+ *       runtime.
  *   <li>{@link StaticPathArchive} — an archive with a known, hardcoded path.
  * </ul>
  */
@@ -119,37 +119,45 @@ public abstract class Split {
   }
 
   /** Finds the installed ABI split for the given feature. */
-  public static Installed findAbiSplit(String feature) {
-    return new Installed(Splits.findNameOfAbiSplit(feature));
+  public static DynamicPathArchive findAbiSplit(String feature) {
+    return new DynamicPathArchive(Splits.findNameOfAbiSplit(feature));
   }
 
   /** Returns the installed base split for the given feature. */
-  public static Installed findMasterSplit(String feature) {
-    return new Installed(feature);
+  public static DynamicPathArchive findMasterSplit(String feature) {
+    return new DynamicPathArchive(feature);
   }
 
-  /** Creates a Split from a file path. Uses Installed if the file is an application split. */
+  /**
+   * Creates a Split from a file path. Uses DynamicPathArchive if the path looks like an application
+   * split.
+   */
   public static Split fromPath(File path) throws IOException {
-    if (Splits.isApplicationSplit(path)) {
+    if (Splits.looksLikeApplicationSplit(path)) {
       String splitName = Splits.getSplitName(path);
       if (splitName == null) {
         throw new NullPointerException("getSplitName returned null for application split: " + path);
       }
-      return new Installed(splitName);
+      return new DynamicPathArchive(splitName, path.getCanonicalPath());
     }
     return new StaticPathArchive(path);
   }
 
-  /** An installed split whose path is resolved from application info at runtime. */
-  public static class Installed extends Split {
+  /** A split whose path is resolved dynamically from application info at runtime. */
+  public static class DynamicPathArchive extends Split {
     private final String mSplitName;
 
     @GuardedBy("this")
     @Nullable
     private String mCachedPath;
 
-    public Installed(String splitName) {
+    public DynamicPathArchive(String splitName) {
       mSplitName = splitName;
+    }
+
+    DynamicPathArchive(String splitName, String path) {
+      mSplitName = splitName;
+      mCachedPath = path;
     }
 
     @Override
@@ -182,7 +190,7 @@ public abstract class Split {
 
     @Override
     public String toString() {
-      return "installed split:" + mSplitName;
+      return "dynamic split:" + mSplitName;
     }
   }
 

@@ -135,6 +135,20 @@ public class Splits {
     return isApplicationSplitName(splitName, aInfo);
   }
 
+  static boolean looksLikeApplicationSplit(File path) {
+    return looksLikeApplicationSplit(path, SoLoader.getApplicationInfo());
+  }
+
+  static boolean looksLikeApplicationSplit(File path, ApplicationInfo aInfo) {
+    String splitName = getSplitName(path);
+    if (splitName == null) {
+      return false;
+    }
+    String absolutePath = path.getAbsolutePath();
+    return absolutePath.contains("/" + aInfo.packageName + "/")
+        || absolutePath.contains("/" + aInfo.packageName + "-");
+  }
+
   public static boolean isBaseApk(File path) {
     return path.getName().equals(BASE_APK);
   }
