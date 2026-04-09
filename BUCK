@@ -1,5 +1,7 @@
 load("//tools/build_defs/oss:soloader_defs.bzl", "android_aar", "export_file")
 
+oncall("android_systems_reliability")
+
 android_aar(
     name = "soloader",
     manifest_skeleton = "AndroidManifestSkeleton.xml",
