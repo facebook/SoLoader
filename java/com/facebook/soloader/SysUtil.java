@@ -561,7 +561,7 @@ public final class SysUtil {
     try {
       Field primaryCpuAbi = ApplicationInfo.class.getDeclaredField("primaryCpuAbi");
       return (String) primaryCpuAbi.get(applicationInfo);
-    } catch (NoSuchFieldException | IllegalAccessException | IllegalStateException e) {
+    } catch (NoSuchFieldException | IllegalAccessException e) {
       LogUtil.e(TAG, "Cannot get primaryCpuAbi", e);
     }
 
