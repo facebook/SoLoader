@@ -110,6 +110,9 @@ public class Manifest {
         if (libName.endsWith(".soloader-manifest.so")) {
           continue; // Skip soloader manifest files
         }
+        if (libName.endsWith(".soloader-deps.so")) {
+          continue; // Skip soloader deps files
+        }
         int flags = Library.FLAG_UNKNOWN_DEPS;
         if (entry.getMethod() != ZipEntry.STORED) {
           flags |= Library.FLAG_COMPRESSED;
