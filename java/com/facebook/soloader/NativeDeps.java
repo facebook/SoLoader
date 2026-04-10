@@ -20,7 +20,9 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.StrictMode;
 import com.facebook.soloader.observer.ObserverHolder;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -171,19 +173,27 @@ public final class NativeDeps {
 
   public static boolean useDepsFileWithAssetManager(final Context context) {
     try {
-      verifyUninitialized();
-      byte[] depsBytes = NativeDepsReader.readNativeDepsFromApk(context);
-      if (depsBytes == null) {
-        LogUtil.w(LOG_TAG, "depsBytes is null");
+      try (InputStream is = context.getAssets().open("native_deps.txt")) {
+        return initFromStream(is);
       }
-
-      return processDepsBytes(depsBytes);
     } catch (IOException e) {
-      LogUtil.w(
-          LOG_TAG,
-          "Failed to use native deps file in APK, falling back to using MinElf to get library"
-              + " dependencies:"
-              + e.getMessage());
+      LogUtil.w(LOG_TAG, "Failed to use native deps file in APK: " + e.getMessage());
+      return false;
+    }
+  }
+
+  public static boolean initFromStream(InputStream inputStream) {
+    try {
+      verifyUninitialized();
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      byte[] buffer = new byte[4096];
+      int bytesRead;
+      while ((bytesRead = inputStream.read(buffer)) != -1) {
+        baos.write(buffer, 0, bytesRead);
+      }
+      return processDepsBytes(baos.toByteArray());
+    } catch (IOException e) {
+      LogUtil.w(LOG_TAG, "Failed to init native deps from stream: " + e.getMessage());
       return false;
     }
   }
