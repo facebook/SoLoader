@@ -568,7 +568,9 @@ public class SoLoader {
    */
   private static void addSystemLibSoSource(ArrayList<SoSource> soSources) {
     String systemLibPaths =
-        SysUtil.is64Bit() ? "/system/lib64:/vendor/lib64" : "/system/lib:/vendor/lib";
+        SysUtil.is64Bit()
+            ? "/system/lib64:/system_ext/lib64:/vendor/lib64"
+            : "/system/lib:/system_ext/lib:/vendor/lib";
 
     String LD_LIBRARY_PATH = System.getenv("LD_LIBRARY_PATH");
     if (LD_LIBRARY_PATH != null && !LD_LIBRARY_PATH.equals("")) {
