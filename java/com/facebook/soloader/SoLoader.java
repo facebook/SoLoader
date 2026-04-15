@@ -741,9 +741,16 @@ public class SoLoader {
     }
 
     /* package */ static void setContext(Context context) {
-      sApplicationContext = context;
-      sPrimaryAbi = SysUtil.getPrimaryAbi(context.getApplicationInfo());
-      sApplicationInfoProvider = new SimpleApplicationInfoProvider(context);
+      synchronized (SoLoader.class) {
+        sApplicationContext = context;
+        try {
+          sPrimaryAbi = SysUtil.getPrimaryAbi(context.getApplicationInfo());
+        } catch (IllegalStateException e) {
+          // In JVM test environments Build.SUPPORTED_ABIS is empty, fall back.
+          sPrimaryAbi = "x86";
+        }
+        sApplicationInfoProvider = new SimpleApplicationInfoProvider(context);
+      }
     }
 
     /* package */ static void setInTestMode() {

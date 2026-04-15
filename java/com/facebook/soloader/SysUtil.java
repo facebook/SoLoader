@@ -557,14 +557,30 @@ public final class SysUtil {
     }
   }
 
-  public static @Nullable String getPrimaryAbi(ApplicationInfo applicationInfo) {
+  public static String getPrimaryAbi(ApplicationInfo applicationInfo) {
     try {
       Field primaryCpuAbi = ApplicationInfo.class.getDeclaredField("primaryCpuAbi");
-      return (String) primaryCpuAbi.get(applicationInfo);
+      String abi = (String) primaryCpuAbi.get(applicationInfo);
+      if (abi != null) {
+        return abi;
+      }
     } catch (NoSuchFieldException | IllegalAccessException e) {
       LogUtil.e(TAG, "Cannot get primaryCpuAbi", e);
     }
 
-    return null;
+    // Fall back to the device's primary ABI if we can't get the app-specific one.
+    // Use getSupportedAbis() which filters by actual process bitness.
+    String[] supportedAbis = getSupportedAbis();
+    LogUtil.w(
+        TAG,
+        "Falling back to device supported ABIs: "
+            + Arrays.toString(supportedAbis)
+            + ", nativeLibraryDir: "
+            + applicationInfo.nativeLibraryDir);
+    if (supportedAbis.length > 0) {
+      return supportedAbis[0];
+    }
+
+    throw new IllegalStateException("No supported ABIs found on this device");
   }
 }
