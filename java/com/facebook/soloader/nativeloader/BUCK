@@ -4,9 +4,11 @@ oncall("android_systems_reliability")
 
 fb_java_library(
     name = "nativeloader",
-    srcs = glob([
-        "*.java",
-    ]),
+    srcs = glob(
+        [
+            "*.java",
+        ]
+    ),
     visibility = [
         "PUBLIC",
     ],

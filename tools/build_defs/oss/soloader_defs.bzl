@@ -29,16 +29,7 @@ def export_file(**kwargs):
 def _add_dependency_to_index(name, DEPENDENCIES_INDEX, **dep):
     DEPENDENCIES_INDEX[name] = dep
 
-def maven_library(
-        name,
-        DEPENDENCIES_INDEX,
-        group,
-        artifact,
-        version,
-        sha1,
-        visibility,
-        packaging = "jar",
-        scope = "compiled"):
+def maven_library(name, DEPENDENCIES_INDEX, group, artifact, version, sha1, visibility, packaging = "jar", scope = "compiled"):
     """
     Creates remote_file and prebuilt_jar rules for a maven artifact.
     """
@@ -57,8 +48,8 @@ def maven_library(
     native.remote_file(
         name = remote_file_name,
         out = "{}-{}.{}".format(name, version, packaging),
-        url = ":".join(["mvn", group, artifact, packaging, version]),
         sha1 = sha1,
+        url = ":".join(["mvn", group, artifact, packaging, version]),
     )
 
     if packaging == "jar":
