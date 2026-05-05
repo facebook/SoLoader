@@ -8,3 +8,5 @@ PROJECTc
 .#*
 *.pyc
 *.orig
+/build
+/.gradle
