@@ -227,6 +227,14 @@ public class SoLoader {
   /** Only initialize system SoSource */
   public static final int SOLOADER_SYSTEM_SOSOURCE_ONLY = (1 << 13);
 
+  /**
+   * Append a {@link SystemLoadWrapperSoSource} as the lowest-priority fallback. When no other
+   * source can find a library, this delegates to {@code System.loadLibrary()} which uses the native
+   * linker's namespace configuration — allowing it to resolve libraries in APEXes or other paths
+   * that SoLoader's default directory sources don't search.
+   */
+  public static final int SOLOADER_ENABLE_SYSTEM_FALLBACK = (1 << 14);
+
   @GuardedBy("sSoSourcesLock")
   private static int sFlags;
 
@@ -455,6 +463,11 @@ public class SoLoader {
                     && (flags & SOLOADER_IMPLICIT_DEPENDENCIES_TEST) != 0);
           }
         }
+      }
+
+      // Append system fallback as lowest-priority source if requested.
+      if ((flags & SOLOADER_ENABLE_SYSTEM_FALLBACK) != 0) {
+        soSources.add(new SystemLoadWrapperSoSource());
       }
 
       SoSource[] finalSoSources = soSources.toArray(new SoSource[soSources.size()]);
