@@ -4,11 +4,32 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: thyrlian/android-sdk:latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -yq curl openjdk-11-jre-headless python3 gcc
+          update-java-alternatives -s java-1.11.0-openjdk-amd64
+
+      - name: Install Buck
+        run: |
+          curl -L https://github.com/facebook/buck/releases/download/v2020.10.21.01/buck.2020.10.21.01_all.deb -o buck.deb
+          dpkg -i buck.deb
+          rm buck.deb
+
+      - name: Setup Android SDK
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "build-tools;27.0.3" "platforms;android-26" > /dev/null
+
+      - name: Buck fetch
+        run: buck fetch //...
+
       - name: Buck build
-        uses: passy/run-buck@v0.1.0
-        with:
-          commands: '/opt/android-sdk-linux/tools/bin/sdkmanager "build-tools;27.0.3" "platforms;android-26" > /dev/null; buck fetch //...; buck build :soloader'
+        run: buck build :soloader
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
