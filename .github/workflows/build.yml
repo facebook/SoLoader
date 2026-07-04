@@ -9,6 +9,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect cgroup mode
+        run: |
+          if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+            echo "Detected cgroup v2"
+          elif [ -d /sys/fs/cgroup/cpu ]; then
+            echo "Detected cgroup v1"
+          else
+            echo "::warning::Could not determine cgroup mode"
+          fi
+
       - name: Install dependencies
         run: |
           apt-get update
@@ -28,6 +38,12 @@ jobs:
 
       - name: Buck fetch
         run: buck fetch //...
+
+      - name: Verify toolchain smoke test
+        run: |
+          buck --version
+          sdkmanager --list_installed | grep -i "build-tools;27.0.3" || echo "::warning::build-tools not found in cache"
+          sdkmanager --list_installed | grep -i "platforms;android-26" || echo "::warning::platform not found in cache"
 
       - name: Buck build
         run: buck build :soloader
