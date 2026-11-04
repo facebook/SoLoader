@@ -1,0 +1,52 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Check that the tag matches the artifact version
+        run: |
+          version=$(sed -nE "s/^VERSION *= *['\"]([^'\"]+)['\"].*/\1/p" artifacts/SOLOADER)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match version $version in artifacts/SOLOADER"
+            exit 1
+          fi
+      - name: Build and sign the artifacts
+        env:
+          GPG_KEY_CONTENTS: ${{ secrets.GPG_KEY_CONTENTS }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          echo "$GPG_KEY_CONTENTS" | base64 -d > "$RUNNER_TEMP/secring.gpg"
+          ./gradlew publishAllPublicationsToStagingRepository \
+            -Psigning.keyId="$SIGNING_KEY_ID" \
+            -Psigning.password="$SIGNING_PASSWORD" \
+            -Psigning.secretKeyRingFile="$RUNNER_TEMP/secring.gpg"
+      - name: Upload to the Maven Central Portal
+        env:
+          CENTRAL_PORTAL_USERNAME: ${{ secrets.CENTRAL_PORTAL_USERNAME }}
+          CENTRAL_PORTAL_PASSWORD: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
+        run: |
+          cd build/staging-deploy
+          zip -r "$RUNNER_TEMP/central-bundle.zip" com -x '*maven-metadata.xml*'
+          token=$(printf '%s:%s' "$CENTRAL_PORTAL_USERNAME" "$CENTRAL_PORTAL_PASSWORD" | base64 -w0)
+          curl --fail-with-body -X POST \
+            -H "Authorization: Bearer $token" \
+            -F "bundle=@$RUNNER_TEMP/central-bundle.zip" \
+            "https://central.sonatype.com/api/v1/publisher/upload?name=soloader-$GITHUB_REF_NAME&publishingType=USER_MANAGED"

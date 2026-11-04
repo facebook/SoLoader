@@ -19,6 +19,20 @@ subprojects {
     def publishingProject = project
 
     pluginManager.withPlugin('maven-publish') {
+        publishingProject.pluginManager.apply('signing')
+
+        publishing.repositories {
+            maven {
+                name = 'staging'
+                url = rootProject.layout.buildDirectory.dir('staging-deploy').get().asFile.toURI()
+            }
+        }
+
+        publishingProject.signing {
+            required = { publishingProject.hasProperty('signing.keyId') }
+            sign publishing.publications
+        }
+
         publishing.publications.withType(MavenPublication).configureEach {
             pom {
                 name = 'SoLoader'
