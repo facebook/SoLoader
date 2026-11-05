@@ -30,6 +30,7 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.HashSet;
 import javax.annotation.Nullable;
 
 /** {@link SoSource} that extracts libraries from an APK to the filesystem. */
@@ -58,11 +59,18 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
 
   protected final Context mContext;
 
+  /**
+   * Whether a refresh that finds an interrupted unpack of unchanged dependencies keeps the DSOs it
+   * already extracted instead of deleting the whole store and unpacking again.
+   */
+  protected final boolean mResumableUnpack;
+
   @Nullable private String[] mAbis;
 
   protected UnpackingSoSource(Context context, String name, boolean resolveDependencies) {
     super(getSoStorePath(context, name), resolveDependencies ? RESOLVE_DEPENDENCIES : 0);
     mContext = context;
+    mResumableUnpack = false;
   }
 
   protected UnpackingSoSource(Context context, String name) {
@@ -70,8 +78,14 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
   }
 
   protected UnpackingSoSource(Context context, File storePath, boolean resolveDependencies) {
+    this(context, storePath, resolveDependencies, false);
+  }
+
+  protected UnpackingSoSource(
+      Context context, File storePath, boolean resolveDependencies, boolean resumableUnpack) {
     super(storePath, resolveDependencies ? RESOLVE_DEPENDENCIES : 0);
     mContext = context;
+    mResumableUnpack = resumableUnpack;
   }
 
   protected UnpackingSoSource(Context context, File storePath) {
@@ -150,15 +164,20 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
-  /** Delete all SO files from directory. */
-  private void deleteSoFiles() throws IOException {
+  /** Delete all SO files from directory, except those named by {@code dsosToKeep}. */
+  private void deleteSoFiles(Dso[] dsosToKeep) throws IOException {
+    final HashSet<String> namesToKeep = new HashSet<>();
+    for (Dso dso : dsosToKeep) {
+      namesToKeep.add(dso.name);
+    }
     FilenameFilter soFilter =
         new FilenameFilter() {
           @Override
           public boolean accept(File dir, String name) {
             return !name.equals(STATE_FILE_NAME)
                 && !name.equals(LOCK_FILE_NAME)
-                && !name.equals(DEPS_FILE_NAME);
+                && !name.equals(DEPS_FILE_NAME)
+                && !namesToKeep.contains(name);
           }
         };
 
@@ -271,6 +290,14 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     }
   }
 
+  private void writeDepsFile(byte[] deps) throws IOException {
+    final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
+    try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
+      depsFile.write(deps);
+      depsFile.setLength(depsFile.getFilePointer());
+    }
+  }
+
   private static boolean forceRefresh(int flags) {
     return (flags & SoSource.PREPARE_FLAG_FORCE_REFRESH) != 0;
   }
@@ -296,7 +323,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     // By default, if we're forcing a refresh or dependencies have changed the state is dirty
     byte state = STATE_DIRTY;
     boolean forceUnpacking = forceRefresh(flags);
-    if (!forceUnpacking && !depsChanged(recomputedDeps)) {
+    final boolean depsUnchanged = !forceUnpacking && !depsChanged(recomputedDeps);
+    if (depsUnchanged) {
       try (RandomAccessFile stateFile = new RandomAccessFile(stateFileName, "rw")) {
         // If the stateFile is not one byte don't even bother reading from it
         if (stateFile.length() == 1) {
@@ -322,7 +350,18 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     final boolean runFsync = ((flags & PREPARE_FLAG_DISABLE_FS_SYNC_JOB) == 0);
     LogUtil.v(TAG, "so store dirty: regenerating");
     writeState(stateFileName, STATE_DIRTY, runFsync);
-    deleteSoFiles();
+    if (mResumableUnpack && depsUnchanged) {
+      try (Unpacker u = makeUnpacker()) {
+        deleteSoFiles(u.getDsos());
+      }
+    } else {
+      deleteSoFiles(new Dso[0]);
+    }
+    if (mResumableUnpack) {
+      // Writing the deps before unpacking lets the next refresh resume an unpack killed midway. The
+      // store stays STATE_DIRTY until the syncer runs, and the unpacker verifies each DSO it keeps.
+      writeDepsFile(recomputedDeps);
+    }
     try (Unpacker u = makeUnpacker()) {
       u.unpack(soDirectory);
     }
@@ -331,10 +370,8 @@ public abstract class UnpackingSoSource extends DirectorySoSource implements Asy
     // store STATE_DIRTY, which will cause us to ignore all intermediate state when regenerating it.
     // That is, it's okay for the depsFile blocks to hit the disk before the actual DSO data file
     // blocks as long as both hit the disk before we reset STATE_CLEAN.
-    final File depsFileName = new File(soDirectory, DEPS_FILE_NAME);
-    try (RandomAccessFile depsFile = new RandomAccessFile(depsFileName, "rw")) {
-      depsFile.write(recomputedDeps);
-      depsFile.setLength(depsFile.getFilePointer());
+    if (!mResumableUnpack) {
+      writeDepsFile(recomputedDeps);
     }
 
     // Task to dump the buffer cache to disk to guard against battery outages. The default is to run

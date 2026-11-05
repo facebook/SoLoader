@@ -50,7 +50,16 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
 
   BackupSoSource(
       Context context, ApplicationInfo aInfo, File storePath, boolean resolveDependencies) {
-    super(context, storePath, resolveDependencies);
+    this(context, aInfo, storePath, resolveDependencies, false);
+  }
+
+  BackupSoSource(
+      Context context,
+      ApplicationInfo aInfo,
+      File storePath,
+      boolean resolveDependencies,
+      boolean resumableUnpack) {
+    super(context, storePath, resolveDependencies, resumableUnpack);
     mZipSources.add(
         new ExtractFromZipSoSource(
             context,
@@ -166,7 +175,7 @@ public class BackupSoSource extends UnpackingSoSource implements RecoverableSoSo
       // Delete all files in the directory before unpacking
       for (ExtractFromZipSoSource zipSource : mZipSources) {
         try (ZipUnpacker u = (ZipUnpacker) zipSource.makeUnpacker()) {
-          u.unpack(soDirectory);
+          u.unpack(soDirectory, mResumableUnpack);
         }
       }
     }

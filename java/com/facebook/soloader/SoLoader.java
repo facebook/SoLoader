@@ -585,8 +585,10 @@ public class SoLoader {
       backupSoSource =
           new BackupSoSource(
               backupContext,
+              backupContext.getApplicationInfo(),
               new File(backupContext.getDataDir(), SO_STORE_NAME_MAIN),
-              !implicitDependencies);
+              !implicitDependencies,
+              true);
     } else {
       backupSoSource = new BackupSoSource(context, SO_STORE_NAME_MAIN, !implicitDependencies);
     }

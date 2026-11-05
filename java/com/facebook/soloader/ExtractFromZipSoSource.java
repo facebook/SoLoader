@@ -148,9 +148,27 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
 
     @Override
     public void unpack(File soDirectory) throws IOException {
+      unpack(soDirectory, false);
+    }
+
+    /**
+     * @param keepExtractedDsos Keep DSOs already in {@code soDirectory} whose size and CRC match
+     *     their zip entry, instead of extracting them again
+     */
+    void unpack(File soDirectory, boolean keepExtractedDsos) throws IOException {
       ZipDso[] dsos = getExtractableDsosFromZip();
       byte[] ioBuffer = new byte[32 * 1024];
       for (ZipDso zipDso : dsos) {
+        if (keepExtractedDsos) {
+          File dsoFile = new File(soDirectory, zipDso.name);
+          if (isExtracted(dsoFile, zipDso, ioBuffer)) {
+            LogUtil.i(TAG, "keeping extracted DSO " + zipDso.name);
+            continue;
+          }
+          if (dsoFile.exists()) {
+            SysUtil.dumbDelete(dsoFile);
+          }
+        }
         InputStream is = mZipFile.getInputStream(zipDso.backingEntry);
         try (InputDso inputDso = new InputDso(zipDso, is)) {
           is = null; // Transfer ownership to inputDso
@@ -161,6 +179,23 @@ public class ExtractFromZipSoSource extends UnpackingSoSource {
           }
         }
       }
+    }
+
+    private boolean isExtracted(File dsoFile, ZipDso zipDso, byte[] ioBuffer) {
+      if (dsoFile.length() != zipDso.backingEntry.getSize()) {
+        return false;
+      }
+      Checksum checksum = new CRC32();
+      try (InputStream inputStream = new FileInputStream(dsoFile)) {
+        int length;
+        while ((length = inputStream.read(ioBuffer)) != -1) {
+          checksum.update(ioBuffer, 0, length);
+        }
+      } catch (IOException e) {
+        LogUtil.w(TAG, "Failed to verify extracted DSO " + dsoFile, e);
+        return false;
+      }
+      return checksum.getValue() == zipDso.backingEntry.getCrc();
     }
   }
 
